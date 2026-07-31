@@ -1,0 +1,18 @@
+{
+  "name": "disc-jockey-bukkit",
+  "leadAgentId": "248d6bd740464cc89e665c9a730b2b09",
+  "workspacePath": "/Users/sunchengbin/Desktop/LL/Disc-Jockey",
+  "createdAt": "2026-06-27T16:34:42.231Z",
+  "options": {
+    "workspacePath": "/Users/sunchengbin/Desktop/LL/Disc-Jockey",
+    "isAutoTeam": false
+  },
+  "members": [
+    {
+      "memberId": "team-lead@disc-jockey-bukkit",
+      "name": "team-lead",
+      "role": "Team Lead - coordinates the team and interacts with the user"
+    }
+  ],
+  "isAutoTeam": false
+}

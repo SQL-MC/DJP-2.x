@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "disc_jockey_plus",
+  "version": "${version}",
+  "name": "Disc Jockey Plus",
+  "description": "Play note block songs in Minecraft 26.2",
+  "authors": ["SQL_MC",
+  "SRomanceS"
+  ],
+  "contributors": [
+    "SemmieDev",
+    "EnderKill98"
+  ],
+  "coder":["SRomanceS",
+  "SQL_MC",
+  "YuanBaoAI"
+  ]
+  ,
+  "contact": {
+    "repo": "https://github.com/SemmieDev/Disc-Jockey"
+  },
+  "license": "MIT",
+  "icon": "assets/disc_jockey/icon.png",
+  "environment": "client",
+  "entrypoints": {
+  "main": [],
+  "client": [
+    "semmiedev.disc_jockey.Main",
+    "semmiedev.disc_jockey.client.DiscJockeyHud"
+  ],
+  "modmenu": [
+    "semmiedev.disc_jockey.ModMenuIntegration"
+  ]
+ },
+  "accessWidener": "disc_jockey.accesswidener",
+  "mixins": [
+    "disc_jockey.mixins.json"
+  ],
+  "depends": {
+    "fabric-api": "*",
+    "minecraft": ">=26.1",
+    "cloth-config": "*"
+  }
+}

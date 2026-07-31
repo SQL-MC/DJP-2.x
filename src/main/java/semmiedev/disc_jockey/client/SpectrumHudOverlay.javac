@@ -1,0 +1,51 @@
+package semmiedev.disc_jockey.client;
+
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.util.profiling.Profiler;
+import net.minecraft.util.profiling.ProfilerFiller;
+import semmiedev.disc_jockey.Main;
+import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumVisualizer;
+
+public class SpectrumHudOverlay implements HudElement {
+
+    private static final int BAR_WIDTH = 4;
+    private static final int BAR_GAP = 1;
+    private static final int MAX_BAR_HEIGHT = 48;
+    private static final int BOTTOM_MARGIN = 52;
+
+    @Override
+    public void render(GuiGraphicsExtractor graphics, net.minecraft.client.gui.DeltaTracker deltaTracker) {
+        // 配置开关：spectrumAlwaysVisible == true 才画
+        if (Main.config == null || !Main.config.spectrumAlwaysVisible) return;
+
+        SpectrumVisualizer viz = Main.SPECTRUM;
+        if (viz == null) return;
+
+        // 你项目里频谱数据就在这里（前几轮确认过 Main.SPECTRUM.currentLevels 是 float[]）
+        float[] levels = viz.currentLevels;
+        if (levels == null || levels.length == 0) return;
+
+        // 没在播歌就不画
+        if (!Main.SONG_PLAYER.running && !Main.PREVIEVER.running) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        int sw = mc.getWindow().getGuiScaledWidth();
+        int sh = mc.getWindow().getGuiScaledHeight();
+
+        int totalW = levels.length * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
+        int x0 = (sw - totalW) / 2;
+        int baseY = sh - BOTTOM_MARGIN;
+
+        for (int i = 0; i < levels.length; i++) {
+            int h = (int) (levels[i] * MAX_BAR_HEIGHT * 2.5f);
+            if (h < 2) h = 2;
+
+            int x = x0 + i * (BAR_WIDTH + BAR_GAP);
+            // 青色 ARGB；想渐变就按 i 算色相
+            int color = 0xFF00FFFF;
+            graphics.fill(x, baseY - h, x + BAR_WIDTH, baseY, color);
+        }
+    }
+}
