@@ -973,7 +973,7 @@ public class Main implements ClientModInitializer {
                 new KeyMapping(
                         "🎵", // ← Emoji 显示，不和 J 重复
                         InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_K, // ← K 键
+                        GLFW.GLFW_KEY_B, // ← K 键
                         KeyMapping.Category.MISC
                 )
         );

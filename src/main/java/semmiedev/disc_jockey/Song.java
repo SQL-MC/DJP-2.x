@@ -97,7 +97,7 @@ public class Song {
             all.sort(Comparator.comparingInt((NoteData n) -> n.tick)
                     .thenComparingInt(n -> n.layer));
 
-            int headerLength = (this.length > 0) ? (this.length & 0xFFFF) : computeMaxTick(all);
+            int headerLength = Math.max(1, computeMaxTick(all));
 
             // ===== 头部（顺序与 SongLoader.loadSong 逐字段对称）=====
             // ★★★ 旧格式：length > 0（不走 newFormat 分支）★★★
@@ -122,6 +122,20 @@ public class Song {
 
             // ===== 音符区（旧格式：每条只写 instrument + noteIdRaw，无额外字节）=====
             writeNotesLE(raf, all, headerLength);
+
+            // ===== ★★★ 图层区（Layers）★★★
+            // ONBS 读完音符区后，必须按 header 里的 height 逐条读取图层
+            // （每条 = string 名称 + byte 音量）。缺失会导致
+            // buffer_read_string_int 越界 → blocks_set_instruments 收到 undefined。
+            writeLayersLE(raf, this.height & 0xFFFF);
+
+            // ===== ★★★ 自定义乐器数量（Custom Instruments count）= 0 ★★★
+            // ★ 这是本次修复的核心：图层区之后必须明确写 0，作为终止标记。
+            // 若不写，ONBS 读完图层后会继续尝试读「自定义乐器数量」，
+            // 此时已到文件尾/错位，会读到垃圾数值当作自定义乐器数量，
+            // 进而生成 undefined 的乐器条目 → blocks_set_instruments 传参报错
+            // "REAL argument incorrect type undefined"。
+            writeIntLE(raf, 0);
         }
     }
 
@@ -152,6 +166,30 @@ public class Song {
             writeShortLE(raf, 0); // 内层结束（layer jump = 0）
         }
         writeShortLE(raf, 0); // 外层结束（tick jump = 0）
+    }
+
+    /**
+     * ★★★ 图层区：按 height 逐条写出，每条 = string 名称 + byte 音量（NBS v0 结构）★★★
+     *
+     * 当前写：名称 "Grand Piano"（11 字节）+ 1 个 byte volume=100（0x64='d'），
+     * 与你正常 .nbs 文件尾部的 "Grand Piano" + 'd' 完全一致。
+     *
+     * ⚠ 核对方法（若仍报 layer 错位，请按此调整）：
+     *   用 HxD 打开「正常文件」，看每条 "Grand Piano" 后面跟了几个字节：
+     *   - 只有 1 个 0x64('d')          → 保持现状（只写 volume）
+     *   - 有 2 个 0x64('d' 'd')        → 再加一行 writeByte(raf, 100); // stereo
+     *   - 有 3 个字节（如 00 64 64）   → 再加 lock 和 stereo：
+     *         writeByte(raf, 0);   // lock = 0
+     *         writeByte(raf, 100); // volume
+     *         writeByte(raf, 100); // stereo
+     */
+    private static void writeLayersLE(RandomAccessFile raf, int layerCount) throws IOException {
+        for (int i = 0; i < layerCount; i++) {
+            writeNbsStringLE(raf, "Grand Piano"); // 图层名
+            writeByte(raf, 100);                  // volume = 100（0x64 = 'd'）
+            // writeByte(raf, 100);               // ← 若正常文件有 stereo，取消本行注释
+            // writeByte(raf, 0);                 // ← 若还有 lock（写在 volume 前），按需启用
+        }
     }
 
     /** ★★★ noteId → 存盘字节：+33（NBS 官方，与 SongLoader 的 -33 互逆）★★★ */

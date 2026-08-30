@@ -5,7 +5,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class MidiToNbsImporter {
 
@@ -17,14 +22,20 @@ public class MidiToNbsImporter {
     @SuppressWarnings("unused")
     private static final int SIGNED_MAX = 54;
 
-    /** MIDI 音高基准: NBS key + 21 = MIDI note (NBSTool/NBStoMIDI 验证) */
+    /** MIDI 音高基准: NBS key + 21 = MIDI note */
     private static final int MIDI_TO_NBS_OFFSET = 21;
 
     /** MIDI PPQ（默认 480，若 sequence 有 division 则用它） */
     private static final int DEFAULT_PPQ = 480;
 
-    /** Minecraft tick 速率 */
-    private static final double NBS_TICKS_PER_SECOND = 20.0;
+    /** NBS 侧 PPQ：4 tick/四分音符（与 NbsToMidiExporter.PPQ 一致） */
+    private static final int NBS_PPQ = 4;
+
+    /** 经典 NBS 原版乐器数（0-9），超出会被 ONBS 当自定义乐器查表 → undefined */
+    private static final int VANILLA_INSTRUMENT_COUNT = 10;
+
+    /** ONBS 网格分配上限约 1MB（length × height × 8 字节） */
+    private static final long GRID_BYTE_LIMIT = 1048576L;
 
     public static Song importMidi(File midiFile) {
         if (midiFile == null || !midiFile.exists() || !midiFile.isFile()) return null;
@@ -38,20 +49,21 @@ public class MidiToNbsImporter {
 
         double bpm = parseTempo(sequence);
         int ppq = getPpq(sequence);
-        // 1 NBS tick = tickRatio 个 MIDI PPQ tick
-        double tickRatio = computeTickRatio(bpm, ppq);
+        double tickRatio = computeTickRatio(ppq);
 
-        // 只给"确实含 NOTE_ON"的有效 track 编连续 layer
+        // 只给"确实含 NOTE_ON"的有效 track 编 layer
         List<Track> usable = new ArrayList<>();
         for (Track t : sequence.getTracks()) if (hasNoteOn(t)) usable.add(t);
 
-        List<NoteEvent> events = new ArrayList<>();
+        // ============================================================
+        // 第一遍：收集所有 NOTE_ON，转成 nbsTick，layer 稍后分配
+        // ============================================================
+        List<RawEvent> raws = new ArrayList<>();
+        int rawMaxTick = 0;
 
         for (int ti = 0; ti < usable.size(); ti++) {
             Track track = usable.get(ti);
-            int layer = ti;
 
-            // ★ 从 track 里提取 channel 和"最后一个 GM program"
             int channel = -1;
             int gmProgram = 0;   // 默认 piano(0)
             for (int i = 0; i < track.size(); i++) {
@@ -59,69 +71,128 @@ public class MidiToNbsImporter {
                 if (me.getMessage() instanceof ShortMessage sm) {
                     if (channel < 0) channel = sm.getChannel();
                     if (sm.getCommand() == ShortMessage.PROGRAM_CHANGE) {
-                        gmProgram = sm.getData1();   // ★ 持续更新，覆盖 track 内所有 program change
+                        gmProgram = sm.getData1();
                     }
                 }
             }
 
             boolean isDrum = (channel == 9);
-            // ★ 鼓通道若没有 program change，强制指向鼓组 program(128 标记)
             final int resolvedProgram = isDrum ? (gmProgram == 0 ? 128 : gmProgram) : gmProgram;
-            final int nbsInstrument = mapGmToNbs(resolvedProgram, isDrum);
+            final int nbsInstrument = clampToVanilla(mapGmToNbs(resolvedProgram, isDrum));
 
             for (int i = 0; i < track.size(); i++) {
-                MidiEvent me = track.get(i);                          // ★ MidiEvent 变量
+                MidiEvent me = track.get(i);
                 if (me.getMessage() instanceof ShortMessage sm) {
                     if (sm.getCommand() == ShortMessage.NOTE_ON && sm.getData2() > 0) {
-                        events.add(new NoteEvent(
-                                me.getTick(), layer, nbsInstrument, // ✅ me.getTick()，不是 sm.getTick()
+                        int nbsTick = (tickRatio > 0)
+                                ? (int) Math.round(me.getTick() / tickRatio)
+                                : (int) me.getTick();
+                        if (nbsTick < 0) nbsTick = 0;
+                        // ★ 上限 Short.MAX_VALUE：Song.length 是有符号 short
+                        if (nbsTick > Short.MAX_VALUE) nbsTick = Short.MAX_VALUE;
+
+                        raws.add(new RawEvent(nbsTick, ti, nbsInstrument,
                                 sm.getData1(), sm.getData2()));
+                        if (nbsTick > rawMaxTick) rawMaxTick = nbsTick;
                     }
                 }
             }
         }
 
-        if (events.isEmpty()) return null;
+        if (raws.isEmpty()) return null;
 
-        // ★ (tick, layer) 排序, 保证 jump 编码单调递增
+        // ★ 动态计算允许的 layer 上限，保证 ONBS 网格 (length × height × 8) < 1MB
+        long lim = GRID_BYTE_LIMIT / (8L * Math.max(1, rawMaxTick + 1));
+        int allowedLayers = (int) Math.max(1, Math.min(256, lim));
+        int skipped = 0;
+
+        // ============================================================
+        // 第二遍：voice 贪心分配 layer —— 保证 (tick, layer) 全局唯一
+        //
+        // ★★★ 这是修复“后面全空”的核心 ★★★
+        // NBS 音符区里 layer jump = 0 是“层结束”标记。
+        // 若同一 (tick, layer) 出现两个音符（钢琴和弦很常见），
+        // 写入时第二个的 layer jump = 0，ONBS 会误判层结束 →
+        // 提前终止整个音符区 → 该 tick 之后所有音符全部丢失。
+        // 表现：歌曲只有前面一小段有声，后面全空。
+        //
+        // voice 贪心：同一 track 内同时发声的音符分到不同 voice（= 不同 layer），
+        // voice 数 = 该 track 最大同时发音数，是理论最优（最少）分配。
+        // ============================================================
+        Map<Integer, List<RawEvent>> byTrack = new HashMap<>();
+        for (RawEvent r : raws) byTrack.computeIfAbsent(r.track, k -> new ArrayList<>()).add(r);
+
+        List<Integer> trackIds = new ArrayList<>(byTrack.keySet());
+        trackIds.sort(Comparator.naturalOrder());
+
+        int layerBase = 0;
+        int maxVoices = 0;
+        for (int ti : trackIds) {
+            List<RawEvent> list = byTrack.get(ti);
+            list.sort(Comparator.comparingInt((RawEvent r) -> r.tick)
+                    .thenComparingInt(r -> r.note));
+
+            List<Integer> voiceLastTick = new ArrayList<>();
+            for (RawEvent r : list) {
+                int v = -1;
+                for (int i = 0; i < voiceLastTick.size(); i++) {
+                    // ★ 严格小于：同一 tick 的音符必须用不同 voice
+                    if (voiceLastTick.get(i) < r.tick) { v = i; break; }
+                }
+                if (v < 0) {
+                    // 需要新 voice，但已到 layer 上限 → 丢弃该音（保证文件可加载）
+                    if (layerBase + voiceLastTick.size() >= allowedLayers) { skipped++; continue; }
+                    v = voiceLastTick.size();
+                    voiceLastTick.add(-1);
+                }
+                voiceLastTick.set(v, r.tick);
+                r.layer = layerBase + v;
+            }
+            if (voiceLastTick.size() > maxVoices) maxVoices = voiceLastTick.size();
+            layerBase += voiceLastTick.size();
+        }
+
+        // 转成 NoteEvent 并排序
+        List<NoteEvent> events = new ArrayList<>(raws.size());
+        for (RawEvent r : raws) {
+            events.add(new NoteEvent(r.tick, r.layer, r.instrument, r.note, r.velocity));
+        }
+
         events.sort(Comparator.comparingLong((NoteEvent e) -> e.tick)
                 .thenComparingInt(e -> e.layer));
 
+        // ============================================================
+        // 第三遍：八度偏移 + packNote
+        // ============================================================
         List<Long> packed = new ArrayList<>();
         int maxTick = 0, maxLayer = 0;
 
         for (NoteEvent evt : events) {
-            // —— 1) MIDI note → NBS key (含乐器八度偏移) ——
             int nbsKey = evt.note - MIDI_TO_NBS_OFFSET;   // midiNote - 21
 
-            // ★ 乐器八度偏移：evt.instrument 现在是 NBS instrument 索引(0-19)，分支正确命中
+            // 乐器八度偏移（完整保留全部 20 个分支）
             switch (evt.instrument) {
-                case 1:  nbsKey += 24; break;  // BASS: 低2八度 → 导入 +24 补偿
-                case 11: nbsKey += 24; break;  // DIDGERIDOO: 低音 → +24
-                case 12: nbsKey += 24; break;  // BIT: 低音 → +24
-                case 5:  nbsKey += 12; break;  // GUITAR: 低1八度 → +12
-                case 6:  nbsKey -= 12; break;  // FLUTE: 高1八度 → -12
-                case 8:  nbsKey -= 12; break;  // CHIME: 高1八度 → -12
-                case 7:  nbsKey -= 24; break;  // BELL: 高2八度 → -24
-                case 9:  nbsKey -= 24; break;  // XYLOPHONE: 高2八度 → -24
-                case 10: nbsKey -= 24; break;  // IRON_XYLOPHONE: 高2八度 → -24
-                case 13: nbsKey -= 24; break;  // COW_BELL: 高2八度 → -24
-                case 16: case 17: case 18: case 19: nbsKey -= 24; break; // TRUMPET 系: 高2八度
-                // 0(HARP), 2(BASEDRUM), 3(SNARE), 4(HAT), 14(BANJO), 15(PLING): 不偏移
+                case 1:  nbsKey += 24; break;  // BASS
+                case 11: nbsKey += 24; break;  // DIDGERIDOO
+                case 12: nbsKey += 24; break;  // BIT
+                case 5:  nbsKey += 12; break;  // GUITAR
+                case 6:  nbsKey -= 12; break;  // FLUTE
+                case 8:  nbsKey -= 12; break;  // CHIME
+                case 7:  nbsKey -= 24; break;  // BELL
+                case 9:  nbsKey -= 24; break;  // XYLOPHONE
+                case 10: nbsKey -= 24; break;  // IRON_XYLOPHONE
+                case 13: nbsKey -= 24; break;  // COW_BELL
+                case 16: case 17: case 18: case 19: nbsKey -= 24; break; // TRUMPET 系
             }
 
-            // 八度折叠到 NBS 合法范围 0-87
             while (nbsKey < 0) nbsKey += 12;
             while (nbsKey > 87) nbsKey -= 12;
 
-            int signedNoteId = nbsKey - 33;   // 与 Song.save(+33) / Note.packNoteId 对称
+            int signedNoteId = nbsKey - 33;
 
-            // —— 2) tick: MIDI PPQ → NBS 游戏tick ——
-            int nbsTick = (tickRatio > 0)
-                    ? (int) Math.round(evt.tick / tickRatio)
-                    : (int) evt.tick;
+            int nbsTick = (int) evt.tick;
             if (nbsTick < 0) nbsTick = 0;
-            if (nbsTick > 0xFFFF) nbsTick = 0xFFFF;   // ★ 防止 short 溢出
+            if (nbsTick > Short.MAX_VALUE) nbsTick = Short.MAX_VALUE;
 
             packed.add(packNote(nbsTick, evt.layer, evt.instrument, signedNoteId));
 
@@ -133,7 +204,6 @@ public class MidiToNbsImporter {
 
         long[] notesArray = packed.stream().mapToLong(Long::longValue).toArray();
 
-        // ★ Tempo: MIDI BPM → NBS tempo (与导出互逆: bpm = tempo/100*15)
         int tempoInt = (int) Math.max(0, Math.min(Short.MAX_VALUE, bpm / 15.0 * 100));
         short safeTempo  = (short) tempoInt;
         short safeLength = (short) Math.max(0, Math.min(Short.MAX_VALUE, maxTick + 1));
@@ -147,6 +217,18 @@ public class MidiToNbsImporter {
         song.tempo = safeTempo;
         song.loopStartTick = 0;
 
+        // uniqueNotes（final ArrayList<Note>，只能 clear + add）
+        song.uniqueNotes.clear();
+        Set<Long> uniqueKeys = new LinkedHashSet<>();
+        for (long p : notesArray) {
+            int instrument = (int) ((p >> 32) & 0xFF);
+            int noteId = Note.extractNoteId(p);
+            long key = ((long) instrument << 8) | (noteId & 0xFF);
+            if (uniqueKeys.add(key)) {
+                song.uniqueNotes.add(new Note(Note.INSTRUMENTS[instrument], (byte) noteId));
+            }
+        }
+
         song.fileName = midiFile.getName();
         song.displayName = stripExt(midiFile.getName());
         song.name = song.displayName;
@@ -155,9 +237,8 @@ public class MidiToNbsImporter {
         song.description = "";
         song.importFileName = midiFile.getName();
 
-        // ★ 走「新格式」分支, 与 Song.save 默认 (vanillaInstrumentCount=20≠0) 一致
         song.formatVersion = 0;
-        song.vanillaInstrumentCount = (byte) Note.INSTRUMENTS.length;  // = 20
+        song.vanillaInstrumentCount = (byte) VANILLA_INSTRUMENT_COUNT;
         song.autoSaving = 0;
         song.autoSavingDuration = 0;
         song.timeSignature = 4;
@@ -173,17 +254,45 @@ public class MidiToNbsImporter {
 
         song.searchableFileName = song.fileName.toLowerCase();
         song.searchableName = song.displayName.toLowerCase();
+
+        // ============ 诊断日志 ============
+        int conflicts = 0;
+        Set<Long> seen = new HashSet<>();
+        for (long p : notesArray) {
+            long k = (p & 0xFFFFL) | (((p >>> 16) & 0xFFFFL) << 32);
+            if (!seen.add(k)) conflicts++;
+        }
+        System.out.println("[MidiToNbsImporter] DIAG notes=" + notesArray.length
+                + " maxTick=" + maxTick + " maxLayer=" + maxLayer
+                + " | length=" + song.length + " height=" + song.height
+                + " tempo=" + song.tempo
+                + " | bpm=" + bpm + " ppq=" + ppq + " tickRatio=" + tickRatio);
+        System.out.println("[MidiToNbsImporter] DIAG (tick,layer)冲突=" + conflicts
+                + " ← 必须为 0（非 0 会导致 ONBS 提前终止、后面全空）");
+        System.out.println("[MidiToNbsImporter] DIAG 每track最大voice=" + maxVoices
+                + " layer上限=" + allowedLayers
+                + " 网格≈" + ((long) safeLength * safeHeight * 8L / 1024) + "KB");
+        if (skipped > 0) {
+            System.out.println("[MidiToNbsImporter] ⚠ 因 layer 上限丢弃音符=" + skipped
+                    + "（可忽略，或缩短歌曲 / 增大 GRID_BYTE_LIMIT）");
+        }
+
         return song;
     }
 
+    /** 把乐器 ID 钳制到经典 NBS 原版范围 [0, 9]，杜绝 ONBS 查自定义乐器表拿到 undefined */
+    private static int clampToVanilla(int instrument) {
+        return (instrument < 0 || instrument >= VANILLA_INSTRUMENT_COUNT) ? 0 : instrument;
+    }
+
     /**
-     * GM program → NBS instrument 映射
+     * GM program → NBS instrument 映射（完整保留全部区间）
      * @param gmProgram 0-127 GM program；鼓组用 128 表示"未指定鼓"
      * @param isDrum 是否鼓机通道 (channel 10 / index 9)
      */
     private static int mapGmToNbs(int gmProgram, boolean isDrum) {
         if (isDrum) {
-            // 鼓通道一律 BASEDRUM(1)，偏移 +24 低音区（简单可靠）
+            // 鼓通道一律 BASEDRUM(1)
             return 1;
         }
         if (gmProgram >= 0  && gmProgram <= 7)  return 0;   // HARP (钢琴/电钢)
@@ -202,15 +311,11 @@ public class MidiToNbsImporter {
     }
 
     /**
-     * PPQ → 游戏tick 转换系数
+     * MIDI tick → NBS tick 转换系数（NBS 标准：4 tick/四分音符）
      * nbsTick = midiTick / tickRatio
      */
-    private static double computeTickRatio(double bpm, int ppq) {
-        double beatsPerSecond = bpm / 60.0;
-        // 1 秒 = bpm/60 拍 = bpm/60 * ppq 个 MIDI tick
-        // 1 秒 = 20 个 NBS tick
-        // → 1 NBS tick = (bpm/60 * ppq) / 20 个 MIDI tick
-        return (beatsPerSecond * ppq) / NBS_TICKS_PER_SECOND;
+    private static double computeTickRatio(int ppq) {
+        return ppq / (double) NBS_PPQ;
     }
 
     private static int getPpq(Sequence sequence) {
@@ -237,18 +342,16 @@ public class MidiToNbsImporter {
 
     /**
      * packNote —— 位域严格对齐 Note.java:
-     *   bit 0-15  : tick        (16位)
-     *   bit 16-31 : layer       (16位, = LAYER_SHIFT)
-     *   bit 32-39 : instrument  (8位,  = INSTRUMENT_SHIFT)
-     *   bit 40-47 : note        (8位,  = NOTE_SHIFT, 由 Note.packNoteId 写入)
-     *
-     * ★ 注意: instrument 必须已是 NBS instrument 索引(0-19)，不是 GM program
+     *   bit 0-15  : tick
+     *   bit 16-31 : layer
+     *   bit 32-39 : instrument
+     *   bit 40-47 : note (由 Note.packNoteId 写入)
      */
     private static long packNote(int tick, int layer, int instrument, int signedNoteId) {
-        long packed = ((long) tick       & 0xFFFFL)        // bit  0-15
-                | ((long) layer          & 0xFFFFL) << 16  // bit 16-31
-                | ((long) instrument     & 0xFFL)   << 32; // bit 32-39
-        return Note.packNoteId(packed, signedNoteId);        // bit 40-47
+        long packed = ((long) tick       & 0xFFFFL)
+                | ((long) layer          & 0xFFFFL) << 16
+                | ((long) instrument     & 0xFFL)   << 32;
+        return Note.packNoteId(packed, signedNoteId);
     }
 
     private static int parseTempo(Sequence sequence) {
@@ -264,10 +367,25 @@ public class MidiToNbsImporter {
         return DEFAULT_BPM;
     }
 
+    /** 第一遍收集用的原始事件（layer 待 voice 分配） */
+    private static final class RawEvent {
+        final int tick;
+        int layer;
+        final int track;
+        final int instrument;
+        final int note;
+        final int velocity;
+        RawEvent(int tick, int track, int instrument, int note, int velocity) {
+            this.tick = tick; this.track = track;
+            this.instrument = instrument; this.note = note; this.velocity = velocity;
+            this.layer = 0;
+        }
+    }
+
     private static class NoteEvent {
         final long tick;
         final int layer;
-        final int instrument;  // ★ 此处存的是 NBS instrument 索引 (0-19)
+        final int instrument;  // NBS instrument 索引（已 clamp 到 0-9）
         final int note;        // MIDI note (0-127)
         final int velocity;
         NoteEvent(long tick, int layer, int instrument, int note, int velocity) {
