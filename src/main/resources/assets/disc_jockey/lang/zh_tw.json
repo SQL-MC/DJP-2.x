@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "打開 DiscJockeyPlus 主頁🎶",
+  "disc_jockey.key_bind.transpose_up": "升調（+半音）",
+  "disc_jockey.key_bind.transpose_down": "降調（-半音）",
+  "disc_jockey.key_bind.transpose_reset": "轉調歸零",
+  "disc_jockey.key_bind.transpose_status": "顯示目前轉調值",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "始終顯示頻譜",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "即使關閉 GUI，頻譜也會持續顯示。",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "適合即時調音與演奏場景。",

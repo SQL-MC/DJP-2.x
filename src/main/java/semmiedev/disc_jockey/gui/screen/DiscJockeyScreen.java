@@ -17,11 +17,9 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.item.ItemStack;
 import semmiedev.disc_jockey.*;
 import semmiedev.disc_jockey.gui.SongListWidget;
 import semmiedev.disc_jockey.gui.SongTimeSliderWidget;
-import semmiedev.disc_jockey.gui.hud.BlocksOverlay;
 
 import java.awt.Desktop;
 import java.awt.EventQueue;
@@ -37,37 +35,13 @@ import java.util.stream.Collectors;
 public class DiscJockeyScreen extends Screen {
 
     /* =========================================================
-       ✅ 频谱样式（不拆文件，全部内聚）【OLD】
+       ✅ parent screen：从主菜单/暂停菜单打开时记录，关闭后返回
        ========================================================= */
-    /*
-    public enum SpectrumStyle {
-        BAR("条形"),
-        WAVE("波形"),
-        RING("圆环"),
-        MIRROR("镜像对称"),
-        PARTICLE("粒子");
+    private Screen parent = null;
 
-        public final String displayName;
-
-        SpectrumStyle(String displayName) {
-            this.displayName = displayName;
-        }
-    }
-
-    private static SpectrumStyle spectrumStyle = SpectrumStyle.BAR;
-
-    public static void cycleSpectrumStyle() {
-        SpectrumStyle[] values = SpectrumStyle.values();
-        spectrumStyle = values[(spectrumStyle.ordinal() + 1) % values.length];
-    }
-
-    public static SpectrumStyle getSpectrumStyle() {
-        return spectrumStyle;
-    }
-    */
-
+    public void setParent(Screen parent) { this.parent = parent; }
     /* =========================================================
-       ✅ 原有常量（一字未动，仅修正 API 拼写）
+       ✅ 原有常量（一字未动）
        ========================================================= */
     private static final MutableComponent
             SELECT_SONG = Component.translatable(Main.MOD_ID + ".screen.select_song"),
@@ -98,9 +72,20 @@ public class DiscJockeyScreen extends Screen {
     private Button configButton;
 
     /* =========================================================
-       ✅ 新增：频谱样式切换按钮（完整保留，不删不减）
+       ✅ 频谱样式切换按钮
        ========================================================= */
     private CycleButton<SpectrumRendererManager.Style> spectrumStyleButton;
+
+    /* =========================================================
+       ✅✅✅ 速度 + 移调按钮（DJP021700：频谱右侧，对齐 DiscjockeyCommand）
+       ========================================================= */
+    /** 速度预设（0.5 / 0.75 / 1.0 / 1.25 / 1.5），与 /discjockey speed 一致 */
+    private static final Float[] SPEED_VALUES = { 0.5F, 0.75F, 1.0F, 1.25F, 1.5F };
+    /** 移调预设（半音），与 /discjockey transpose 范围 -24~24 的子集 */
+    private static final Integer[] TRANSPOSE_VALUES = { -12, -6, -3, 0, 3, 6, 12 };
+
+    private CycleButton<Float> speedButton;
+    private CycleButton<Integer> transposeButton;
 
     private SongListWidget songListWidget;
     private Button playButton, previewButton;
@@ -108,12 +93,23 @@ public class DiscJockeyScreen extends Screen {
     private String query = "";
 
     /* =========================================================
-       ✅ 频谱平滑缓存（解决最高处卡一下/生硬）
+       ✅ 频谱平滑缓存
        ========================================================= */
     private float[] smoothedLevels = new float[16];
 
+    /* =========================================================
+       ✅ 构造器：无参（J键）+ parent版（菜单按钮）
+       ========================================================= */
+    /** 从 J 键 / 正常流程进来：无 parent */
     public DiscJockeyScreen() {
         super(Main.NAME);
+        this.parent = null;
+    }
+
+    /** 从主菜单 / 暂停菜单按钮进来：带 parent，关闭时回退 */
+    public DiscJockeyScreen(Screen parent) {
+        super(Main.NAME);
+        this.parent = parent;
     }
 
     @Override
@@ -220,10 +216,10 @@ public class DiscJockeyScreen extends Screen {
         });
         addRenderableWidget(searchBar);
 
-        songState = new StringWidget(10, 32, width / 2 - 20, 20, Component.empty(), getFont());
+        songState = new StringWidget(10, 32, width / 2 - 20, 20, Component.empty(), this.font);
         addRenderableWidget(songState);
 
-        songTitle = new StringWidget(10, 32 + 20, width / 2 - 20, 20, Component.empty(), getFont());
+        songTitle = new StringWidget(10, 32 + 20, width / 2 - 20, 20, Component.empty(), this.font);
         addRenderableWidget(songTitle);
 
         timeBar = new SongTimeSliderWidget(10, 32 + 20 + 20, width / 2 - 20, 30);
@@ -255,17 +251,17 @@ public class DiscJockeyScreen extends Screen {
                 .build();
         addRenderableWidget(stopButton);
 
+        /* =========================================================
+           ✅ Config 按钮（26.2 正确 API：走 Main.setScreenCompatStatic）
+           ========================================================= */
         configButton = Button.builder(CONFIG, b ->
-                minecraft.setScreenAndShow(AutoConfigClient.getConfigScreen(Config.class, this).get())
+                Main.setScreenCompatStatic(minecraft,
+                        AutoConfigClient.getConfigScreen(Config.class, this).get())
         ).pos(10, height - 30).size(100, 20).build();
         addRenderableWidget(configButton);
 
         /* =========================================================
-           ✅【新增】MIDI 导出按钮（单行选中导出 · 多语言 · 带路径提示）
-           ✅ 位置：configButton 右侧，spectrumStyleButton 左侧
-           ✅ 尺寸与其他按钮完全一致（100×20）
-           ✅ 导出成功后聊天栏显示完整绝对路径
-           ✅【新增】导出后自动打开 midi 文件夹
+           ✅ MIDI 导出按钮（完整保留）
            ========================================================= */
         Button exportMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.export_midi"),
@@ -294,9 +290,6 @@ public class DiscJockeyScreen extends Screen {
                                 false
                         );
 
-                        /* =========================================================
-                           ✅【新增】导出成功后一键打开 midi 文件夹
-                           ========================================================= */
                         if (Desktop.isDesktopSupported() && midiDir.exists()) {
                             Desktop.getDesktop().open(midiDir);
                         }
@@ -311,10 +304,9 @@ public class DiscJockeyScreen extends Screen {
                 }
         ).pos(115, height - 30).size(100, 20).build();
         addRenderableWidget(exportMidiButton);
-        /* ========================================================= */
 
         /* =========================================================
-           ✅【26.2 强制兼容】CycleButton 仅存签名：builder(Function, T)
+           ✅ 频谱样式按钮（26.2 正确签名）
            ========================================================= */
         CycleButton.Builder<SpectrumRendererManager.Style> styleBuilder =
                 CycleButton.<SpectrumRendererManager.Style>builder(
@@ -331,91 +323,84 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(this.spectrumStyleButton);
 
         /* =========================================================
-           ⚠️【原 AWT Import MIDI 按钮 · 完整保留 · 仅注释】
-           ⚠️ Windows / JDK 25 / Fabric 环境下静默失败
-           ⚠️ 不做删除，仅注释，方便回溯
+           ✅✅✅ 移调按钮（DJP021700：IMPORT MIDI 左边最左侧，同一行 y=5）
            ========================================================= */
-        /*
-        Button importMidiButton = Button.builder(
-                Component.translatable("disc_jockey.screen.import_midi"),
-                btn -> {
-                    File midiDir = new File(Main.songsFolder.getParentFile(), "midi");
-                    if (!midiDir.exists() && !midiDir.mkdirs()) {
-                        minecraft.gui.chatListener().handleSystemMessage(
-                                Component.translatable("disc_jockey.import.no_midi_folder"),
-                                false
-                        );
-                        return;
-                    }
-
-                    // ✅ 关键：切到 AWT 事件队列，否则 Windows 不弹窗
-                    EventQueue.invokeLater(() -> {
-                        FileDialog dialog = new FileDialog(
-                                (Frame) null,
-                                "Select MIDI File",
-                                FileDialog.LOAD
-                        );
-                        dialog.setDirectory(midiDir.getAbsolutePath());
-                        dialog.setFile("*.mid;*.midi");
-                        dialog.setVisible(true);
-
-                        String file = dialog.getFile();
-                        if (file == null) {
-                            return; // 用户取消
-                        }
-
-                        File midiFile = new File(dialog.getDirectory(), file);
-
-                        // ✅ 切回 MC 主线程处理结果
-                        minecraft.execute(() -> {
+        this.transposeButton = CycleButton.<Integer>builder(
+                v -> Component.literal("🎵 " + (v == 0 ? "0" : String.format("%+d", v))),
+                Main.SONG_PLAYER.transpose
+        )
+                .displayOnlyValue()
+                .withValues(TRANSPOSE_VALUES)
+                .create(
+                        width - 330, 5, 100, 20,
+                        Component.translatable(Main.MOD_ID + ".screen.transpose"),
+                        (btn, val) -> {
                             try {
-                                Song song = MidiToNbsImporter.importMidi(midiFile);
-                                if (song == null) {
-                                    minecraft.gui.chatListener().handleSystemMessage(
-                                            Component.translatable("disc_jockey.import.empty_or_invalid"),
-                                            false
-                                    );
-                                    return;
+                                // ✅ 与命令 /discjockey transpose 完全对齐（L384-392）
+                                Main.SONG_PLAYER.transpose = val;
+                                if (Main.SONG_PLAYER.song != null) {
+                                    NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, val);
                                 }
-
-                                SongLoader.SONGS.add(song);
-                                SongLoader.sort();
-                                shouldFilter = true;
-
-                                minecraft.gui.chatListener().handleSystemMessage(
-                                        Component.translatable(
-                                                "disc_jockey.import.success",
-                                                song.displayName
-                                        ),
-                                        false
-                                );
-                            } catch (Exception e) {
-                                Main.LOGGER.error("MIDI import failed", e);
-                                minecraft.gui.chatListener().handleSystemMessage(
-                                        Component.translatable("disc_jockey.import.error"),
-                                        false
-                                );
+                                if (Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.running) {
+                                    Main.SONG_PLAYER.tuner.reset();
+                                }
+                            } catch (Throwable t) {
+                                Main.LOGGER.error("Failed to set transpose", t);
                             }
-                        });
-                    });
-                }
-        ).pos(325, height - 30).size(100, 20).build();
-        addRenderableWidget(importMidiButton);
-        */
-        /* ========================================================= */
+                        }
+                );
+        addRenderableWidget(this.transposeButton);
 
         /* =========================================================
-           ✅【当前生效】Fabric 原生 Import MIDI 按钮
-           ✅ 100% 兼容 Windows / JDK 25 / Fabric
-           ✅ 不依赖 AWT / 不弹系统窗口
-           ✅ 游戏内文件列表，日志可控
-           ✅【26.2 专用】位于屏幕最顶上右上角
+           ✅✅✅ 速度按钮（DJP021700：IMPORT MIDI 左边，移调右边，同一行 y=5）
+           ========================================================= */
+        this.speedButton = CycleButton.<Float>builder(
+                v -> Component.literal("⚡ " + (v == 1.0F ? "1.0x" : String.format("%sx", v))),
+                getCurrentSpeed()
+        )
+                .displayOnlyValue()
+                .withValues(SPEED_VALUES)
+                .create(
+                        width - 220, 5, 100, 20,
+                        Component.translatable(Main.MOD_ID + ".screen.speed"),
+                        (btn, v) -> {
+                            try {
+                                Main.PREVIEW_SPEED = v;
+                                Main.SONG_PLAYER.speed = v;
+                            } catch (Throwable t) {
+                                Main.LOGGER.error("Failed to set playback speed", t);
+                            }
+                        }
+                );
+        addRenderableWidget(this.speedButton);
+
+        /* =========================================================
+           ✅ Piano 按钮（26.2 正确 API：走 Main.setScreenCompatStatic）
+           ========================================================= */
+        Button pianoButton = Button.builder(
+                Component.literal("🎹 🎶→"),
+                btn -> {
+                    try {
+                        PianoKeyboardScreen piano = new PianoKeyboardScreen(this);
+                        Main.setScreenCompatStatic(minecraft, piano);
+                    } catch (Throwable t) {
+                        Main.LOGGER.error("Failed to open Piano Keyboard screen", t);
+                    }
+                }
+        ).pos(325, height - 30).size(100, 20).build();
+        addRenderableWidget(pianoButton);
+
+        /* =========================================================
+           ✅ Fabric 原生 Import MIDI 按钮（26.2 正确 API）
+           ✅ 位置：屏幕右上角（最右边）
+           ✅ 走 Main.setScreenCompatStatic
            ========================================================= */
         Button importMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.import_midi"),
                 btn -> {
                     try {
-                        Minecraft.getInstance().gui.setScreen(new MidiFileSelectScreen(this));
+                        Screen midi = new MidiFileSelectScreen(this);
+                        Main.setScreenCompatStatic(minecraft, midi);
                     } catch (Throwable t) {
                         Main.LOGGER.error("Failed to open MIDI selector screen", t);
                         minecraft.gui.chatListener().handleSystemMessage(
@@ -429,10 +414,7 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(importMidiButton);
 
         /* =========================================================
-           ✅【修正】Import MIDI 路径提示（悬浮完整路径，不被截断）
-           ✅ 显示文本：省略
-           ✅ Tooltip：完整绝对路径
-           ✅ 26.2 原生 Tooltip（无 withMaxWidth，防编译失败）
+           ✅ Import MIDI 路径提示（在 IMPORT MIDI 下方）
            ========================================================= */
         File midiDir = new File(Main.songsFolder.getParentFile(), "midi");
         String fullPath = midiDir.getAbsolutePath();
@@ -443,21 +425,40 @@ public class DiscJockeyScreen extends Screen {
 
         StringWidget midiPathHint = new StringWidget(
                 width - 110,
-                5 + 20 + 2,
+                27,
                 100,
                 9,
                 Component.literal(displayPath)
                         .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC),
-                getFont()
+                this.font
         );
         midiPathHint.active = false;
         midiPathHint.visible = true;
-
-        // ✅ 26.2 Fabric：Tooltip.create 即可，自动换行，无需 withMaxWidth
         midiPathHint.setTooltip(Tooltip.create(Component.literal(fullPath)));
-
         addRenderableWidget(midiPathHint);
-        /* ========================================================= */
+    }
+
+    /* =========================================================
+       ✅✅✅ 读取当前播放速度（DJP021700：兼容字段名差异）
+       ========================================================= */
+    private static Float getCurrentSpeed() {
+        try {
+            // 预览/联播运行时，优先读 PREVIEW_SPEED
+            if (Main.PREVIEWER.running) {
+                return Main.PREVIEW_SPEED;
+            }
+            // 普通播放，读 SONG_PLAYER.speed
+            return Main.SONG_PLAYER.speed;
+        } catch (Throwable t) {
+            // 兜底：尝试反射（兼容旧版本字段名）
+            try {
+                java.lang.reflect.Field f = Main.SONG_PLAYER.getClass().getDeclaredField("speed");
+                f.setAccessible(true);
+                return ((Number) f.get(Main.SONG_PLAYER)).floatValue();
+            } catch (Throwable t2) {
+                return 1.0F;
+            }
+        }
     }
 
     private static Component getPlaybackStateText() {
@@ -496,11 +497,9 @@ public class DiscJockeyScreen extends Screen {
         SongListWidget.SongEntry selected = songListWidget.getSelected();
         if (selected != null) {
             int cardX = 10, cardY = 32, cardW = width / 2 - 20, cardH = 36;
-
             context.fill(cardX + 2, cardY + 2, cardX + cardW, cardY + cardH, 0x55000000);
             context.fill(cardX, cardY, cardX + cardW, cardY + cardH, 0xFF2A2A2A);
             context.fill(cardX, cardY, cardX + 4, cardY + cardH, 0xFF00FFAA);
-
             context.text(
                     font,
                     Component.literal("♪ " + selected.song.displayName),
@@ -533,6 +532,22 @@ public class DiscJockeyScreen extends Screen {
         previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
         playButton.setMessage(Main.SONG_PLAYER.running ? PLAY_STOP : PLAY);
 
+        /* =========================================================
+           ✅✅✅ 同步速度/移调按钮显示（DJP021700：值与 SONG_PLAYER 保持一致）
+           ========================================================= */
+        if (speedButton != null) {
+            Float cur = getCurrentSpeed();
+            if (!cur.equals(speedButton.getValue())) {
+                speedButton.setValue(cur);
+            }
+        }
+        if (transposeButton != null) {
+            Integer tv = Main.SONG_PLAYER.transpose;
+            if (!tv.equals(transposeButton.getValue())) {
+                transposeButton.setValue(tv);
+            }
+        }
+
         if (shouldFilter) {
             shouldFilter = false;
             songListWidget.setScrollAmount(0);
@@ -553,188 +568,22 @@ public class DiscJockeyScreen extends Screen {
     }
 
     /* =========================================================
-       ✅ 新频谱渲染入口（带上升平滑，解决最高处卡一下）
+       ✅ 频谱渲染（读 SMOOTHER 缓冲）
        ========================================================= */
     private void renderSpectrum(GuiGraphicsExtractor context, int screenWidth, int screenHeight) {
-        float[] raw = Main.SPECTRUM.currentLevels;
-
-        final float attack = 0.2F;
-        final float decay = 0.45F;
-
-        for (int i = 0; i < smoothedLevels.length && i < raw.length; i++) {
-            float target = raw[i];
-            float current = smoothedLevels[i];
-
-            if (target > current) {
-                smoothedLevels[i] += (target - current) * attack;
-            } else {
-                smoothedLevels[i] += (target - current) * decay;
-            }
-
-            if (Math.abs(smoothedLevels[i] - target) < 0.001F) {
-                smoothedLevels[i] = target;
-            }
-        }
-
+        float[] levels = Main.SMOOTHER.getSmoothedLevels();
         SpectrumRendererManager.getCurrent().render(
                 context,
                 screenWidth,
                 screenHeight,
-                smoothedLevels,
+                levels,
                 15,
                 screenHeight - 75
         );
     }
 
     /* =========================================================
-       ✅ 旧频谱渲染逻辑（全部保留，仅注释）【OLD】
-       ========================================================= */
-    /*
-    private void renderSpectrum(GuiGraphicsExtractor context, int screenWidth, int screenHeight) {
-        SpectrumVisualizer visualizer = Main.SPECTRUM;
-        float[] levels = visualizer.currentLevels;
-
-        int barCount = 16;
-        int barWidth = 5;
-        int barGap = 2;
-        int totalWidth = barCount * (barWidth + barGap) - barGap;
-        int maxHeight = 64;
-        int marginBottom = 15;
-        int marginLeft = 15;
-
-        int startX = marginLeft;
-        int baseY = screenHeight - marginBottom;
-
-        switch (spectrumStyle) {
-            case BAR -> renderSpectrumBar(context, levels, startX, baseY, barCount, barWidth, barGap, maxHeight);
-            case WAVE -> renderSpectrumWave(context, levels, startX, baseY, barCount, maxHeight);
-            case RING -> renderSpectrumRing(context, levels, startX, baseY, barCount, maxHeight);
-            case MIRROR -> renderSpectrumMirror(context, startX, baseY, barCount, barWidth, barGap, maxHeight);
-            case PARTICLE -> renderSpectrumParticle(context, levels, startX, baseY, barCount, maxHeight);
-        }
-    }
-
-    private void renderSpectrumBar(GuiGraphicsExtractor context, float[] levels, int startX, int baseY,
-                                   int barCount, int barWidth, int barGap, int maxHeight) {
-        int totalWidth = barCount * (barWidth + barGap) - barGap;
-
-        for (int i = 0; i < barCount; i++) {
-            float level = levels[i];
-            int barHeight = Math.max(2, (int) (level * maxHeight));
-
-            int x = startX + i * (barWidth + barGap);
-            int topY = baseY - barHeight;
-
-            int color;
-            if (level < 0.33F) {
-                color = lerpColor(0xFF00AA00, 0xFFFFDD00, level / 0.33F);
-            } else if (level < 0.66F) {
-                color = lerpColor(0xFFFFDD00, 0xFFFF6600, (level - 0.33F) / 0.33F);
-            } else {
-                color = lerpColor(0xFFFF6600, 0xFFFF2200, (level - 0.66F) / 0.34F);
-            }
-
-            context.fill(x, topY, x + barWidth, baseY, color);
-
-            if (barHeight > 4) {
-                context.fill(x, topY, x + barWidth, topY + 2, 0x88FFFFFF);
-            }
-        }
-
-        context.fill(startX - 2, baseY, startX + totalWidth + 2, baseY + 1, 0x66FFFFFF);
-    }
-
-    private void renderSpectrumWave(GuiGraphicsExtractor context, float[] levels, int startX, int baseY,
-                                    int barCount, int maxHeight) {
-        int spacing = 4;
-        for (int i = 0; i < barCount - 1; i++) {
-            float l1 = levels[i];
-            float l2 = levels[i + 1];
-            int x1 = startX + i * spacing;
-            int y1 = baseY - (int) (l1 * maxHeight);
-            int x2 = startX + (i + 1) * spacing;
-            int y2 = baseY - (int) (l2 * maxHeight);
-            int color = lerpColor((l1 + l2) * 0.5F);
-            int minY = Math.min(y1, y2);
-            int maxY = Math.max(y1, y2);
-            context.fill(minX, minY, maxX + 1, maxY + 1, color);
-        }
-        for (int i = 0; i < barCount; i++) {
-            int x = startX + i * spacing;
-            int y = baseY - (int) (levels[i] * maxHeight);
-            context.fill(x - 1, y - 1, x + 1, y + 1, 0xFFFFFFFF);
-        }
-    }
-
-    private void renderSpectrumRing(GuiGraphicsExtractor context, float[] levels, int startX, int baseY,
-                                    int barCount, int maxHeight) {
-        int centerX = startX + 40;
-        int centerY = baseY - 10;
-        int maxRadius = 50;
-        for (int i = 0; i < barCount; i++) {
-            float level = levels[i];
-            int radius = 10 + (int) (level * maxRadius);
-            double angle = 2 * Math.PI * i / barCount - Math.PI / 2;
-            int x = centerX + (int) (Math.cos(angle) * radius);
-            int y = centerY + (int) (Math.sin(angle) * radius);
-            int innerX = centerX + (int) (Math.cos(angle) * 10);
-            int innerY = centerY + (int) (Math.sin(angle) * 10);
-            int color = lerpColor(level);
-            int minX = Math.min(innerX, x);
-            int minY = Math.min(innerY, y);
-            int maxX = Math.max(innerX, x);
-            int maxY = Math.max(innerY, y);
-            context.fill(minX, minY, maxX + 1, maxY + 1, color);
-        }
-    }
-
-    private void renderSpectrumMirror(GuiGraphicsExtractor context, float[] levels, int startX, int baseY,
-                                      int barCount, int barWidth, int barGap, int maxHeight) {
-        int half = maxHeight / 2;
-        for (int i = 0; i < barCount; i++) {
-            float level = levels[i];
-            int barHeight = Math.max(1, (int) (level * half));
-            int x = startX + i * (barWidth + barGap);
-            int topY = baseY - barHeight;
-            int color = lerpColor(level);
-            context.fill(x, topY, x + barWidth, baseY, color);
-            context.fill(x, baseY, x + barWidth, baseY + barHeight, color);
-            context.fill(x, baseY, x + barWidth, baseY + 1, 0x88FFFFFF);
-        }
-    }
-
-    private void renderSpectrumParticle(GuiGraphicsExtractor context, float[] levels, int startX, int baseY,
-                                        int barCount, int maxHeight) {
-        int dotSize = 3;
-        int spacing = 6;
-        for (int i = 0; i < barCount; i++) {
-            float level = levels[i];
-            int dotCount = Math.max(1, (int) (level * 10));
-            int sx = startX + i * spacing;
-            for (int j = 0; j < dotCount; j++) {
-                int y = baseY - j * dotSize - dotSize;
-                int alpha = (int) (level * 200) + 55;
-                alpha = Math.min(255, alpha);
-                int color = (alpha << 24) | 0x00FFAA;
-                context.fill(sx, y, sx + dotSize, y + dotSize, color);
-            }
-        }
-    }
-
-    private int lerpColor(float t) {
-        t = Math.max(0f, Math.min(1f, t));
-        if (t < 0.33F) {
-            return lerpColor(0xFF00AA00, 0xFFFFDD00, t / 0.33F);
-        } else if (t < 0.66F) {
-            return lerpColor(0xFFFFDD00, 0xFFFF6600, (t - 0.33F) / 0.33F);
-        } else {
-            return lerpColor(0xFFFF6600, 0xFFFF2200, (t - 0.66F) / 0.34F);
-        }
-    }
-    */
-
-    /* =========================================================
-       ✅ lerpColor：原版完整保留（仍在使用）
+       ✅ lerpColor（保留使用）
        ========================================================= */
     private int lerpColor(int a, int b, float t) {
         t = Math.max(0, Math.min(1, t));
@@ -742,17 +591,14 @@ public class DiscJockeyScreen extends Screen {
         int ri = (a >> 16) & 0xFF;
         int gi = (a >> 8) & 0xFF;
         int bi = a & 0xFF;
-
         int ar = (b >> 24) & 0xFF;
         int rr = (b >> 16) & 0xFF;
         int gr = (b >> 8) & 0xFF;
         int br = b & 0xFF;
-
         int r = (int) (ri + (rr - ri) * t);
         int g = (int) (gi + (gr - gi) * t);
         int bb = (int) (bi + (br - bi) * t);
         int aa = (int) (ai + (ar - ai) * t);
-
         return (aa << 24) | (r << 16) | (g << 8) | bb;
     }
 
@@ -760,7 +606,8 @@ public class DiscJockeyScreen extends Screen {
         if (button == 1) {
             SongListWidget.SongEntry entry = songListWidget.getSelected();
             if (entry != null) {
-                minecraft.setScreenAndShow(new SongDetailScreen(entry.song));
+                Screen detail = new SongDetailScreen(entry.song);
+                Main.setScreenCompatStatic(minecraft, detail);
                 return true;
             }
         }
@@ -775,7 +622,8 @@ public class DiscJockeyScreen extends Screen {
                 .collect(Collectors.joining(", "));
         if (str.length() > 300) str = str.substring(0, 300) + "...";
 
-        minecraft.setScreenAndShow(new ConfirmScreen(
+        // ✅ FIX：26.2 没有 minecraft.setScreen()，改用 Main.setScreenCompatStatic
+        Main.setScreenCompatStatic(minecraft, new ConfirmScreen(
                 confirmed -> {
                     if (confirmed) {
                         paths.forEach(p -> {
@@ -787,16 +635,18 @@ public class DiscJockeyScreen extends Screen {
                                 }
                                 Song s = SongLoader.loadSong(f);
                                 if (s != null) {
-                                    Files.copy(p, Main.songsFolder.toPath().resolve(f.getName()));
+                                    try {
+                                        Files.copy(p, Main.songsFolder.toPath().resolve(f.getName()));
+                                    } catch (IOException ignored) {}
                                     SongLoader.SONGS.add(s);
                                 }
-                            } catch (IOException e) {
+                            } catch (Exception e) {
                                 Main.LOGGER.warn("Failed to copy song file", e);
                             }
                         });
                         SongLoader.sort();
                     }
-                    minecraft.setScreenAndShow(this);
+                    Main.setScreenCompatStatic(minecraft, this);
                 },
                 Component.translatable(Main.MOD_ID + ".screen.drop_confirm"),
                 Component.literal(str)
@@ -808,9 +658,24 @@ public class DiscJockeyScreen extends Screen {
         return false;
     }
 
+    /* =========================================================
+       ✅ onClose：有 parent 回退菜单，无 parent 走默认
+       ✅ 走 Main.setScreenCompatStatic（26.2 兼容）
+       ========================================================= */
     @Override
     public void onClose() {
-        super.onClose();
         new Thread(() -> Main.configHolder.save()).start();
+        if (parent != null) {
+            Main.setScreenCompatStatic(Minecraft.getInstance(), parent);
+        } else {
+            super.onClose();
+        }
+    }
+    /* =========================================================
+   ✅ MIDI 导入后通知列表刷新（供 MidiFileSelectScreen 回调）
+   ✅ 内部走 shouldFilter 机制（与 init() 里的导入按钮回调一致）
+   ========================================================= */
+    public void markSongsDirty() {
+        this.shouldFilter = true;
     }
 }

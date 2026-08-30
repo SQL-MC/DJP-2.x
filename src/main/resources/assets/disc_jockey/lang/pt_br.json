@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Abra a página principal do DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Aumentar tom (+)",
+  "disc_jockey.key_bind.transpose_down": "Diminuir tom (-)",
+  "disc_jockey.key_bind.transpose_reset": "Resetar tom",
+  "disc_jockey.key_bind.transpose_status": "Mostrar valor do tom",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Sempre mostrar o espectro",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Mantém o espectro de áudio visível mesmo com a GUI fechada.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Útil para afinação ao vivo e performance.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Obre la pàgina principal de DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Pujar la nota (+)",
+  "disc_jockey.key_bind.transpose_down": "Baixar la nota (-)",
+  "disc_jockey.key_bind.transpose_reset": "Restablir la nota",
+  "disc_jockey.key_bind.transpose_status": "Mostrar valor de la nota",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Mostra sempre l'espectre",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Manté l'espectre d'àudio visible fins i tot quan es tanca la GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Útil per a l'afinació en directe i la interpretació.",

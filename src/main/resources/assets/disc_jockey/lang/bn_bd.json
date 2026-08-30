@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "DiscJockeyPlus-এর মূল পৃষ্ঠা খুলুন",
+  "disc_jockey.key_bind.transpose_up": "সুর উপরে (+)",
+  "disc_jockey.key_bind.transpose_down": "সুর নিচে (-)",
+  "disc_jockey.key_bind.transpose_reset": "সুর রিসেট",
+  "disc_jockey.key_bind.transpose_status": "সুরের মান দেখাও",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "স্পেকট্রাম সর্বদা দেখানো",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "GUI বন্ধ থাকলেও অডিও স্পেকট্রাম দৃশ্যমান থাকবে।",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "লাইভ টিউনিং এবং পারফরম্যান্সের জন্য 유용।",

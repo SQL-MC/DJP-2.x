@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Ava DiscJockeyPlusi peamine leht",
+  "disc_jockey.key_bind.transpose_up": "Tõsta heli (+)",
+  "disc_jockey.key_bind.transpose_down": "Alusta heli (-)",
+  "disc_jockey.key_bind.transpose_reset": "Lähtesta heli",
+  "disc_jockey.key_bind.transpose_status": "Näita heliväärtust",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Alati näita spektrit",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Hoia helispektrit nähtavaks ka siis, kui GUI on suletud.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": " kasulik eluajalise seadistamise ja esitluse jaoks.",

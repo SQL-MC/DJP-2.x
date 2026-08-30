@@ -117,4 +117,8 @@ public class Config implements ConfigData {
 
     @ConfigEntry.Gui.Excluded
     public ArrayList<String> favorites = new ArrayList<>();
+
+    /* ========== ✅ Modrinth 项目标识（供 /discjockey update 使用）==========
+       ✅ 公开项目查询无需 API key；填你的 Modrinth slug（如 disc-jockey-plus）或 project ID */
+    public String modrinthProjectId = "disc-jockey-plus";
 }

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "DiscJockeyPlus ana sayfasını aç",
+  "disc_jockey.key_bind.transpose_up": "Sesi yükselt (+yarım ses)",
+  "disc_jockey.key_bind.transpose_down": "Sesi düşür (-yarım ses)",
+  "disc_jockey.key_bind.transpose_reset": "Sesi sıfırla",
+  "disc_jockey.key_bind.transpose_status": "Ses değerini göster",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Spectreyi her zaman göster",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "GUI kapalıyken bile ses spektrumunu görünür tutar.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Canlı ayarlama ve performans için yararlıdır.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Otwórz stronę główną DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Podnieś ton (+)",
+  "disc_jockey.key_bind.transpose_down": "Obniż ton (-)",
+  "disc_jockey.key_bind.transpose_reset": "Reset tonu",
+  "disc_jockey.key_bind.transpose_status": "Pokaż wartość tonu",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Zawsze pokazuj widmo",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Utrzymuje widmo dźwięku widoczne nawet po zamknięciu GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Przydatne do żywego strojenia i występu.",

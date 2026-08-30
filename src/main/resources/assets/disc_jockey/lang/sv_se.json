@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Öppna DiscJockeyPlus huvudsida",
+  "disc_jockey.key_bind.transpose_up": "Höj tonläge (+halvton)",
+  "disc_jockey.key_bind.transpose_down": "Sänk tonläge (-halvton)",
+  "disc_jockey.key_bind.transpose_reset": "Återställ tonläge",
+  "disc_jockey.key_bind.transpose_status": "Visa tonvärde",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Visa spektrum alltid",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Håller ljudspektrumet synligt även när GUI är stängd.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Användbart för liveinställning och framträdande.",

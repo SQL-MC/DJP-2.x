@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "DiscJockeyPlus 메인 페이지 열기",
+  "disc_jockey.key_bind.transpose_up": "음높이 올리기 (+)",
+  "disc_jockey.key_bind.transpose_down": "음높이 낮추기 (-)",
+  "disc_jockey.key_bind.transpose_reset": "음높이 초기화",
+  "disc_jockey.key_bind.transpose_status": "음높이 표시",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "항상 스펙트럼 표시",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "GUI를 닫아도 오디오 스펙트럼을 계속 표시합니다.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "라이브 튜닝과 연주에 유용합니다.",

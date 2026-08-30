@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Atvērt DiscJockeyPlus galveno lapu",
+  "disc_jockey.key_bind.transpose_up": "Celkt skaņu (+)",
+  "disc_jockey.key_bind.transpose_down": "Samazināt skaņu (-)",
+  "disc_jockey.key_bind.transpose_reset": "Atiestatīt skaņu",
+  "disc_jockey.key_bind.transpose_status": "Parādīt skaņas vērtību",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Vienmēr rādīt spektru",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Saglabā skaņas spektru redzamu arī tad, ja GUI ir aizvērts.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Noderīgi dzīvajai noregulēšanai un sniegšanai.",

@@ -62,11 +62,19 @@ public class SpectrumDataSmoother {
             System.arraycopy(raw, 0, lastValid, 0, BAND_COUNT);
         }
 
+        // ✅ 同时检测播放和预览状态
         boolean isPlaying = false;
         try {
-            isPlaying = Main.SONG_PLAYER != null
+            boolean songRunning = Main.SONG_PLAYER != null
                     && Main.SONG_PLAYER.running
                     && Main.SONG_PLAYER.song != null;
+            boolean previewRunning = false;
+            try {
+                previewRunning = Previewer.running
+                        && Previewer.getInstance() != null
+                        && Previewer.getInstance().getSong() != null;
+            } catch (Throwable t) {}
+            isPlaying = songRunning || previewRunning;
         } catch (Throwable t) {}
 
         if (!isPlaying) {
@@ -79,19 +87,16 @@ public class SpectrumDataSmoother {
         }
 
         for (int i = 0; i < BAND_COUNT; i++) {
-            float rawVal = raw[i] * OUTPUT_BOOST;  // 放大到 ~1.0
+            float rawVal = raw[i] * OUTPUT_BOOST;
             if (rawVal > 1.0F) rawVal = 1.0F;
 
             // === 峰值保持逻辑 ===
             if (rawVal > peakHold[i]) {
-                // ✅ 新峰值来了，更新并保持
                 peakHold[i] = rawVal;
                 peakTimer[i] = PEAK_HOLD_TICKS;
             } else if (peakTimer[i] > 0) {
-                // ✅ 保持期内，维持峰值不变
                 peakTimer[i]--;
             } else {
-                // ✅ 保持期过了，开始跟随 rawVal（自然衰减）
                 peakHold[i] = rawVal;
             }
 
@@ -100,10 +105,8 @@ public class SpectrumDataSmoother {
             float current = smoothed[i];
 
             if (target > current) {
-                // ✅ 上升：快速跟上峰值
                 smoothed[i] = current + (target - current) * ATTACK;
             } else {
-                // ✅ 下降：丝滑拖尾
                 smoothed[i] = current + (target - current) * DECAY;
             }
 

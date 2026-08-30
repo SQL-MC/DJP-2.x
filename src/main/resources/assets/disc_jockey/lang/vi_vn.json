@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Mở trang chính của DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Tăng tông (+nửa cung)",
+  "disc_jockey.key_bind.transpose_down": "Giảm tông (-nửa cung)",
+  "disc_jockey.key_bind.transpose_reset": "Đặt lại tông",
+  "disc_jockey.key_bind.transpose_status": "Hiện giá trị tông",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Luôn hiển thị phổ",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Giữ phổ âm thanh hiển thị ngay cả khi giao diện bị đóng.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Hữu ích cho việc điều chỉnh trực tiếp và biểu diễn.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Apri la pagina principale di DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Aumenta tono (+)",
+  "disc_jockey.key_bind.transpose_down": "Diminuisci tono (-)",
+  "disc_jockey.key_bind.transpose_reset": "Reimposta tono",
+  "disc_jockey.key_bind.transpose_status": "Mostra valore tono",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Mostra sempre lo spettro",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Mantiene lo spettro audio visibile anche quando l'interfaccia è chiusa.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Utile per l'accordatura live e le performance.",

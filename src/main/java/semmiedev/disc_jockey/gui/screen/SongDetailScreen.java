@@ -19,17 +19,19 @@ public class SongDetailScreen extends Screen {
         int centerX = width / 2;
         int startY = height / 2 - 80;
 
-        String fav = song.entry != null && song.entry.favorite ? "★ " : "";
-        String desc = song.description == null ? "None" : song.description;
-        if (desc.length() > 120) desc = desc.substring(0, 120) + "…"; // ✅ 防过长炸UI
+        String displayName = (song.displayName != null) ? song.displayName : "(unknown)";
+        String author = (song.author != null) ? song.author : "Unknown";
+        String originalAuthor = (song.originalAuthor != null) ? song.originalAuthor : "Unknown";
+        String desc = (song.description != null) ? song.description : "None";
+        if (desc.length() > 120) desc = desc.substring(0, 120) + "...";
 
-        addRenderableWidget(Button.builder(Component.literal(fav + "♪ " + song.displayName), b -> {})
+        addRenderableWidget(Button.builder(Component.literal("♪ " + displayName), b -> {})
                 .bounds(centerX - 150, startY, 300, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Author: " + song.author), b -> {})
+        addRenderableWidget(Button.builder(Component.literal("Author: " + author), b -> {})
                 .bounds(centerX - 150, startY + 25, 300, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Original: " + song.originalAuthor), b -> {})
+        addRenderableWidget(Button.builder(Component.literal("Original: " + originalAuthor), b -> {})
                 .bounds(centerX - 150, startY + 50, 300, 20).build());
 
         addRenderableWidget(Button.builder(Component.literal("Desc: " + desc), b -> {})
@@ -43,8 +45,9 @@ public class SongDetailScreen extends Screen {
                 Component.literal("Notes: " + song.notes.length), b -> {})
                 .bounds(centerX - 150, startY + 125, 300, 20).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Back"), b ->
-                minecraft.setScreenAndShow(null)
+        addRenderableWidget(Button.builder(
+                Component.literal("Back"), b ->
+                minecraft.gui.setScreen(null)
         ).bounds(centerX - 50, startY + 160, 100, 20).build());
     }
 

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Atidaryti DiscJockeyPlus pagrindinį puslapį",
+  "disc_jockey.key_bind.transpose_up": "Padidinti garsą (+)",
+  "disc_jockey.key_bind.transpose_down": "Mažinti garsą (-)",
+  "disc_jockey.key_bind.transpose_reset": "Atstatyti garsą",
+  "disc_jockey.key_bind.transpose_status": "Rodyti garso vertę",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Visada rodyti spektrą",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Išlaiko garso spektrą matomą net ir tada, kai GUI uždaryta.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Naudinga gyvam derinimui ir atlikimui.",

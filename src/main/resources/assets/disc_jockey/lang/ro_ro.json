@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Deschide pagina principală a DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Ridică tonul (+)",
+  "disc_jockey.key_bind.transpose_down": "Coboară tonul (-)",
+  "disc_jockey.key_bind.transpose_reset": "Resetează tonul",
+  "disc_jockey.key_bind.transpose_status": "Arată valoarea tonului",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Arată mereu spectrul",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Păstrează spectrul audio vizibil chiar și când interfața este închisă.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Util pentru acordare live și performanță.",

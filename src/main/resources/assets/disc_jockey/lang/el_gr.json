@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Άνοιγμα της κύριας σελίδας του DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Υψηλότερος τόνος (+)",
+  "disc_jockey.key_bind.transpose_down": "Χαμηλότερος τόνος (-)",
+  "disc_jockey.key_bind.transpose_reset": "Επαναφορά τόνου",
+  "disc_jockey.key_bind.transpose_status": "Εμφάνιση τόνου",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Πάντα εμφανίζεται το φάσμα",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Διατηρεί το ακουστικό φάσμα ορατό ακόμα και όταν κλείνει η γραφική διεπαφή.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Χρήσιμο για ζωντανή ρύθμιση και απόδοση.",

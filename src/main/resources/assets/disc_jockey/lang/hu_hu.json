@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "A DiscJockeyPlus főoldalának megnyitása",
+  "disc_jockey.key_bind.transpose_up": "Hang emelése (+)",
+  "disc_jockey.key_bind.transpose_down": "Hang csökkentése (-)",
+  "disc_jockey.key_bind.transpose_reset": "Hang visszaállítása",
+  "disc_jockey.key_bind.transpose_status": "Hangérték mutatása",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Mindig mutassa a spektrumot",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "A hang-spektrum látható marad még akkor is, ha a GUI bezárva van.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Hasznos élő hangoláshoz és előadáshoz.",

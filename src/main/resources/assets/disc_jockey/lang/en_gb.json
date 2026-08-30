@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Open the DiscJockeyPlus main page",
+  "disc_jockey.key_bind.transpose_up": "Transpose Up (Semitone +)",
+  "disc_jockey.key_bind.transpose_down": "Transpose Down (Semitone -)",
+  "disc_jockey.key_bind.transpose_reset": "Transpose Reset",
+  "disc_jockey.key_bind.transpose_status": "Show Transpose Value",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Always Show Spectrum",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Keeps the audio spectrum visible even when the GUI is closed.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Useful for live tuning and performance.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Ouvrir la page principale de DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Monter d'un demi-ton (+)",
+  "disc_jockey.key_bind.transpose_down": "Descendre d'un demi-ton (-)",
+  "disc_jockey.key_bind.transpose_reset": "Réinitialiser la tonalité",
+  "disc_jockey.key_bind.transpose_status": "Afficher la transposition",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Toujours afficher le spectre",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Garde le spectre audio visible même lorsque l'interface est fermée.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Utile pour l'accordage en direct et la performance.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Open de hoofdpagina van DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Toon verhogen (+)",
+  "disc_jockey.key_bind.transpose_down": "Toon verlagen (-)",
+  "disc_jockey.key_bind.transpose_reset": "Toon resetten",
+  "disc_jockey.key_bind.transpose_status": "Toonwaarde tonen",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Altijd spectrum tonen",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Houdt het audiospectrum zichtbaar, zelfs als de GUI gesloten is.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Handig voor live afstemming en prestaties.",

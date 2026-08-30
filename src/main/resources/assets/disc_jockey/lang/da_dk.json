@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Åbn DiscJockeyPlus' hovedside",
+  "disc_jockey.key_bind.transpose_up": "Transponer op (+)",
+  "disc_jockey.key_bind.transpose_down": "Transponer ned (-)",
+  "disc_jockey.key_bind.transpose_reset": "Nulstil transponering",
+  "disc_jockey.key_bind.transpose_status": "Vis transponeringsværdi",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Vis spektret altid",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Holder lyd-spektret synligt, selv når GUI er lukket.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Nyttigt til live-justering og optræden.",

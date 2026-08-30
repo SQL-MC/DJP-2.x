@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "פתח את הדף הראשי של DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "העלה טון (+)",
+  "disc_jockey.key_bind.transpose_down": "הוריד טון (-)",
+  "disc_jockey.key_bind.transpose_reset": "אפס טון",
+  "disc_jockey.key_bind.transpose_status": "הצג ערך טון",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "הצג תמיד את הספקטרום",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "שומר על הספקטרום האודיו גלוי אפילו כשממשק המשתמש סגור.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "שימושי לכוונון חי וביצועים.",

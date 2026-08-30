@@ -37,7 +37,9 @@ public class FoldAnalyzer {
         int max = 0;
 
         for (long note : song.notes) {
-            int rawNoteId = (int) (note >> 40L) & 0xFF;
+            // ✅【修复】用 Note.extractNoteId 还原有符号 noteId
+            // 原代码 (note >> 40L) & 0xFF 对有符号值会读错
+            int rawNoteId = Note.extractNoteId(note);
             min = Math.min(min, rawNoteId);
             max = Math.max(max, rawNoteId);
         }

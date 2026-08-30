@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Відкрити головну сторінку DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Підвищити тон (+)",
+  "disc_jockey.key_bind.transpose_down": "Понизити тон (-)",
+  "disc_jockey.key_bind.transpose_reset": "Скинути тон",
+  "disc_jockey.key_bind.transpose_status": "Показати значення тону",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Завжди показувати спектр",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Зберігає аудіоспектр видимим навіть після закриття GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Корисно для живого налаштування та виступу.",

@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -120,6 +122,10 @@ public class SongLoader {
         int tick = -1;
         int jump;
 
+        // ✅【提速】用 LinkedHashSet 去重（O(1) 查找），保插入顺序，与原始 ArrayList 完全一致；
+        //    循环结束后回填到 final 的 uniqueNotes（clear + addAll，不重新赋值）
+        Set<Note> seenNotes = new LinkedHashSet<>();
+
         while ((jump = reader.readShort() & 0xFFFF) != 0) {
             tick += jump;
 
@@ -144,17 +150,22 @@ public class SongLoader {
                         (byte) noteId
                 );
 
-                if (!song.uniqueNotes.contains(note))
-                    song.uniqueNotes.add(note);
+                seenNotes.add(note);   // ✅ O(1)，整体 O(n)，不再线性扫描
+
+                // ✅【保持不变】用 Note.packNoteId 正确存储有符号 noteId，位域协议一行未动
+                long packed = ((long) tick)
+                                | ((long) layer << 16)
+                                | ((long) instrumentId << 32);
+                packed = Note.packNoteId(packed, noteId);
 
                 song.notes = Arrays.copyOf(song.notes, song.notes.length + 1);
-                song.notes[song.notes.length - 1] =
-                        ((long) tick)
-                                | ((long) layer << 16)
-                                | ((long) instrumentId << 32)
-                                | ((long) (noteId & 0xFF) << 40);
+                song.notes[song.notes.length - 1] = packed;
             }
         }
+
+        // ✅【提速回填】遵守 uniqueNotes 的 final 约束，元素集合 + 顺序与原始完全一致
+        song.uniqueNotes.clear();
+        song.uniqueNotes.addAll(seenNotes);
 
         return song;
     }

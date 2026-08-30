@@ -258,7 +258,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
             Vec3 unit = Vec3.upFromBottomCenterOf(blockPos, 0.5)
                     .subtract(client.player.getEyePosition()).normalize();
 
-            if (rateLimiter.canSendLookPacket()) {
+            if (rateLimiter.canSendLookPacket() && PacketThrottle.canSend() && PacketThrottle.canSendInterval()) {
                 client.getConnection().send(new ServerboundMovePlayerPacket.Rot(
                         Mth.wrapDegrees((float) (Mth.atan2(unit.z, unit.x) * 57.2957763671875 - 90.0f)),
                         Mth.wrapDegrees((float) (-(Mth.atan2(unit.y, Math.sqrt(unit.x * unit.x + unit.z * unit.z)) * 57.2957763671875))),
@@ -266,19 +266,19 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
                 rateLimiter.onLookPacketSent();
             }
 
-            if (rateLimiter.canSendAnyPacket()) {
+            if (rateLimiter.canSendAnyPacket() && PacketThrottle.canSend() && PacketThrottle.canSendInterval()) {
                 client.player.connection.send(new ServerboundPlayerActionPacket(
                         ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, blockPos, Direction.UP, 0));
                 rateLimiter.onPacketSent();
             }
 
-            if (rateLimiter.canSendCosmeticPacket()) {
+            if (rateLimiter.canSendCosmeticPacket() && PacketThrottle.canSend() && PacketThrottle.canSendInterval()) {
                 client.player.connection.send(new ServerboundPlayerActionPacket(
                         ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, blockPos, Direction.UP, 0));
                 rateLimiter.onPacketSent();
             }
 
-            if (rateLimiter.canSendSwingPacket()) {
+            if (rateLimiter.canSendSwingPacket() && PacketThrottle.canSend() && PacketThrottle.canSendInterval()) {
                 client.executeIfPossible(() -> client.player.swing(InteractionHand.MAIN_HAND));
                 rateLimiter.onSwingPacketSent();
             }

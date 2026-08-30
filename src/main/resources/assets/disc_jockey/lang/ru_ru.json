@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Открыть главную страницу DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Повысить тон (+)",
+  "disc_jockey.key_bind.transpose_down": "Понизить тон (-)",
+  "disc_jockey.key_bind.transpose_reset": "Сбросить тон",
+  "disc_jockey.key_bind.transpose_status": "Показать значение тона",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Всегда показывать спектр",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Сохраняет аудиоспектр видимым даже при закрытом GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Полезно для живой настройки и исполнения.",

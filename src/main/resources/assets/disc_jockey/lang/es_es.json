@@ -1,4 +1,8 @@
 {
+  "disc_jockey.key_bind.transpose_up": "Subir tono (+)",
+  "disc_jockey.key_bind.transpose_down": "Bajar tono (-)",
+  "disc_jockey.key_bind.transpose_reset": "Restablecer tono",
+  "disc_jockey.key_bind.transpose_status": "Mostrar valor de tono",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Mostrar espectro siempre",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Mantiene el espectro de audio visible incluso cuando se cierra la GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Útil para afinación en vivo y rendimiento.",

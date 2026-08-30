@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "DiscJockeyPlusのメインページを開く",
+  "disc_jockey.key_bind.transpose_up": "音程を上げる (+)",
+  "disc_jockey.key_bind.transpose_down": "音程を下げる (-)",
+  "disc_jockey.key_bind.transpose_reset": "音程をリセット",
+  "disc_jockey.key_bind.transpose_status": "音程を表示",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "常にスペクトルを表示",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "GUIを閉じてもオーディオスペクトルを表示し続けます。",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "ライブ調整や演奏に便利です。",

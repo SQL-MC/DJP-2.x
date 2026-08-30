@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "افتح الصفحة الرئيسية لـ DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "رفع النغمة (+)",
+  "disc_jockey.key_bind.transpose_down": "خفض النغمة (-)",
+  "disc_jockey.key_bind.transpose_reset": "إعادة النغمة للأصل",
+  "disc_jockey.key_bind.transpose_status": "عرض قيمة النغمة",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "إظهار الطيف دائمًا",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "يحتفظ طيف الصوت مرئيًا حتى عند إغلاق واجهة المستخدم.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "مفيد للضبط المباشر والأداء الحي.",

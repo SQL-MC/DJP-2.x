@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -37,7 +38,6 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         return this.defaultEntryHeight;
     }
 
-
     @Override
     public int getRowWidth() {
         return width - 40;
@@ -56,9 +56,20 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         super.setSelected(entry);
     }
 
+    /* ========== ✅ 26.2 修复：实现 AbstractWidget 要求的 public 抽象方法 ==========
+       ✅ 修复 AbstractMethodError（crash-2026-08-27_17.27.10-client.txt）：
+           "SongListWidget does not define or inherit updateWidgetNarration"
+       ✅ 方法签名必须与父类一致：public void updateWidgetNarration(NarrationElementOutput)
+       ✅ 仅使用 output.add(NarratedElementType, Component) 提供朗读内容；
+           不调用不存在的 defaultNarrationText（该类在 26.2 中无此方法） */
     @Override
-    protected void updateWidgetNarration(NarrationElementOutput builder) {
-        // Who cares
+    public void updateWidgetNarration(NarrationElementOutput output) {
+        SongEntry selected = this.getSelected();
+        if (selected != null && selected.song != null) {
+            output.add(NarratedElementType.TITLE, Component.literal(selected.song.displayName));
+        } else {
+            output.add(NarratedElementType.TITLE, Component.translatable("disc_jockey.screen.select_song"));
+        }
     }
 
     public static class SongEntry extends Entry<SongEntry> {
@@ -98,6 +109,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         public Component getNarrateText() {
             return Component.literal(song.displayName);
         }
+
         @Override
         public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
             double mouseX = click.x();
@@ -115,7 +127,6 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
             }
 
             if (songListWidget.getSelected() == this && lastClickedAt != -1L && Util.now() - lastClickedAt <= 350) {
-                // Double click = start song
                 Main.SONG_PLAYER.start(this.song);
             } else {
                 songListWidget.setSelected(this);
@@ -127,7 +138,6 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         private boolean isOverFavoriteButton(double mouseX, double mouseY) {
             int x = this.getX();
             int y = this.getY();
-
             return mouseX > x + 2 && mouseX < x + 15 && mouseY > y + 2 && mouseY < y + 14;
         }
     }

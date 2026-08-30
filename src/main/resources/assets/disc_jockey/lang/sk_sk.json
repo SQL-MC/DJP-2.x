@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Otvoriť hlavnú stránku DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Zvýšiť tón (+)",
+  "disc_jockey.key_bind.transpose_down": "Znížiť tón (-)",
+  "disc_jockey.key_bind.transpose_reset": "Reset tónu",
+  "disc_jockey.key_bind.transpose_status": "Zobraziť tón",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Vždy zobrazovať spektrum",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Udržuje zvukové spektrum viditeľné aj pri zatvorení GUI.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Užitočné na živé nastavenie a výkon.",

@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Avaa DiscJockeyPlusin pääsivu",
+  "disc_jockey.key_bind.transpose_up": "Nosta säveltä (+)",
+  "disc_jockey.key_bind.transpose_down": "Laske säveltä (-)",
+  "disc_jockey.key_bind.transpose_reset": "Nollaa sävel",
+  "disc_jockey.key_bind.transpose_status": "Näytä sävel",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Näytä spektri aina",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Pidä äänispektri näkyvänä myös silloin, kun GUI on suljettu.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Hyödyllinen live-säätöön ja suorituskykyyn.",

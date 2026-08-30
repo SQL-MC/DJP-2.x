@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "Отвори началната страница на DiscJockeyPlus",
+  "disc_jockey.key_bind.transpose_up": "Повиши тон (+)",
+  "disc_jockey.key_bind.transpose_down": "Понижи тон (-)",
+  "disc_jockey.key_bind.transpose_reset": "Нулирай тоналност",
+  "disc_jockey.key_bind.transpose_status": "Покажи тоналност",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "Винаги показвай спектъра",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "Запазва аудио спектъра видим дори когато GUI е затворен.",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "Полезно за живо настройване и изпълнение.",

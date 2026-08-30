@@ -1,4 +1,9 @@
 {
+  "disc_jockey.screen.open_discjockey": "DiscJockeyPlus का मुख्य पृष्ठ खोलें",
+  "disc_jockey.key_bind.transpose_up": "स्वर ऊँचा करें (+)",
+  "disc_jockey.key_bind.transpose_down": "स्वर नीचे करें (-)",
+  "disc_jockey.key_bind.transpose_reset": "स्वर रीसेट करें",
+  "disc_jockey.key_bind.transpose_status": "स्वर मान दिखाएं",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible": "हमेशा स्पेक्ट्रम दिखाएं",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[0]": "जब GUI बंद हो तो भी ऑडियो स्पेक्ट्रम दिखाई देगा।",
   "text.autoconfig.disc_jockey.option.spectrumAlwaysVisible.@Tooltip[1]": "लाइव ट्यूनिंग और प्रदर्शन के लिए उपयोगी।",
