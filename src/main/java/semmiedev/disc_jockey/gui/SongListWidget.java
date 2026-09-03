@@ -66,10 +66,41 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
     public void updateWidgetNarration(NarrationElementOutput output) {
         SongEntry selected = this.getSelected();
         if (selected != null && selected.song != null) {
-            output.add(NarratedElementType.TITLE, Component.literal(selected.song.displayName));
+            // ★ 改用 safeName，杜绝 ______
+            output.add(NarratedElementType.TITLE, Component.literal(safeName(selected.song)));
         } else {
             output.add(NarratedElementType.TITLE, Component.translatable("disc_jockey.screen.select_song"));
         }
+    }
+
+    /* ========== ★ 新增：歌名兜底（修列表/聊天栏显示 ______）==========
+       ✅ 空串 / null / 纯下划线(______) → 用 fileName(去后缀)，再不行用 "Untitled"
+       ✅ 保持原 "name (fileName)" 样式；只读字段、绝不修改 Song */
+    public static String safeName(Song s) {
+        if (s == null) return "Untitled";
+        String n = safePart(s.name);
+        String f = safePart(s.fileName);
+        String base = (f != null) ? stripExt(f) : null;
+        if (n != null && !n.isEmpty()) {
+            if (base != null && !base.isEmpty()) return n + " (" + base + ")";
+            return n;
+        }
+        return (base != null && !base.isEmpty()) ? base : "Untitled";
+    }
+
+    /** 非空、非纯下划线的有效片段；"___"/"______" 返回 null */
+    private static String safePart(String t) {
+        if (t == null) return null;
+        String trimmed = t.trim();
+        if (trimmed.isEmpty()) return null;
+        for (int i = 0; i < trimmed.length(); i++) {
+            if (trimmed.charAt(i) != '_') return trimmed;
+        }
+        return null; // 全是 '_'
+    }
+
+    private static String stripExt(String name) {
+        return (name == null) ? "" : name.replaceAll("\\.(?i)(nbs|mid)$", "");
     }
 
     public static class SongEntry extends Entry<SongEntry> {
@@ -101,13 +132,15 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
                 context.fill(x + 1, y + 1, x + entryWidth - 1, y + entryHeight - 1, 0x000000);
             }
 
-            context.text(client.font, song.displayName, x + entryWidth / 2, y + 5, selected ? 0xFFFFFFFF : 0xFF808080);
+            // ★ 改用 safeName，杜绝 ______
+            context.text(client.font, safeName(song), x + entryWidth / 2, y + 5, selected ? 0xFFFFFFFF : 0xFF808080);
 
             context.blit(RenderPipelines.GUI_TEXTURED, ICONS, x + 2, y + 2, (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0), 0, 13, 12, 52, 12);
         }
 
         public Component getNarrateText() {
-            return Component.literal(song.displayName);
+            // ★ 改用 safeName，杜绝 ______
+            return Component.literal(safeName(song));
         }
 
         @Override

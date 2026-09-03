@@ -88,17 +88,6 @@ public class Song {
         if (timeSignature == 0) timeSignature = 4;
         if (loopStartTick < 0) loopStartTick = 0;
     }
-
-    /**
-     * ★★★ 修文件名 _____.nbs ★★★
-     *
-     * 证据：真实导出的 _____.nbs 内部 fileName="日晷之梦.mid"、name="日晷之梦" 都有值，
-     * 只是【磁盘文件名】是空的 → 变成 _____.nbs。
-     * 修复：save() 用 out.getName()（磁盘文件名）兜底所有命名字段，并保证带 .nbs 后缀。
-     *
-     * 调用前请确保 out 的文件名是想要的（如 midiFile.getName() 去后缀 + ".nbs"）。
-     * 本方法幂等：字段已有有效值时绝不覆盖。
-     */
     public void ensureNames(String baseName) {
         if (baseName == null) baseName = "";
         String noExt = stripExt(baseName);
@@ -106,8 +95,6 @@ public class Song {
         if (this.name == null || this.name.isEmpty()) this.name = noExt;
         if (this.displayName == null || this.displayName.isEmpty())
             this.displayName = this.name.isEmpty() ? noExt : this.name;
-
-        // ★ fileName 必须有值 + 带 .nbs 后缀（杜绝 _____.nbs）
         String fn = (this.fileName == null) ? "" : this.fileName.trim();
         if (fn.isEmpty()) fn = baseName;
         if (!fn.toLowerCase().endsWith(".nbs")) fn += ".nbs";
@@ -154,11 +141,6 @@ public class Song {
        ✅ 文件尾：自定义乐器数量 = 0（writeIntLE(raf, 0)），与实测正常文件一致
        ========================================================= */
     public void save(File out) throws IOException {
-        ensureDefaults();
-
-        // ★★★ 修 _____.nbs：让磁盘文件名永远有意义 ★★★
-        // 优先级：内部 fileName（如 "日晷之梦.nbs"，由 Importer 设置）> out 的名字 > 兜底 "song.nbs"
-        // 这样即使调用方传的 out 名字是空的，写出来的也不是 _____.nbs
         if (out != null) {
             boolean internalNameValid = this.fileName != null
                     && !this.fileName.trim().isEmpty()
