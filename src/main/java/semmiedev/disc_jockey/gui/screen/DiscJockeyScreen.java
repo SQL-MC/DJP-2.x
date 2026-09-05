@@ -306,6 +306,50 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(exportMidiButton);
 
         /* =========================================================
+           ✅ WAV 导出按钮（方案C：纯 Java 合成真实音频，零依赖）
+           ✅ 位置：export_midi 正上方，组成"导出组"
+           ✅ 文案全部硬编码字面量，不走 lang key
+           ✅ 合成较慢，放后台线程，避免卡 UI
+           ========================================================= */
+        Button exportWavButton = Button.builder(
+                Component.literal("WAV OUT"),
+                btn -> {
+                    SongListWidget.SongEntry entry = songListWidget.getSelected();
+                    if (entry == null || entry.song == null) {
+                        minecraft.gui.chatListener().handleSystemMessage(
+                                Component.literal("·"),
+                                false
+                        );
+                        return;
+                    }
+                    final Song song = entry.song;
+                    btn.active = false;   // ★ 导出期间置灰，防重复点击
+                    new Thread(() -> {
+                        try {
+                            NbsToWavExporter.exportSong(song);   // → config/disc_jockey/wav/<名>.wav
+                            minecraft.execute(() ->
+                                    minecraft.gui.chatListener().handleSystemMessage(
+                                            Component.literal("O.K."),
+                                            false
+                                    )
+                            );
+                        } catch (Exception ex) {
+                            Main.LOGGER.error("WAV export failed", ex);
+                            minecraft.execute(() ->
+                                    minecraft.gui.chatListener().handleSystemMessage(
+                                            Component.literal("Try again"),
+                                            false
+                                    )
+                            );
+                        } finally {
+                            minecraft.execute(() -> btn.active = true);  // ★ 恢复
+                        }
+                    }, "DJ-WAV-Export").start();
+                }
+        ).pos(115, height - 55).size(100, 20).build();
+        addRenderableWidget(exportWavButton);
+
+        /* =========================================================
            ✅ 频谱样式按钮（26.2 正确签名）
            ========================================================= */
         CycleButton.Builder<SpectrumRendererManager.Style> styleBuilder =

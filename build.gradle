@@ -42,7 +42,7 @@ loom {
 }
 
 dependencies {
-    implementation files('D:/pianolib-1.0.2+DJP2.7.2.jar')
+    implementation files('D:/pianolib-1.0.3+DJP2.7.3.jar')
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
 //    mappings loom.officialMojangMappings()
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
