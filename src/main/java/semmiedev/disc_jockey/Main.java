@@ -57,8 +57,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.lwjgl.glfw.GLFW;
+// ✅ 26.3 键绑定说明（官方证实，切勿再改 GLFW/Type.SCANCODE）：
+//   - KeyMapping 三参构造 (String, int keysym, Category) 在 26.3 仍存在；
+//   - keysym 一律用 InputConstants.KEY_*（KEY_J/M/L/P/LBRACKET/B…），Fabric 内部适配 SDL3；
+//   - ⚠️ 严禁 Type.SCANCODE / Type.KEYSYM（26.3 已移除，会 NoSuchFieldError）。
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.client.input.KeyEvent;  // 26.3 键事件（供排错/反射，不影响键绑定）
 
 import java.io.File;
 import java.io.InputStream;
@@ -437,7 +441,7 @@ public class Main implements ClientModInitializer {
                 return;
 
             } catch (Throwable officialEx) {
-                LOGGER.info("[Disc Jockey] 26.2 Official HUD (HudElementRegistry) not available, falling back to legacy Proxy method", officialEx);
+                LOGGER.info("[Disc Jockey] 26.3 HUD(legacy fallback) (HudElementRegistry) not available, falling back to legacy Proxy method", officialEx);
             }
 
             /*
@@ -919,12 +923,16 @@ public class Main implements ClientModInitializer {
             }
         });
 
+        // ========== 26.3 键绑定：三参构造 KeyMapping(String, keysym, Category) ==========
+        // 官方证实：26.3 仍支持此构造器；keysym 用 InputConstants.KEY_*，Fabric 内部适配 SDL3。
+        // ⚠️ 严禁改成 Type.SCANCODE（NoSuchFieldError）或 GLFW.GLFW_KEY_*（26.3 已移除）。
+
+
         // ========== 已有：打开 GUI（J 键） ==========
         KeyMapping openScreenKeyBind = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.open_screen",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_J,
+                        InputConstants.KEY_J,
                         KeyMapping.Category.MISC
                 )
         );
@@ -933,8 +941,7 @@ public class Main implements ClientModInitializer {
         muteKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.preview_mute",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_M,
+                        InputConstants.KEY_M,
                         KeyMapping.Category.MISC
                 )
         );
@@ -943,8 +950,7 @@ public class Main implements ClientModInitializer {
         loopKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.preview_loop",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_L,
+                        InputConstants.KEY_L,
                         KeyMapping.Category.MISC
                 )
         );
@@ -953,8 +959,7 @@ public class Main implements ClientModInitializer {
         transposeDownKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.transpose_down",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_LEFT_BRACKET,
+                        InputConstants.KEY_LBRACKET, // [  (GLFW_KEY_LEFT_BRACKET = 91)
                         KeyMapping.Category.MISC
                 )
         );
@@ -962,8 +967,7 @@ public class Main implements ClientModInitializer {
         transposeUpKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.transpose_up",
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_RIGHT_BRACKET,
+                        InputConstants.KEY_RBRACKET, // ]  (GLFW_KEY_RIGHT_BRACKET = 93)
                         KeyMapping.Category.MISC
                 )
         );
@@ -972,16 +976,14 @@ public class Main implements ClientModInitializer {
         djKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         "🎵", // ← Emoji 显示，不和 J 重复
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_B, // ← K 键
+                        InputConstants.KEY_B, // ← K 键（26.3: GLFW_KEY_B → InputConstants.KEY_B）
                         KeyMapping.Category.MISC
                 )
         );
         pianoKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         "🎹", // ← Emoji 显示
-                        InputConstants.Type.KEYSYM,
-                        GLFW.GLFW_KEY_P, // ← P 键
+                        InputConstants.KEY_P, // ← P 键
                         KeyMapping.Category.MISC
                 )
         );

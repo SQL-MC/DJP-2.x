@@ -13,7 +13,7 @@ import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderPipelines;
+import semmiedev.disc_jockey.util.BlitCompat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.core.BlockPos;
@@ -517,8 +517,8 @@ public class DiscJockeyScreen extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
         super.extractBackground(context, mouseX, mouseY, delta);
-        context.blit(
-                RenderPipelines.GUI_TEXTURED,
+        BlitCompat.blit(
+                context,
                 AbstractSelectionList.INWORLD_MENU_LIST_BACKGROUND,
                 5,
                 32,

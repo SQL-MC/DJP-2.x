@@ -1,5 +1,7 @@
 package semmiedev.disc_jockey.gui.screen;
 
+// [26.3-fix] KeyEvent import 保留：Screen 回调签名 = KeyEvent 单参（非三参 int），
+//   scancode 通过反射读 KeyEvent 的 scancode 字段（无 scancode() getter，已实测），回退 key()。
 import semmiedev.disc_jockey.Main;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.util.RandomSource;
@@ -7,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -24,7 +27,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;  // ★ 26.3：替代 org.lwjgl.glfw.GLFW
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -52,7 +55,7 @@ public class PianoKeyboardScreen extends Screen {
     private static final int DISPLAY_MIN = 1;
     private static final int DISPLAY_MAX = 9;
     private static final int INTERNAL_MIN = -3;
-    private static final int INTERNAL_MAX = 4;
+    private static final int INTERNAL_MAX = 3;
 
     /* ===== 白键：A0(-39) ~ C8(48)，共52个，零点=A0 ===== */
     private static final int[] WHITE_NOTE_IDS = {
@@ -94,28 +97,51 @@ public class PianoKeyboardScreen extends Screen {
         44,45,47,48,49
     };
 
-    /* ===== 物理键映射：offset = 相对C4的半音数（C大调把位）===== */
+    /* ===== 物理键映射：offset = 相对C4的半音数（C大调把位）
+     * ★ 26.3 终极修复：键一律用【SDL scancode】(USB usage page 0x07，物理键位，永久稳定)，
+     *   对应 Mojang "SDL scancodes for physical key positions"。scancode 表：
+     *     A=4 W=22 S=26 E=20 D=7 F=9 T=23 G=10 Y=28 H=11 U=24 J=13 K=14
+     *     O=18 L=15 P=19 ;=51 '=52  1=30 2=31 3=32  ESC=41  LEFT=80
+     *   keyPressed/keyReleased 回调用 getScancode()(=SDL scancode) 查表，
+     *   与下表 key 同一键码空间，天然对齐。彻底取代字符字面量/InputConstants.KEY_*。
+     * ★ 注意：scancode 数值 ≠ ASCII('A'=65) ≠ keycode，绝不能混用。 */
+    private static final int SC_ESC   = 41; // SDL_SCANCODE_ESCAPE
+    private static final int SC_RIGHT = 79; // →
+    private static final int SC_LEFT  = 80; // SDL_SCANCODE_LEFT
     private static final Map<Integer, Integer> KEY_MAP = new LinkedHashMap<>();
     static {
-        KEY_MAP.put(GLFW.GLFW_KEY_A, 0);   // C4 (MIDI 60)
-        KEY_MAP.put(GLFW.GLFW_KEY_W, 1);   // C#4
-        KEY_MAP.put(GLFW.GLFW_KEY_S, 2);   // D4
-        KEY_MAP.put(GLFW.GLFW_KEY_E, 3);   // D#4
-        KEY_MAP.put(GLFW.GLFW_KEY_D, 4);   // E4
-        KEY_MAP.put(GLFW.GLFW_KEY_F, 5);   // F4
-        KEY_MAP.put(GLFW.GLFW_KEY_T, 6);   // F#4
-        KEY_MAP.put(GLFW.GLFW_KEY_G, 7);   // G4
-        KEY_MAP.put(GLFW.GLFW_KEY_Y, 8);
-        KEY_MAP.put(GLFW.GLFW_KEY_H, 9);  // A4 (MIDI 69) 标准音A
-        KEY_MAP.put(GLFW.GLFW_KEY_U, 10);  // A#4
-        KEY_MAP.put(GLFW.GLFW_KEY_J, 11);  // B4
-        KEY_MAP.put(GLFW.GLFW_KEY_K, 12);  // C5
-        KEY_MAP.put(GLFW.GLFW_KEY_O, 13);  // C#5
-        KEY_MAP.put(GLFW.GLFW_KEY_L, 14);  // D5
-        KEY_MAP.put(GLFW.GLFW_KEY_P, 15);  // D#5
-        KEY_MAP.put(GLFW.GLFW_KEY_SEMICOLON, 16); // E5
-        KEY_MAP.put(GLFW.GLFW_KEY_APOSTROPHE, 17); // F5
+        KEY_MAP.put(  4,  0);   // A -> C4
+        KEY_MAP.put( 22,  2);   // W -> C#4
+        KEY_MAP.put( 26,  1);   // S -> D4
+        KEY_MAP.put(  8,  3);   // E -> D#4
+        KEY_MAP.put(  7,  4);   // D -> E4
+        KEY_MAP.put(  9,  5);   // F -> F4
+        KEY_MAP.put( 23,  6);   // T -> F#4
+        KEY_MAP.put( 10,  7);   // G -> G4
+        KEY_MAP.put( 28,  8);   // Y -> G#4
+        KEY_MAP.put( 11,  9);   // H -> A4
+        KEY_MAP.put( 24, 10);   // U -> A#4
+        KEY_MAP.put( 13, 11);   // J -> B4
+        KEY_MAP.put( 14, 12);   // K -> C5
+        KEY_MAP.put( 18, 13);   // O -> C#5
+        KEY_MAP.put( 15, 14);   // L -> D5
+        KEY_MAP.put( 19, 15);   // P -> D#5
+        KEY_MAP.put( 51, 16);   // ; -> E5
+        KEY_MAP.put( 52, 17);   // ' -> F5
     };
+
+    /** SDL scancode -> 键名（仅日志用；scancode 是物理键位，不依赖布局，永久稳定） */
+    private static final Map<Integer, String> SCAN_NAME;
+    static {
+        Map<Integer, String> m = new HashMap<>();
+        m.put(4,"A"); m.put(22,"W"); m.put(26,"S"); m.put(8,"E"); m.put(20,"R"); m.put(7,"D");
+        m.put(9,"F"); m.put(23,"T"); m.put(10,"G"); m.put(28,"Y"); m.put(11,"H");
+        m.put(24,"U"); m.put(13,"J"); m.put(14,"K"); m.put(18,"O"); m.put(15,"L");
+        m.put(19,"P"); m.put(51,";"); m.put(52,"'");
+        m.put(30,"1"); m.put(31,"2"); m.put(32,"3");
+        m.put(41,"ESC"); m.put(80,"LEFT"); m.put(79,"RIGHT"); m.put(82,"UP"); m.put(81,"DOWN");
+        SCAN_NAME = m;
+    }
 
     /* ===== 布局常量 ===== */
     private static final int WKW = 48, WKH = 150;
@@ -138,7 +164,13 @@ public class PianoKeyboardScreen extends Screen {
     private final Map<Integer, Boolean> pressed = new HashMap<>();
     private int shift = 0;
     private final Set<Integer> active = new HashSet<>();
+
+    /* ★ 26.3：heldKeys 由 keyPressed/keyReleased 回调维护，存入的值是 SDL scancode
+     *   （getScancode() 反射读字段，物理键位，布局无关，永久稳定）。
+     *   KEY_MAP / K1-K3 / ESC 全部以 scancode 为键查询，键码空间一致。 */
+    private static final boolean DEBUG_KEYS = true;  // ★ 验证映射期间保持 true；按键一一对应后改回 false
     private final Map<String, Boolean> keyState = new HashMap<>();
+    private final Set<Integer> heldKeys = new HashSet<>(); // ★ 26.3：回调维护的物理键集合（值=scancode）
     private boolean wasMouseDown = false;
 
     private boolean broadcast = false;
@@ -522,6 +554,7 @@ public class PianoKeyboardScreen extends Screen {
     protected void init() {
         try {
             keyState.clear();
+            heldKeys.clear();
             shift = 0;
             isPianoAPIAvail();
             initLib();
@@ -610,81 +643,78 @@ public class PianoKeyboardScreen extends Screen {
             history.clear(); history.addAll(nh);
 
             scanNB();
+            boolean k0 = heldKeys.contains(30); // SDL_SCANCODE_1 ('0'键在26.3下不可靠，改用 scancode)
+            if (k0 && !keyState.getOrDefault("K0", false)) {
+                System.out.println("[DJ] 0 -> C4 reset");
+                setDisp(4);
+            }
+            keyState.put("K0", k0);
 
-            long win = getWin();
-            if (win != 0L) {
-                boolean k0 = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_0) == GLFW.GLFW_PRESS;
-                if (k0 && !keyState.getOrDefault("K0", false)) {
-                    System.out.println("[DJ] 0 -> C4 reset");
-                    setDisp(4);
+            boolean k1 = heldKeys.contains(30); // scancode=30 (键'1')
+            if (k1 && !keyState.getOrDefault("K1", false)) {
+                System.out.println("[DJ] 1 -> A0(-39) \u2605");
+                if (playAndRecord(-39)) { addRoll(-39); if (broadcast) broadcastNB(-39); }
+                pressed.put(-39, true);
+            }
+            if (!k1) { pressed.remove(-39); MIDI_REC.noteOff(-39); }
+            keyState.put("K1", k1);
+
+            boolean k2 = heldKeys.contains(31); // scancode=31 (键'2')
+            if (k2 && !keyState.getOrDefault("K2", false)) {
+                System.out.println("[DJ] 2 -> A#0(-38) \u2605");
+                if (playAndRecord(-38)) { addRoll(-38); if (broadcast) broadcastNB(-38); }
+                pressed.put(-38, true);
+            }
+            if (!k2) { pressed.remove(-38); MIDI_REC.noteOff(-38); }
+            keyState.put("K2", k2);
+
+            boolean k3 = heldKeys.contains(32); // scancode=32 (键'3')
+            if (k3 && !keyState.getOrDefault("K3", false)) {
+                System.out.println("[DJ] 3 -> B0(-37) \u2605");
+                if (playAndRecord(-37)) { addRoll(-37); if (broadcast) broadcastNB(-37); }
+                pressed.put(-37, true);
+            }
+            if (!k3) { pressed.remove(-37); MIDI_REC.noteOff(-37); }
+            keyState.put("K3", k3);
+
+            boolean esc = heldKeys.contains(SC_ESC);
+            if (esc && !keyState.getOrDefault("ESC", false)) {
+                if (MIDI_REC.isRecording()) {
+                    String path = getRecordingsDir() + "/piano_" + System.currentTimeMillis() + ".mid";
+                    boolean ok = MIDI_REC.stopAndSave(path);
+                    System.out.println("[DJ] MIDI auto-save on ESC=" + ok + " path=" + path);
+                    if (recBtn != null) updateRecBtnColor(recBtn);
                 }
-                keyState.put("K0", k0);
+                nbReady = false; nbCache.clear();
+                Main.setScreenCompatStatic(minecraft, parent);
+            }
+            keyState.put("ESC", esc);
 
-                boolean k1 = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_1) == GLFW.GLFW_PRESS;
-                if (k1 && !keyState.getOrDefault("K1", false)) {
-                    System.out.println("[DJ] 1 -> A0(-39) \u2605");
-                    if (playAndRecord(-39)) { addRoll(-39); if (broadcast) broadcastNB(-39); }
-                    pressed.put(-39, true);
-                }
-                if (!k1) { pressed.remove(-39); MIDI_REC.noteOff(-39); }
-                keyState.put("K1", k1);
+            for (Map.Entry<Integer, Integer> ent : KEY_MAP.entrySet()) {
+                int key = ent.getKey();
+                String keyName = keyNameOf(key);
+                boolean now = heldKeys.contains(key);
+                boolean was = keyState.getOrDefault("K"+key, false);
+                int noteId = ent.getValue() + shift * 12;
+                boolean ok = noteId >= NOTE_ID_A0 && noteId <= NOTE_ID_C8;
 
-                boolean k2 = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_2) == GLFW.GLFW_PRESS;
-                if (k2 && !keyState.getOrDefault("K2", false)) {
-                    System.out.println("[DJ] 2 -> A#0(-38) \u2605");
-                    if (playAndRecord(-38)) { addRoll(-38); if (broadcast) broadcastNB(-38); }
-                    pressed.put(-38, true);
-                }
-                if (!k2) { pressed.remove(-38); MIDI_REC.noteOff(-38); }
-                keyState.put("K2", k2);
-
-                boolean k3 = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_3) == GLFW.GLFW_PRESS;
-                if (k3 && !keyState.getOrDefault("K3", false)) {
-                    System.out.println("[DJ] 3 -> B0(-37) \u2605");
-                    if (playAndRecord(-37)) { addRoll(-37); if (broadcast) broadcastNB(-37); }
-                    pressed.put(-37, true);
-                }
-                if (!k3) { pressed.remove(-37); MIDI_REC.noteOff(-37); }
-                keyState.put("K3", k3);
-
-                boolean esc = GLFW.glfwGetKey(win, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS;
-                if (esc && !keyState.getOrDefault("ESC", false)) {
-                    if (MIDI_REC.isRecording()) {
-                        String path = getRecordingsDir() + "/piano_" + System.currentTimeMillis() + ".mid";
-                        boolean ok = MIDI_REC.stopAndSave(path);
-                        System.out.println("[DJ] MIDI auto-save on ESC=" + ok + " path=" + path);
-                        if (recBtn != null) updateRecBtnColor(recBtn);
-                    }
-                    nbReady = false; nbCache.clear();
-                    Main.setScreenCompatStatic(minecraft, parent);
-                }
-                keyState.put("ESC", esc);
-
-                for (Map.Entry<Integer, Integer> ent : KEY_MAP.entrySet()) {
-                    int key = ent.getKey();
-                    String keyName = GLFW.glfwGetKeyName(key, 0);
-                    boolean now = GLFW.glfwGetKey(win, key) == GLFW.GLFW_PRESS;
-                    boolean was = keyState.getOrDefault("K"+key, false);
-                    int noteId = ent.getValue() + shift * 12;
-                    boolean ok = noteId >= NOTE_ID_A0 && noteId <= NOTE_ID_C8;
-
-                    if (now && !was) {
-                        if (ok) {
-                            System.out.println("[DJ] key=" + keyName +
-                                " offset=" + ent.getValue() + " shift=" + shift +
-                                "(+" + getDisp() + ") -> " + noteId + "(" + nameOfId(noteId) + ")");
-                            if (playAndRecord(noteId)) {
-                                addRoll(noteId);
-                                if (broadcast) broadcastNB(noteId);
-                            }
-                            pressed.put(noteId, true);
-                        } else {
-                            System.out.println("[DJ] REJECT noteId=" + noteId + " key=" + keyName);
+                if (now && !was) {
+                    debugKey(key, "press");
+                    if (ok) {
+                        System.out.println("[DJ] key=" + keyName +
+                            " offset=" + ent.getValue() + " shift=" + shift +
+                            "(+" + getDisp() + ") -> " + noteId + "(" + nameOfId(noteId) + ")");
+                        if (playAndRecord(noteId)) {
+                            addRoll(noteId);
+                            if (broadcast) broadcastNB(noteId);
                         }
+                        pressed.put(noteId, true);
+                    } else {
+                        System.out.println("[DJ] REJECT noteId=" + noteId + " key=" + keyName);
                     }
-                    if (!now && was) { pressed.remove(noteId); MIDI_REC.noteOff(noteId); }
-                    keyState.put("K"+key, now);
                 }
+                if (!now && was) { pressed.remove(noteId); MIDI_REC.noteOff(noteId); }
+                keyState.put("K"+key, now);
             }
 
             boolean ml = minecraft.mouseHandler.isLeftPressed();
@@ -706,6 +736,69 @@ public class PianoKeyboardScreen extends Screen {
             wasMouseDown = ml;
         } catch (Exception e) { e.printStackTrace(); }
     }
+
+    /* ==================== ★ 26.3 输入：回调维护 heldKeys（scancode，永久稳定）====================
+     * 根因：26.3 的 Screen.keyPressed/keyReleased 回调签名 = KeyEvent 单参
+     *   （非三参 int；写三参会报"需要 KeyEvent / 找到 int,int,int"）。
+     *   KeyEvent 有 scancode 字段但**没有** scancode() getter（直接调 -> NoSuchMethodError），
+     *   故用 getScancode() 反射读字段，回退 key()。结果 = SDL scancode（物理键，布局无关），
+     *   与 KEY_MAP 的 key 同键码空间 -> 天然对齐（根治实测"按LEFT显示KEY_P"）。
+     * ★ keyReleased 用 remove，绝不 add（旧版曾误写成 add -> 松键卡住）。 */
+    @Override
+    public boolean keyPressed(KeyEvent evt) {
+        int sc = getScancode(evt);   // ★ SDL scancode（物理键位，与 KEY_MAP 同键码空间）
+        heldKeys.add(sc);
+        // ★ 八度快捷键：← = SC_LEFT(80) 降八度，→ = SC_RIGHT(79) 升八度，不发声
+        if (sc == SC_LEFT)  { addDisp(-1); System.out.println("[DJ] octave <- " + getDisp()); return true; }
+        if (sc == SC_RIGHT) { addDisp(+1); System.out.println("[DJ] octave -> " + getDisp()); return true; }
+        return super.keyPressed(evt);
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent evt) {
+        heldKeys.remove(getScancode(evt));   // ★ remove，绝不 add（旧版误写成 add -> 松键卡住）
+        return super.keyReleased(evt);
+    }
+
+    /* ===== ★ 26.3：从 KeyEvent 取 SDL scancode（物理键位，永久稳定）=====
+     * 为什么用反射：26.3 的 KeyEvent 有 scancode 字段但**没有** scancode() getter
+     *   （直接调用 event.scancode() -> NoSuchMethodError，已实测）。
+     *   -> 反射读私有字段 "scancode"（int），读不到则回退到 key()（GLFW keycode）。
+     *   字段/方法名均通过反射探测，失败不崩溃，返回 0。 */
+    private static int getScancode(Object evt) {
+        if (evt == null) return 0;
+        try {
+            // 优先：scancode 字段（SDL scancode，物理键位）
+            java.lang.reflect.Field f = evt.getClass().getDeclaredField("scancode");
+            f.setAccessible(true);
+            return ((Number) f.get(evt)).intValue();
+        } catch (Throwable ignored) {}
+        try {
+            // 次优先：scancode() getter（部分构建版本存在）
+            java.lang.reflect.Method m = evt.getClass().getMethod("scancode");
+            return ((Number) m.invoke(evt)).intValue();
+        } catch (Throwable ignored) {}
+        try {
+            // 回退：key() -> GLFW keycode（字母区与 scancode 一致，标点区需 KEY_MAP 校准）
+            java.lang.reflect.Method m = evt.getClass().getMethod("key");
+            return ((Number) m.invoke(evt)).intValue();
+        } catch (Throwable ignored) {}
+        return 0;
+    }
+
+    private String keyNameOf(int scancode) {
+        String name = SCAN_NAME.get(scancode);
+        if (name != null) return "SC_" + name;
+        return "scancode_" + scancode;
+    }
+
+    /** ★ 调试用：按下任意键时在控制台打印 scancode + 键名，确认映射后关闭 DEBUG_KEYS */
+    private void debugKey(int scancode, String tag) {
+        if (DEBUG_KEYS) {
+            System.out.println("[DJ] " + tag + " scancode=" + scancode + " name=" + keyNameOf(scancode));
+        }
+    }
+
 
     private boolean playAndRecord(int noteId) {
         boolean ok = playLib(noteId);
@@ -1232,7 +1325,7 @@ public class PianoKeyboardScreen extends Screen {
             ShortMessage pc = new ShortMessage();
             pc.setMessage(ShortMessage.PROGRAM_CHANGE, CHANNEL, program, 0);
             track.add(new MidiEvent(pc, 0));
-            System.out.println("[MIDI] ProgramChange -> " + program + " (Grand Piano)");
+            System.out.println("[S MIDI] ProgramChange -> " + program + " (Grand Piano)");
         }
 
         private void addControlChange(int controller, int value) {

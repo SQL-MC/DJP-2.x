@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
+import semmiedev.disc_jockey.util.BlitCompat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
@@ -135,7 +135,17 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
             // ★ 改用 safeName，杜绝 ______
             context.text(client.font, safeName(song), x + entryWidth / 2, y + 5, selected ? 0xFFFFFFFF : 0xFF808080);
 
-            context.blit(RenderPipelines.GUI_TEXTURED, ICONS, x + 2, y + 2, (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0), 0, 13, 12, 52, 12);
+            /* ★ 收藏星标（26.3 最终修复：走 BlitCompat.blit，★ 无管线、不访问
+               RenderPipelines / RenderPipeline，从根本上消灭
+               NoSuchFieldError: GUI_TEXTURED）。
+               参数顺序：(context, texture, x, y, u, v, width, height, textureWidth, textureHeight)
+               icons.png = 52×12，4 帧横向排列：空星=0、空星hover=13、满星=26、满星hover=39，
+               每帧 13×12 → u∈{0,13,26,39}, width=13, height=12, tw=52, th=12。 */
+            BlitCompat.blit(context, ICONS,
+                    x + 2, y + 2,
+                    (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0), 0,
+                    13, 12,
+                    52, 12);
         }
 
         public Component getNarrateText() {
