@@ -3,7 +3,9 @@ package semmiedev.disc_jockey;
 import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
+import net.minecraft.world.item.component.SwingAnimation;
+import semmiedev.disc_jockey.Config.ExpectedServerVersion;
+//import java.io.ObjectInputFilter.Config;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -376,7 +378,7 @@ public class Tuner {
             lastBlockPos = blockPos;
         }
         if (lastBlockPos != null) {
-            client.player.swing(InteractionHand.MAIN_HAND);
+            client.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         }
         return null;
     }

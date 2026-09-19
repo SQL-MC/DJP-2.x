@@ -6,9 +6,10 @@ import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.input.MouseButtonEvent;
-import semmiedev.disc_jockey.util.BlitCompat;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+
 import org.jetbrains.annotations.Nullable;
 import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.Song;
@@ -103,7 +104,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         return (name == null) ? "" : name.replaceAll("\\.(?i)(nbs|mid)$", "");
     }
 
-    public static class SongEntry extends Entry<SongEntry> {
+    public static class SongEntry extends Entry<SongListWidget.SongEntry> {
         private static final Identifier ICONS = Identifier.fromNamespaceAndPath(Main.MOD_ID, "textures/gui/icons.png");
 
         public final int index;
@@ -133,19 +134,23 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
             }
 
             // ★ 改用 safeName，杜绝 ______
-            context.text(client.font, safeName(song), x + entryWidth / 2, y + 5, selected ? 0xFFFFFFFF : 0xFF808080);
+            // ✅ 26.3：跟 26.2 一致的 text 写法（5 参数 String 版；报错了加 shadow 成 6 参数）
+            context.text(client.font, safeName(song), x + entryWidth / 2, y + 5,
+                    selected ? 0xFFFFFFFF : 0xFF808080);
 
-            /* ★ 收藏星标（26.3 最终修复：走 BlitCompat.blit，★ 无管线、不访问
-               RenderPipelines / RenderPipeline，从根本上消灭
-               NoSuchFieldError: GUI_TEXTURED）。
-               参数顺序：(context, texture, x, y, u, v, width, height, textureWidth, textureHeight)
-               icons.png = 52×12，4 帧横向排列：空星=0、空星hover=13、满星=26、满星hover=39，
-               每帧 13×12 → u∈{0,13,26,39}, width=13, height=12, tw=52, th=12。 */
-            BlitCompat.blit(context, ICONS,
-                    x + 2, y + 2,
-                    (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0), 0,
-                    13, 12,
-                    52, 12);
+            /* ★ 收藏星标（26.3 修复：照 26.2 写法，仅 u/v 升为 float）
+               ✅ 26.2：blit(GUI_TEXTURED, ICONS, x, y, frame, 0, 13, 12, 52, 12) 像素坐标
+               ✅ 26.3：u/v 为 float，传 (float)frame / 0f
+               ✅ icons.png = 52×12，4 帧横排，每帧 13×12：
+                  frame = 0(空)/13(空+hover)/26(满)/39(满+hover) */
+            int iconX = x + 2;
+            int iconY = y + 2;
+            int frame = (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0); // 0/13/26/39
+            context.blit(RenderPipelines.GUI_TEXTURED,
+                    ICONS, iconX, iconY,
+                    (float) frame, 0f,   // ✅ u/v 为 float（像素坐标转 float）
+                    13, 12,              // 绘制宽高 = 纹理帧宽高
+                    52, 12);             // 纹理总宽高
         }
 
         public Component getNarrateText() {

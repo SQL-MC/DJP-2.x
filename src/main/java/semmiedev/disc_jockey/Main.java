@@ -1,10 +1,9 @@
 package semmiedev.disc_jockey;
 
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.sounds.SoundEvents;                    // ✅ 新增
-import net.minecraft.client.resources.sounds.SimpleSoundInstance; // ✅ 新增
-import net.minecraft.core.Holder;                          // ✅ 新增
-import org.apache.logging.log4j.LogManager;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.Holder;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
@@ -12,6 +11,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.Minecraft;
 
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -20,55 +20,20 @@ import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumVisualizer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
-/*
-   =========================================================
-   ⚠️ 以下 import 在 compileJava 阶段会失败
-   ⚠️ 已注释屏蔽，代码逻辑完整保留
-   ⚠️ 编译通过后，删除注释符号即可恢复
-   =========================================================
-*/
-// import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-/*
-   =========================================================
-*/
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
-/*
-   =========================================================
-   ⚠️ 以下 import 在 compileJava 阶段会失败
-   ⚠️ 已注释屏蔽，代码逻辑完整保留
-   ⚠️ 编译通过后，删除注释符号即可恢复
-   =========================================================
-*/
-import net.minecraft.client.Minecraft;
-// import net.minecraft.client.gui.GuiGraphics; // ✅ 26.2 不存在此类，注释掉
-// import net.minecraft.resources.ResourceLocation;
-/*
-   ⚠️ 26.2 中 ResourceLocation 已正式重命名为 Identifier，按你原始注释说明恢复此行
-   ⚠️ 代码逻辑完整保留，仅修正类名适配 26.2
-   =========================================================
-*/
-import net.minecraft.resources.Identifier;
-/*
-   =========================================================
-*/
+import net.minecraft.resources.Identifier;         // ✅ 26.3 真实类名
+import com.mojang.blaze3d.platform.InputConstants;          // ✅ 26.3 真实位置（javap 实锤）
 
-import net.minecraft.sounds.SoundSource;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-// ✅ 26.3 键绑定说明（官方证实，切勿再改 GLFW/Type.SCANCODE）：
-//   - KeyMapping 三参构造 (String, int keysym, Category) 在 26.3 仍存在；
-//   - keysym 一律用 InputConstants.KEY_*（KEY_J/M/L/P/LBRACKET/B…），Fabric 内部适配 SDL3；
-//   - ⚠️ 严禁 Type.SCANCODE / Type.KEYSYM（26.3 已移除，会 NoSuchFieldError）。
-import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.input.KeyEvent;  // 26.3 键事件（供排错/反射，不影响键绑定）
 
 import java.io.File;
 import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-// ✅ 删掉了错误的JDK Config导包：import java.io.ObjectInputFilter.Config;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
@@ -206,46 +171,6 @@ public class Main implements ClientModInitializer {
         if (!songsFolder.isDirectory()) songsFolder.mkdirs();
 
         SongLoader.loadSongs();
-
-        /*
-           =========================================================
-           ⚠️ HUD 注册代码完整保留 - 编译通过后恢复
-           =========================================================
-        */
-        /*
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-
-            ResourceLocation spectrumLayer =
-                    ResourceLocation.fromNamespaceAndPath(MOD_ID, "spectrum");
-
-            HudElementRegistry.addLast(spectrumLayer, (guiGraphics, deltaTracker) -> {
-                Minecraft mc = Minecraft.getInstance();
-                Config cfg = Main.configHolder.getConfig();
-
-                if (!cfg.spectrumAlwaysVisible
-                        && !(mc.screen instanceof semmiedev.disc_jockey.gui.screen.DiscJockeyScreen)) {
-                    return;
-                }
-
-                if (!SONG_PLAYER.running && !PREVIEWER.running) {
-                    return;
-                }
-
-                int width = mc.getWindow().getScaledWidth();
-                int height = mc.getWindow().getScaledHeight();
-                int bottomY = height - 75;
-
-                semmiedev.disc_jockey.gui.hud.SpectrumRendererManager.getCurrent().render(
-                        guiGraphics,
-                        width,
-                        height,
-                        SPECTRUM.currentLevels,
-                        15,
-                        bottomY
-                );
-            });
-        });
-        */
         /*
            =========================================================
            ✅ 占位：保持 CLIENT_STARTED 注册习惯
@@ -603,12 +528,11 @@ public class Main implements ClientModInitializer {
                     Class<?> hudRegistryClass = Class.forName("net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry");
                     Class<?> hudElementClass = Class.forName("net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement");
 
-                    Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
-                    Constructor<?> identifierCtor = identifierClass.getDeclaredConstructor(String.class, String.class);
-                    identifierCtor.setAccessible(true);
-                    Object spectrumLayer = identifierCtor.newInstance(MOD_ID, "spectrum");
+                    Class<?> rlClass = Class.forName("net.minecraft.resources.ResourceLocation");
+                    Method fromNS = rlClass.getMethod("fromNamespaceAndPath", String.class, String.class);
+                    Object spectrumLayer = fromNS.invoke(null, MOD_ID, "spectrum");
 
-                    Method addLast = hudRegistryClass.getMethod("addLast", identifierClass, hudElementClass);
+                    Method addLast = hudRegistryClass.getMethod("addLast", rlClass, hudElementClass);
 
                     Object hudElement = java.lang.reflect.Proxy.newProxyInstance(
                         hudElementClass.getClassLoader(),

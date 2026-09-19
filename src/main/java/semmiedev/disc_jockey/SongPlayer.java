@@ -1,5 +1,5 @@
 package semmiedev.disc_jockey;
-
+import net.minecraft.world.item.component.SwingAnimation;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -279,7 +279,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
             }
 
             if (rateLimiter.canSendSwingPacket() && PacketThrottle.canSend() && PacketThrottle.canSendInterval()) {
-                client.executeIfPossible(() -> client.player.swing(InteractionHand.MAIN_HAND));
+                client.executeIfPossible(() -> client.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false));
                 rateLimiter.onSwingPacketSent();
             }
 

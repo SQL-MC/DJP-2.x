@@ -3,6 +3,7 @@ package semmiedev.disc_jockey.gui.screen;
 // [26.3-fix] KeyEvent import 保留：Screen 回调签名 = KeyEvent 单参（非三参 int），
 //   scancode 通过反射读 KeyEvent 的 scancode 字段（无 scancode() getter，已实测），回退 key()。
 import semmiedev.disc_jockey.Main;
+import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.util.RandomSource;
 import net.minecraft.client.Minecraft;
@@ -545,7 +546,7 @@ public class PianoKeyboardScreen extends Screen {
             if (t != null) {
                 minecraft.player.connection.send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, t, Direction.UP, 0));
-                minecraft.player.swing(InteractionHand.MAIN_HAND);
+                minecraft.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
             }
         } catch (Exception e) {}
     }
