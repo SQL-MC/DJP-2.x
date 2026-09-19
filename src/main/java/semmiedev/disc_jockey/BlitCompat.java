@@ -7,14 +7,15 @@ import org.apache.logging.log4j.Logger;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * ✅ 26.3 渲染兼容工具
  * ---------------------------------------------------------------
- * 问题：Minecraft 26.3-rc 从 {@code RenderPipelines} 中移除了
- *       {@code GUI_TEXTURED} 静态字段（或对其重命名），导致
- *       {@code context.blit(RenderPipelines.GUI_TEXTURED, ...)}
- *       在打开 DJ 界面时抛出 {@code NoSuchFieldError}，整个界面崩溃。
+ * 背景：Minecraft 26.3 将渲染后端从 Blaze3D pipeline 迁移到 RenderPearl
+ *       （com.mojang.renderpearl.api.pipeline.RenderPipeline），并把
+ *       GuiGraphics 重命名为 GuiGraphicsExtractor。旧版常量
+ *       com.mojang.blaze3d.pipeline.RenderPipeline 已不存在。
  *
  * 方案：运行时通过反射解析一个合适的 GUI 渲染管线对象，不再硬编码字段名。
  *       - 优先按候选名（GUI_TEXTURED / GUI / GUI_OPAQUE_TEXTURED_BACKGROUND …）精确取值
@@ -50,7 +51,8 @@ public final class BlitCompat {
     static {
         Class<?> pt = null;
         try {
-            pt = Class.forName("com.mojang.blaze3d.pipeline.RenderPipeline");
+            // ✅ 26.3：管线类已迁移到 renderpearl.api.pipeline
+            pt = Class.forName("com.mojang.renderpearl.api.pipeline.RenderPipeline");
         } catch (Throwable t) {
             LOGGER.warn("[BlitCompat] 找不到 RenderPipeline 类：{}", t.toString());
         }

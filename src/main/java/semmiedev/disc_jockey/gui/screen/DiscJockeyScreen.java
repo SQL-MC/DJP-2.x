@@ -2,6 +2,9 @@ package semmiedev.disc_jockey.gui.screen;
 
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
 import me.shedaniel.autoconfig.AutoConfigClient;
+import java.nio.file.StandardCopyOption;   // ← 文件复制要
+import java.nio.file.StandardOpenOption;
+import java.util.stream.Stream;            // ← Files.walk 的 stream 要
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -27,13 +30,155 @@ import java.awt.FileDialog;
 import java.awt.Frame;
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputFilter.Config;
+//import java.io.ObjectInputFilter.Config;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class DiscJockeyScreen extends Screen {
+    /* ========== ★ 一键同步本地 NBS 仓库 ==========
+       ✅ 源路径硬编码 D:/songs/songs（你的本地 NBS 仓库）
+       ✅ 目标用 Main.songsFolder（config/disc_jockey/songs），与 SongLoader 一致
+       ✅ 子线程复制 → 不卡 UI；minecraft.execute 回主线程刷新
+       ✅ 轮询 loadingSongs，避免读到半截数据 */
+    private static final Path NBS_SOURCE = Paths.get("D:/songs/songs");
 
+    /** 对 GitHub raw 的 path 做分段 URL 编码。
+     *  空格→%20，中文→UTF-8 百分号编码，斜杠保留原样。 */
+    private static String encodePath(String path) {
+        if (path == null || path.isEmpty()) return path;
+        StringBuilder sb = new StringBuilder(path.length() + 16);
+        String[] segs = path.split("/", -1);
+        try {
+            for (int i = 0; i < segs.length; i++) {
+                if (i > 0) sb.append('/');
+                sb.append(java.net.URLEncoder.encode(segs[i], "UTF-8").replace("+", "%20"));
+            }
+        } catch (java.io.UnsupportedEncodingException e) {
+            return path;
+        }
+        return sb.toString();
+    }
+/* ========== ★ 从 GitHub 仓库 SQL-MC/Nbs 下载 NBS ==========
+       ✅ 用 GitHub Tree API 拿 songs/ 目录文件列表
+       ✅ 用 raw.githubusercontent.com 直链下载
+       ✅ 子线程下载 → 不卡 UI
+       ✅ 下载完回主线程重建歌单 */
+    private static final String GITHUB_API = "https://api.github.com/repos/SQL-MC/Nbs/git/trees/main?recursive=1";
+    private static final String RAW_BASE  = "https://raw.githubusercontent.com/SQL-MC/Nbs/main/";
+
+    private void downloadNbsFromGithub() {
+        File dest = Main.songsFolder;
+        if (dest == null) { Main.LOGGER.warn("[DJ] Main.songsFolder 未初始化"); return; }
+        Path destDir = dest.toPath();
+        try { Files.createDirectories(destDir); } catch (IOException e) {
+            Main.LOGGER.warn("[DJ] 创建目标目录失败: {}", e.getMessage()); return;
+        }
+
+        new Thread(() -> {
+            java.util.List<String> nbsFiles = new java.util.ArrayList<>();
+            try {
+                // ✅ 第1步：Tree API 拿完整文件清单
+                String treeJson = httpGet(GITHUB_API);
+                nbsFiles = parseTree(treeJson);
+            } catch (IOException e) {
+                Main.LOGGER.warn("[DJ] 获取 GitHub 文件列表失败: {}", e.getMessage());
+                minecraft.execute(() -> minecraft.gui.chatListener().handleSystemMessage(
+                        Component.literal("§c[DiscJockey] 连接 GitHub 失败: " + e.getMessage()), false));
+                return;
+            }
+
+            if (nbsFiles.isEmpty()) {
+                minecraft.execute(() -> minecraft.gui.chatListener().handleSystemMessage(
+                        Component.literal("§c[DiscJockey] GitHub 仓库未找到 .nbs 文件"), false));
+                return;
+            }
+
+            // ✅ 第2步：逐个下载
+            int ok = 0, fail = 0;
+            for (String path : nbsFiles) {
+                String name = path.substring(path.lastIndexOf('/') + 1);
+                try {
+                    String url = RAW_BASE + encodePath(path);   // ✅ 加编码
+                    java.net.URL u = new java.net.URL(url);
+                    Path out = destDir.resolve(name);
+                    try (java.io.InputStream in = u.openStream();
+                         java.io.OutputStream os = Files.newOutputStream(out,
+                                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = in.read(buf)) > 0) os.write(buf, 0, n);
+                    }
+                    ok++;
+                } catch (IOException e) {
+                    fail++;
+                    Main.LOGGER.warn("[DJ] 下载失败 {}: {} for URL: {}", name, e.getMessage(), RAW_BASE + encodePath(path));
+                }
+            }
+            int fOk = ok, fFail = fail;
+            Main.LOGGER.info("[DJ] GitHub 下载完成：成功 {} 个，失败 {} 个", fOk, fFail);
+            minecraft.execute(() -> {
+                SongLoader.loadSongs();
+                awaitSongReload();
+                minecraft.gui.chatListener().handleSystemMessage(
+                        Component.literal("§a[DiscJockey] 下载完成：成功 " + fOk + "，失败 " + fFail), false);
+            });
+        }, "DJ-GithubNbs").start();
+    }
+
+    /** 解析 GitHub Tree API 的 JSON，筛出 songs/ 下的 .nbs 文件 */
+    private java.util.List<String> parseTree(String json) {
+        java.util.List<String> list = new java.util.ArrayList<>();
+        // 找所有 "path":"..." 字段
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("\"path\"\\s*:\\s*\"([^\"]+)\"")
+                .matcher(json);
+        while (m.find()) {
+            String p = m.group(1);
+            if (p.startsWith("songs/") && p.toLowerCase().endsWith(".nbs")) {
+                list.add(p);
+            }
+        }
+        return list;
+    }
+
+    /** 简单 HTTP GET，带 UA 头（GitHub API 要求 UA） */
+    private String httpGet(String urlStr) throws IOException {
+        java.net.URL url = new java.net.URL(urlStr);
+        java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+        conn.setConnectTimeout(15_000);
+        conn.setReadTimeout(30_000);
+        conn.setRequestProperty("User-Agent", "DiscJockey/2.6.3");   // ← GitHub 强制要求
+        conn.setRequestProperty("Accept", "application/vnd.github+json");
+        int code = conn.getResponseCode();
+        if (code != 200) throw new IOException("HTTP " + code + " for " + urlStr);
+        try (java.io.InputStream in = conn.getInputStream();
+             java.util.Scanner s = new java.util.Scanner(in, "UTF-8").useDelimiter("\\A")) {
+            return s.hasNext() ? s.next() : "";
+        }
+    }
+
+    /** 轮询 loadingSongs，加载完再刷新列表 */
+    private void awaitSongReload() {
+        if (SongLoader.loadingSongs) {
+            minecraft.execute(() -> awaitSongReload());
+            return;
+        }
+        rebuildSongList();
+    }
+
+    /** 用 SongLoader.SONGS 重建 SongListWidget 条目 */
+    private void rebuildSongList() {
+        if (this.songListWidget == null) return;
+        java.util.List<SongListWidget.SongEntry> entries = new java.util.ArrayList<>();
+        for (int i = 0; i < SongLoader.SONGS.size(); i++) {
+            entries.add(new SongListWidget.SongEntry(SongLoader.SONGS.get(i), i));
+        }
+        songListWidget.safeReplaceEntries(entries);
+    }
     /* =========================================================
        ✅ parent screen：从主菜单/暂停菜单打开时记录，关闭后返回
        ========================================================= */
@@ -256,7 +401,7 @@ public class DiscJockeyScreen extends Screen {
            ========================================================= */
         configButton = Button.builder(CONFIG, b ->
                 Main.setScreenCompatStatic(minecraft,
-                        AutoConfigClient.getConfigScreen(Config.class, this).get())
+                        AutoConfigClient.getConfigScreen(semmiedev.disc_jockey.Config.class, this).get())
         ).pos(10, height - 30).size(100, 20).build();
         addRenderableWidget(configButton);
 
@@ -305,6 +450,21 @@ public class DiscJockeyScreen extends Screen {
         ).pos(115, height - 30).size(100, 20).build();
         addRenderableWidget(exportMidiButton);
 
+/* =========================================================
+           ★ 新增：从 GitHub 仓库 SQL-MC/Nbs 下载 NBS 到本地
+           ✅ 源：GitHub raw + Tree API
+           ✅ 目标：Main.songsFolder（= config/disc_jockey/songs）
+           ✅ 网络请求在子线程跑，不卡 UI
+           ✅ 下载完回主线程重建歌单
+           ========================================================= */
+        Button downloadNbsButton = Button.builder(
+                Component.literal("下载NBS"),
+                btn -> downloadNbsFromGithub()
+        ).pos(10, height - 55)
+         .size(100, 20)
+         .tooltip(Tooltip.create(Component.literal("从 GitHub:SQL-MC/Nbs 下载 NBS 到本地")))
+         .build();
+        addRenderableWidget(downloadNbsButton);
         /* =========================================================
            ✅ WAV 导出按钮（方案C：纯 Java 合成真实音频，零依赖）
            ✅ 位置：export_midi 正上方，组成"导出组"
