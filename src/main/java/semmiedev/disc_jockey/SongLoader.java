@@ -64,6 +64,13 @@ public class SongLoader {
             } catch (Exception e) {
                 Main.LOGGER.error("Failed to load songs", e);
             } finally {
+                // ✅ 26.3：每次加载/刷新完成后绑定歌词
+                // （Song 会被重建，所以每次都要重新绑定）
+                try {
+                    SongLyricsLoader.loadLyrics();
+                } catch (Throwable t) {
+                    Main.LOGGER.warn("[DJ] 歌词加载失败：{}", t.getMessage());
+                }
                 loadingSongs = false;
             }
         }).start();

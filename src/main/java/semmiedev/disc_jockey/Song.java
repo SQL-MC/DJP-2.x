@@ -15,7 +15,11 @@ import java.util.Map;
 import semmiedev.disc_jockey.gui.SongListWidget;
 
 public class Song {
+/** 相对于歌曲根目录的路径（含子目录），用于子目录歌曲定位 */
+    public String relativePath = "";
 
+    /** ✅ 26.3：关联的 .lrc 歌词；null 表示无歌词 */
+    public Lyrics lyrics = null;
     /** ✅ 原始 NBS 音符（永不修改，永不写盘） */
     public long[] notes = new long[0];
 

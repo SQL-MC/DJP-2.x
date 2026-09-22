@@ -65,10 +65,12 @@ public class Main implements ClientModInitializer {
         VERSION = v;
     }
 
-    // ========== 2.6.2：统一入口 ==========
+// ========== 2.6.2：统一入口 ==========
     public static final Previewer PREVIEWER = new Previewer();
     public static final SongPlayer SONG_PLAYER = new SongPlayer();
     public static final SpectrumVisualizer SPECTRUM = new SpectrumVisualizer();
+    static { LyricsPlayer.register(); }   // ✅ 26.3：注册歌词播放器
+    // ====================================
     // ====================================
 
     // ✅ 独立频谱缓冲器实例（和PREVIEWER/SONG_PLAYER同级，不破坏原有逻辑）
