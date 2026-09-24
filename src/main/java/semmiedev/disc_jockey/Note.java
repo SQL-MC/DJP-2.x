@@ -10,54 +10,46 @@ import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 public record Note(NoteBlockInstrument instrument, byte note) {
     public static final HashMap<NoteBlockInstrument, Block> INSTRUMENT_BLOCKS = new HashMap<>();
 
-//    static List<Block> copperBlock = List.of(
-//            Blocks.COPPER_BLOCK,
-//            Blocks.CHISELED_COPPER,
-//            Blocks.CUT_COPPER,
-//            Blocks.CUT_COPPER_STAIRS,
-//            Blocks.CUT_COPPER_SLAB
-//    );
-//    static List<Block> exposedCopperBlock = List.of(
-//            Blocks.EXPOSED_COPPER,
-//            Blocks.EXPOSED_CHISELED_COPPER,
-//            Blocks.EXPOSED_CUT_COPPER,
-//            Blocks.EXPOSED_CUT_COPPER_STAIRS,
-//            Blocks.EXPOSED_CUT_COPPER_SLAB
-//    );
-//    static List<Block> weatheredCopperBlock = List.of(
-//            Blocks.WEATHERED_COPPER,
-//            Blocks.WEATHERED_CHISELED_COPPER,
-//            Blocks.WEATHERED_CUT_COPPER,
-//            Blocks.WEATHERED_CUT_COPPER_STAIRS,
-//            Blocks.WEATHERED_CUT_COPPER_SLAB
-//    );
-//    static List<Block> oxidizedCopperBlock = List.of(
-//            Blocks.OXIDIZED_COPPER,
-//            Blocks.OXIDIZED_CHISELED_COPPER,
-//            Blocks.OXIDIZED_CUT_COPPER,
-//            Blocks.OXIDIZED_CUT_COPPER_STAIRS,
-//            Blocks.OXIDIZED_CUT_COPPER_SLAB
-//    );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     public static final byte LAYER_SHIFT = Short.SIZE;
     public static final byte INSTRUMENT_SHIFT = Short.SIZE * 2;
     public static final byte NOTE_SHIFT = Short.SIZE * 2 + Byte.SIZE;
 
-    /* =========================================================
-       ✅【新增】从 long 中还原有符号 noteId
-       ✅ 存储时 (byte)noteId 把 -1 变成 0xFF、-33 变成 0xDF
-       ✅ 读取时 >=128 的值减去 256 还原为负数
-       ========================================================= */
+    
     public static int extractNoteId(long note) {
         long raw = (note >>> NOTE_SHIFT) & 0xFF;
         return raw < 128 ? (int) raw : (int) (raw - 256);
     }
 
-    /* =========================================================
-       ✅【新增】把有符号 noteId 打包进 long 的 bit 40~47
-       ✅ baseNote 是已有的 long（含 tick/layer/instrument）
-       ✅ noteId 范围 -33 ~ +53，转 byte 后存入低 8 位
-       ========================================================= */
+    
     public static long packNoteId(long baseNote, int noteId) {
         byte b = (byte) noteId;
         return (baseNote & ~(0xFFL << NOTE_SHIFT))

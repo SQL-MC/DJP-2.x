@@ -48,10 +48,7 @@ public class SongTimeSliderWidget extends AbstractSliderButton {
         updateMessage();
     }
 
-    /* ========== ✅ 26.2 修复：实现 AbstractWidget 要求的 public 抽象方法 ==========
-       ✅ 修复 AbstractMethodError（Narrator 触发 runNarration → updateNarration 崩溃）
-       ✅ 方法签名：public void updateWidgetNarration(NarrationElementOutput)
-       ✅ 仅 output.add(...) 提供朗读内容；不调用不存在的 defaultNarrationText */
+    
     @Override
     public void updateWidgetNarration(NarrationElementOutput output) {
         if (Main.SONG_PLAYER.song != null) {

@@ -43,9 +43,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
     public int transpose = 0;
     public final ArrayList<Song> shuffleQueue = new ArrayList<>();
 
-    /**
-     * ✅ 运行时 transpose（委托给 NoteClamper，保证算法一致）
-     */
+    
     public int applyTranspose(int rawNoteId) {
         return NoteClamper.applyTranspose(rawNoteId, this.transpose);
     }
@@ -82,14 +80,14 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
         }
         if (running) stop();
 
-        // ✅【互斥】DJ 启动，先停 Preview
+        
         Main.PREVIEWER.stop();
 
         tick = 0;
         index = 0;
         this.song = song;
 
-        // ✅ 安全：先清除旧缓存，再生成新缓存
+        
         if (song != null) {
             NoteClamper.clearFoldedNotes(song);
             NoteClamper.buildFoldedNotes(song, this.transpose);
@@ -144,11 +142,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
         }
     }
 
-    /**
-     * ✅ 统一取音符
-     * - 优先 foldedNotes（已含 transpose + fold）
-     * - 否则回退原始 notes
-     */
+    
     private long getNote(int idx) {
         if (song == null) return 0L;
         if (NoteClamper.hasFoldedNotes(song)) {
@@ -157,21 +151,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
         return song.notes[idx];
     }
 
-    /**
-     * ✅ DJP000016 修复：多层 fallback 查找方块
-     * 
-     * 问题：transpose 后，目标 (instrument, noteId) 在 Tuner 里可能没有方块
-     *       → blockPos == null → index++ 跳过 → 静音
-     * 
-     * 修复：依次尝试
-     *   1. 直接查找 transposedNoteId
-     *   2. 降八度 (noteId - 12)
-     *   3. 升八度 (noteId + 12)
-     *   4. 八度折叠回 0~24
-     * 
-     * 这样即使 Tuner 没有精确匹配的方块，也能找到"同乐器、最近八度"的方块
-     * → 不会静音，最多差一个八度（听起来仍然和谐）
-     */
+    
     private @Nullable BlockPos findNoteBlock(byte instrumentId, int noteId) {
         var instrumentMap = tuner.getNoteBlocks().get(Note.INSTRUMENTS[instrumentId]);
         if (instrumentMap == null) return null;
@@ -213,24 +193,24 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
 
             if ((short) note > Math.round(tick)) break;
 
-            // ✅ 从 foldedNotes 读出（已含 transpose + fold）
+            
             byte instrumentId = (byte) (note >> Note.INSTRUMENT_SHIFT);
             int transposedNoteId = (int) (note >> Note.NOTE_SHIFT) & 0xFF;
 
-            // ✅【DJP000016】多层 fallback 查找方块
+            
             BlockPos blockPos = findNoteBlock(instrumentId, transposedNoteId);
 
-            // Fallback 1: 降八度（高音区没方块 → 试低八度）
+            
             if (blockPos == null && transposedNoteId >= 12) {
                 blockPos = findNoteBlock(instrumentId, transposedNoteId - 12);
             }
 
-            // Fallback 2: 升八度（低音区没方块 → 试高八度）
+            
             if (blockPos == null && transposedNoteId <= 12) {
                 blockPos = findNoteBlock(instrumentId, transposedNoteId + 12);
             }
 
-            // Fallback 3: 八度折叠（都没 → 折叠到 0~24 内再试）
+            
             if (blockPos == null) {
                 int folded = ((transposedNoteId % 25) + 25) % 25;
                 if (folded != transposedNoteId) {
@@ -238,7 +218,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
                 }
             }
 
-            // ✅ 都找不到才跳过（极小概率：这个乐器在 Tuner 里完全没有方块）
+            
             if (blockPos == null) {
                 index++;
                 continue;
@@ -251,7 +231,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
                 return;
             }
 
-            // ✅ 频谱喂原始 noteId（不是 transposed 的）
+            
             int originalNoteId = (int) (song.notes[index] >> Note.NOTE_SHIFT) & 0xFF;
             Main.SPECTRUM.onNotePlayed(instrumentId & 0xFF, originalNoteId);
 

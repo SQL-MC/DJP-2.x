@@ -7,17 +7,11 @@ import org.jspecify.annotations.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Walks the song position and pushes the matching lyric lines out, either to public chat or to the
- * players nearby (see {@link LyricsChat}).
- * <p>
- * The comparison uses the song's own clock, which already advances at the configured playback
- * speed, so at 0.5x the lyrics come out at half the speed without any extra maths here.
- */
+
 public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
-    /** A jump backwards bigger than this counts as the user seeking. */
+    
     private static final long BACKWARD_SEEK_MILLIS = 500;
-    /** A jump forward bigger than this counts as seeking or a stall, so lines are skipped silently. */
+    
     private static final long FORWARD_SKIP_MILLIS = 1500;
 
     private static Song song;
@@ -33,13 +27,56 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
         Main.TICK_LISTENERS.add(new LyricsPlayer());
     }
 
-    @Override
-    public void onStartTick(@NonNull ClientLevel level) {
-        Song playing = Main.SONG_PLAYER.song;
-        Lyrics playingLyrics = playing == null ? null : playing.lyrics;
+    // ==================== ✅ 2.7.8：播放/预览双源工具方法 ====================
 
-        // A reload replaces both the songs and their lyrics, so the identity of the lyrics counts
-        // as well as the song.
+    
+    private static Song currentSong() {
+        if (Main.SONG_PLAYER.running && Main.SONG_PLAYER.song != null) return Main.SONG_PLAYER.song;
+        if (Main.PREVIEWER.isRunning() && Main.PREVIEWER.getSong() != null) return Main.PREVIEWER.getSong();
+        return null;
+    }
+
+    
+    private static long currentSongTimeMillis() {
+        if (Main.SONG_PLAYER.running && Main.SONG_PLAYER.song != null) {
+            return (long) (Main.SONG_PLAYER.getSongElapsedSeconds() * 1000);
+        }
+        if (Main.PREVIEWER.isRunning() && Main.PREVIEWER.getSong() != null) {
+            return (long) (Main.PREVIEWER.getTick() / 20.0 * 1000);
+        }
+        return -1;
+    }
+
+    
+    private static Lyrics currentLyrics() {
+        Song s = currentSong();
+        return s == null ? null : s.lyrics;
+    }
+
+    
+
+    @Override
+    public void onStartTick(ClientLevel level) {
+        if (level == null) return;
+    
+    
+        long now = System.currentTimeMillis();
+        if (now % 3000 < 50) {
+            boolean sp = Main.SONG_PLAYER.running;
+            boolean pp = Main.PREVIEWER.isRunning();
+            Song ps = sp ? Main.SONG_PLAYER.song : null;
+            Song pps = pp ? Main.PREVIEWER.getSong() : null;
+            Main.LOGGER.info("[DJ-DEBUG] tick: SP_running={}, SP_song={}, PV_running={}, PV_song={}, curSong={}, hasLyrics={}, nextIndex={}",
+                    sp, ps == null ? "null" : ps.displayName,
+                    pp, pps == null ? "null" : pps.displayName,
+                    currentSong() == null ? "null" : currentSong().displayName,
+                    hasLyrics(), nextIndex);
+        }
+        Song playing = currentSong();
+        Lyrics playingLyrics = currentLyrics();
+
+        
+        
         if (playing != song || playingLyrics != currentLyrics) {
             song = playing;
             currentLyrics = playingLyrics;
@@ -54,12 +91,12 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
             return;
         }
 
-        long songMillis = (long) (Main.SONG_PLAYER.getSongElapsedSeconds() * 1000);
+        long songMillis = currentSongTimeMillis();
 
         if (playingLyrics.offsetMillis() != lastOffsetMillis) {
-            // The offset buttons moved the whole timeline under the cursor. Continue at the line the
-            // new timeline is on, exactly like after a seek, so the lines that just moved past the
-            // song position are not dumped into chat all at once.
+            
+            
+            
             lastOffsetMillis = playingLyrics.offsetMillis();
             nextIndex = playingLyrics.indexAt(songMillis) + 1;
             lastSongMillis = songMillis;
@@ -68,12 +105,19 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
 
         if (lastSongMillis >= 0) {
             long delta = songMillis - lastSongMillis;
-            // At high playback speeds a single stalled frame already moves the song clock several
-            // seconds ahead, so the limit has to grow with the speed to avoid dropping lines.
+            
+            //   这种"大幅回退"是切歌（song 引用已变）导致的，上面已经通过
+            
+            
+            
+            
+            if (delta < -BACKWARD_SEEK_MILLIS) {
+                nextIndex = playingLyrics.indexAt(songMillis); 
+                lastSongMillis = songMillis;
+                return;
+            }
             long forwardLimit = (long) (FORWARD_SKIP_MILLIS * Math.max(1.0f, Main.SONG_PLAYER.speed));
-            if (delta < -BACKWARD_SEEK_MILLIS || delta > forwardLimit) {
-                // Seeked (or the game stalled): jump to the right line without replaying the ones
-                // in between, which would otherwise dump a burst of messages into chat.
+            if (delta > forwardLimit) {
                 nextIndex = playingLyrics.indexAt(songMillis) + 1;
                 lastSongMillis = songMillis;
                 return;
@@ -87,48 +131,44 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
         }
     }
 
-    /** The line the song is currently on, or null. Used by the preview in the screen. */
+    
     public static Lyrics.Line currentLine() {
-        Song playing = Main.SONG_PLAYER.song;
+        
+        Song playing = currentSong();
         if (playing == null || playing.lyrics == null) return null;
-        int index = playing.lyrics.indexAt((long) (Main.SONG_PLAYER.getSongElapsedSeconds() * 1000));
+        int index = playing.lyrics.indexAt(currentSongTimeMillis());
         return index < 0 ? null : playing.lyrics.line(index);
     }
 
-    /** The line after the current one, or null when there is none. */
+    
     public static Lyrics.Line followingLine() {
-        Song playing = Main.SONG_PLAYER.song;
+        Song playing = currentSong();
         if (playing == null || playing.lyrics == null) return null;
-        int index = playing.lyrics.indexAt((long) (Main.SONG_PLAYER.getSongElapsedSeconds() * 1000)) + 1;
+        int index = playing.lyrics.indexAt(currentSongTimeMillis()) + 1;
         return index >= playing.lyrics.size() ? null : playing.lyrics.line(index);
     }
 
-    /** True when the song that is currently loaded has lyrics next to it. */
+    
     public static boolean hasLyrics() {
-        Song playing = Main.SONG_PLAYER.song;
+        
+        Song playing = currentSong();
         return playing != null && playing.lyrics != null;
     }
 
-    /**
-     * How far the lyrics of the playing song have been moved with the offset buttons, in
-     * milliseconds. It belongs to the lyrics, so it is back to what that song's file holds as soon as
-     * another song plays.
-     */
+    
     public static long offsetMillis() {
-        Song playing = Main.SONG_PLAYER.song;
+        Song playing = currentSong();
         return playing == null || playing.lyrics == null ? 0 : playing.lyrics.offsetMillis();
     }
 
-    /**
-     * The lines the preview shows: the line the song is on plus the next one, or the first two
-     * lines while the song is still before its first lyric.
-     */
+    
     public static List<Lyrics.Line> previewLines() {
-        Song playing = Main.SONG_PLAYER.song;
+        
+        Song playing = currentSong();
         if (playing == null || playing.lyrics == null) return List.of();
 
         Lyrics lyrics = playing.lyrics;
-        int index = lyrics.indexAt((long) (Main.SONG_PLAYER.getSongElapsedSeconds() * 1000));
+        int index = lyrics.indexAt(currentSongTimeMillis());
         int first = Math.max(0, index);
         List<Lyrics.Line> lines = new ArrayList<>(2);
         if (first < lyrics.size()) lines.add(lyrics.line(first));

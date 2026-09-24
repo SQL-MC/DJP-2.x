@@ -15,15 +15,15 @@ import java.util.Map;
 import semmiedev.disc_jockey.gui.SongListWidget;
 
 public class Song {
-/** 相对于歌曲根目录的路径（含子目录），用于子目录歌曲定位 */
+
     public String relativePath = "";
 
-    /** ✅ 26.3：关联的 .lrc 歌词；null 表示无歌词 */
+    
     public Lyrics lyrics = null;
-    /** ✅ 原始 NBS 音符（永不修改，永不写盘） */
+    
     public long[] notes = new long[0];
 
-    /** ✅ 运行时八度折叠缓存（由 NoteClamper 生成，播放优先使用） */
+    
     public long[] foldedNotes = null;
 
     public short length;
@@ -61,18 +61,12 @@ public class Song {
     public String searchableFileName;
     public String searchableName;
 
-    // ★ 无参构造：兜底默认值（修 new Song() 字段为 0 → Create Event 崩溃）
+    
     public Song() {
         ensureDefaults();
     }
 
-    /**
-     * ★★★ 兜底默认值：保证写出/加载字段有效 ★★★
-     *
-     * 关键点：vanillaInstrumentCount 绝不能为 0。
-     * DJ/GML 的 blocks_set_instruments 用它建乐器表，为 0 → 表空 → undefined → 崩溃。
-     * 实测正常文件 vanillaInstrumentCount = 10（原版 0-9）。
-     */
+    
     public void ensureDefaults() {
         if (notes == null) notes = new long[0];
         if (fileName == null) fileName = "";
@@ -85,10 +79,10 @@ public class Song {
         if (searchableFileName == null) searchableFileName = "";
         if (searchableName == null) searchableName = "";
 
-        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;  // 原版 0-9 共 10 个
-        if (formatVersion == 0) formatVersion = 0;                      // 标准 NBS 旧格式 = 0
-        if (height <= 0) height = 1;                                    // ★ 至少 1 层（save 里还会按 maxLayer+1 校正）
-        if (tempo <= 0) tempo = 1000;                                   // ≈ BPM 10
+        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;  
+        if (formatVersion == 0) formatVersion = 0;                      
+        if (height <= 0) height = 1;                                    
+        if (tempo <= 0) tempo = 1000;                                   
         if (timeSignature == 0) timeSignature = 4;
         if (loopStartTick < 0) loopStartTick = 0;
     }
@@ -135,24 +129,16 @@ public class Song {
         return ticksToMilliseconds(this.length) / 1000.0D;
     }
 
-    /* =========================================================
-       ✅✅✅ save(File) —— 写成「标准 NBS」（与 SongLoader / Note Block Studio 一致）
-       ✅ 字节序：LITTLE_ENDIAN
-       ✅ noteId 存盘：字节 = noteId + 33（NBS 官方，读回 -33 还原）
-       ✅ 格式：旧格式（length = maxTick+1 > 0，不走 newFormat 分支）
-       ✅ 音符区：外层/内层 jump 编码，均从 -1 起算，各以 0 结束
-       ✅ 图层区：每条 = int长度(4) + "Grand Piano"(11字节) + volume(1) = 16 字节定长
-       ✅ 文件尾：自定义乐器数量 = 0（writeIntLE(raf, 0)），与实测正常文件一致
-       ========================================================= */
+    
     public void save(File out) throws IOException {
         if (out != null) {
             boolean internalNameValid = this.fileName != null
                     && !this.fileName.trim().isEmpty()
                     && !this.fileName.contains("_____");
             if (!internalNameValid) {
-                ensureNames(out.getName());   // 用 out 名兜底各字段（幂等）
+                ensureNames(out.getName());   
             }
-            // 规范化：去后缀 + 强制 .nbs
+            
             String base = stripExt(this.fileName);
             if (base.isEmpty()) base = (this.name != null && !this.name.isEmpty()) ? this.name : "song";
             this.fileName = base + ".nbs";
@@ -160,7 +146,7 @@ public class Song {
                     || this.displayName.contains("_____")) {
                 this.displayName = this.name.isEmpty() ? base : this.name;
             }
-            // 磁盘文件名 = 规范化后的 fileName
+            
             if (!out.getName().equals(this.fileName)) {
                 out = new File(out.getParentFile(), this.fileName);
             }
@@ -177,11 +163,11 @@ public class Song {
             all.sort(Comparator.comparingInt((NoteData n) -> n.tick)
                     .thenComparingInt(n -> n.layer));
 
-            // ★★★ 核心校正：height 必须 >= maxLayer + 1 ★★★
-            // 实测 _____.nbs：header.height=12 但音符引用 layer 0~4049。
+            
+            
             // 若 height < maxLayer+1，DJ/GML 按 height 建的乐器表对高 layer 音符越界
             // → blocks_set_instruments 收到 undefined → 崩溃 "REAL argument incorrect type undefined"。
-            // 校正后 height 覆盖所有实际图层，彻底消除越界。
+            
             int maxLayer = computeMaxLayer(all);
             int neededHeight = maxLayer + 1;
             if ((this.height & 0xFFFF) < neededHeight) {
@@ -190,9 +176,9 @@ public class Song {
 
             int headerLength = Math.max(1, computeMaxTick(all));
 
-            // ===== 头部（顺序与 SongLoader.loadSong 逐字段对称）=====
-            // ★ 旧格式：length > 0（不走 newFormat 分支）
-            writeShortLE(raf, headerLength);       // length（= maxTick + 1）
+            
+            
+            writeShortLE(raf, headerLength);       
             writeShortLE(raf, this.height & 0xFFFF);
             writeNbsStringLE(raf, this.name);
             writeNbsStringLE(raf, this.author);
@@ -209,23 +195,23 @@ public class Song {
             writeIntLE(raf, this.blocksRemoved);
             writeNbsStringLE(raf, this.importFileName);
             // ★ 旧格式：此处不含 formatVersion / vanillaInstrumentCount / loop / maxLoopCount / loopStartTick
-            //   （SongLoader 只在 newFormat 时才读这些；实测正常文件也是旧格式）
+            
 
-            // ===== 音符区 =====
+            
             writeNotesLE(raf, all, headerLength);
 
-            // ===== 图层区（Layers）=====
+            
             // 每条 = int长度(4) + "Grand Piano"(11字节) + volume(1字节) = 16 字节定长
             // 与实测正常文件尾部结构完全一致（逐条 "0B 00 00 00 Grand Pianod"）
             writeLayersLE(raf, this.height & 0xFFFF);
 
-            // ===== 自定义乐器数量 = 0 =====
+            
             // 与实测正常文件末尾 "00 00 00 00" 一致（防加载器读到垃圾值）
             writeIntLE(raf, 0);
         }
     }
 
-    /** 音符区：外层 tick jump / 内层 layer jump，均从 -1 起算，各自以 0 结束 */
+    
     private static void writeNotesLE(RandomAccessFile raf, List<NoteData> all, int headerLength) throws IOException {
         if (all.isEmpty()) { writeShortLE(raf, 0); return; }
 
@@ -238,37 +224,32 @@ public class Song {
         int lastTick = -1;
         for (int t : tickKeys) {
             List<NoteData> layerList = byTick.get(t);
-            writeShortLE(raf, (t - lastTick) & 0xFFFF); // 外层：tick jump
+            writeShortLE(raf, (t - lastTick) & 0xFFFF); 
             lastTick = t;
 
             layerList.sort(Comparator.comparingInt(n -> n.layer));
             int lastLayer = -1;
             for (NoteData n : layerList) {
-                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF); // 内层：layer jump
+                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF); 
                 lastLayer = n.layer;
                 writeByte(raf, n.instrument & 0xFF);
-                writeByte(raf, noteIdToRaw(n.noteId));  // ★ noteId + 33（NBS 官方）
+                writeByte(raf, noteIdToRaw(n.noteId));  
             }
-            writeShortLE(raf, 0); // 内层结束（layer jump = 0）
+            writeShortLE(raf, 0); 
         }
-        writeShortLE(raf, 0); // 外层结束（tick jump = 0）
+        writeShortLE(raf, 0); 
     }
 
-    /**
-     * ★ 图层区：按 height 逐条写出，每条 = int长度(4) + "Grand Piano"(11字节) + volume(1字节) = 16 字节定长
-     *
-     * 实测正常文件每条正是这个布局（"0B 00 00 00"=长度11 + "Grand Piano" + 0x64='d'=volume）。
-     * save() 已校正 height = maxLayer + 1，故此处条数一定覆盖所有被引用的图层，不会越界。
-     */
+    
     private static void writeLayersLE(RandomAccessFile raf, int layerCount) throws IOException {
         if (layerCount < 1) layerCount = 1;
         for (int i = 0; i < layerCount; i++) {
-            writeNbsStringLE(raf, "Grand Piano"); // int长度(4) + 名称(11字节)
+            writeNbsStringLE(raf, "Grand Piano"); 
             writeByte(raf, 100);                  // volume = 100（0x64 = 'd'）
         }
     }
 
-    /** noteId → 存盘字节：+33（NBS 官方，与 SongLoader 的 -33 互逆） */
+    
     private static int noteIdToRaw(int noteId) {
         return (noteId + 33) & 0xFF;
     }
@@ -279,14 +260,14 @@ public class Song {
         return max + 1;
     }
 
-    /** ★ 计算实际最大图层索引（校正 height 用） */
+    
     private static int computeMaxLayer(List<NoteData> list) {
         int max = 0;
         for (NoteData n : list) if (n.layer > max) max = n.layer;
         return max;
     }
 
-    /* ---- LITTLE_ENDIAN 写入工具（与 BinaryReader 对称）---- */
+    
     private static void writeByte(RandomAccessFile raf, int v) throws IOException {
         raf.writeByte(v & 0xFF);
     }
@@ -299,11 +280,11 @@ public class Song {
     private static void writeNbsStringLE(RandomAccessFile raf, String s) throws IOException {
         if (s == null) s = "";
         byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-        writeIntLE(raf, bytes.length);   // int 长度（小端），与 BinaryReader.readString = readInt+readBytes 对称
+        writeIntLE(raf, bytes.length);   
         raf.write(bytes);
     }
 
-    /** 从 packed 解码（与 SongLoader 读回 packed 值完全一致） */
+    
     private static final class NoteData {
         final int tick, layer, instrument, noteId;
         NoteData(int tick, int layer, int instrument, int noteId) {
@@ -313,7 +294,7 @@ public class Song {
             int tick       = (int)  (packed & 0xFFFFL);
             int layer      = (int) ((packed >>> 16) & 0xFFFFL);
             int instrument = (int) ((packed >>> 32) & 0xFFL);
-            // ★ 用 Note.extractNoteId 做有符号还原（与 Note.packNoteId 写入对称，修负数音符 -1→255 错音高）
+            
             int noteId     = Note.extractNoteId(packed);
             return new NoteData(tick, layer, instrument, noteId);
         }

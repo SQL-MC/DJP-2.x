@@ -22,12 +22,12 @@ public class DiscJockeyHud {
             Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
             LOGGER.info("Loaded Minecraft class");
 
-            // ✅ 26.2 正确类
+            
             Class<?> guiGraphicsExtractorClass =
                     Class.forName("net.minecraft.client.gui.GuiGraphicsExtractor");
             LOGGER.info("Loaded GuiGraphicsExtractor class");
 
-            // ✅ 26.2：ResourceLocation → Identifier
+            
             Class<?> identifierClass =
                     Class.forName("net.minecraft.resources.Identifier");
             LOGGER.info("Loaded Identifier class");
@@ -53,13 +53,13 @@ public class DiscJockeyHud {
 
             Method getWindowMethod = mcClass.getMethod("getWindow");
 
-            // ✅ 26.2：getScaledWidth → getGuiScaledWidth
+            
             Method getWidthMethod =
                     getWindowMethod.getReturnType().getMethod("getGuiScaledWidth");
             Method getHeightMethod =
                     getWindowMethod.getReturnType().getMethod("getGuiScaledHeight");
 
-            // ✅ 26.2：Identifier.of → 私有构造反射
+            
             Constructor<?> idCtor =
                     identifierClass.getDeclaredConstructor(String.class, String.class);
             idCtor.setAccessible(true);

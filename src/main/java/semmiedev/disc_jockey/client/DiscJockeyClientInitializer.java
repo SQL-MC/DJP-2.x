@@ -7,7 +7,7 @@ public class DiscJockeyClientInitializer {
 
     public static void init() {
         try {
-            // ===== 26.2：这些类在 compile 期都不碰 =====
+            
             Class<?> hudRegistryClass =
                     Class.forName("net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry");
             Class<?> mcClass =
@@ -35,7 +35,7 @@ public class DiscJockeyClientInitializer {
                     Object currentMc = mcClass.getMethod("getInstance").invoke(null);
                     Config cfg = Main.configHolder.getConfig();
 
-                    // ✅ 26.2：screen 在 Gui 里
+                    
                     Object gui = mcClass.getDeclaredField("gui").get(currentMc);
                     Object screen = gui.getClass().getDeclaredField("screen").get(gui);
 
@@ -50,7 +50,7 @@ public class DiscJockeyClientInitializer {
                         return;
                     }
 
-                    // ✅ 26.2：Window 方法改名
+                    
                     Object window = currentMc.getClass().getMethod("getWindow").invoke(currentMc);
                     int width = (int) window.getClass()
                             .getMethod("getGuiScaledWidth").invoke(window);
@@ -58,7 +58,7 @@ public class DiscJockeyClientInitializer {
                             .getMethod("getGuiScaledHeight").invoke(window);
                     int bottomY = height - 55;
 
-                    // ✅ 26.2：SpectrumRendererManager 真实路径
+                    
                     Class<?> srmClass = Class.forName(
                             "semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager"
                     );

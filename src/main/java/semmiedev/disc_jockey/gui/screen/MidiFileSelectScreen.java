@@ -4,7 +4,7 @@ import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.MidiToNbsImporter;
 import semmiedev.disc_jockey.Song;
 import semmiedev.disc_jockey.SongLoader;
-import semmiedev.disc_jockey.gui.SongListWidget;   // ★ 修复①：真实包是 gui（不是 semmiedev.disc_jockey）
+import semmiedev.disc_jockey.gui.SongListWidget;   
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
@@ -65,7 +65,7 @@ public class MidiFileSelectScreen extends Screen {
                 return;
             }
 
-            // ★ 修复②：构造签名 (Song song, int index)，与你 SongListWidget 第87行完全一致
+            
             if (song.entry == null) {
                 song.entry = new SongListWidget.SongEntry(song, SongLoader.SONGS.size());
             }
@@ -76,7 +76,7 @@ public class MidiFileSelectScreen extends Screen {
             SongLoader.SONGS.add(song);
             SongLoader.sort();
 
-            // ★ 修复③：markSongsDirty() 不存在 → 用 shouldFilter=true（DiscJockeyScreen 的真实刷新机制）
+            
             if (parent instanceof DiscJockeyScreen djs) {
                 djs.markSongsDirty();
             }
@@ -104,7 +104,7 @@ public class MidiFileSelectScreen extends Screen {
             if (base.isEmpty()) base = "imported";
             File out = new File(Main.songsFolder, base + ".nbs");
             for (int i = 1; out.exists(); i++) out = new File(Main.songsFolder, base + "_" + i + ".nbs");
-            song.save(out);   // ★ 核心：落盘（Song.save 用 LITTLE_ENDIAN + noteId+33 + 旧格式）
+            song.save(out);   
             return out;
         } catch (Exception e) {
             Main.LOGGER.error("Failed to save imported NBS", e);

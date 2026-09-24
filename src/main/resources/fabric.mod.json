@@ -3,7 +3,7 @@
   "id": "disc_jockey_plus",
   "version": "${version}",
   "name": "Disc Jockey Plus",
-  "description": "Play note block songs in Minecraft 26.2",
+  "description": "Play note block songs in Minecraft 26.2+",
   "authors": ["SQL_MC",
   "SRomanceS"
   ],
@@ -17,7 +17,7 @@
   ],
   "contact": {
 		"homepage": "https://modrinth.com/mod/disc-jockey-plus",
-    "repo": "https://github.com/SemmieDev/Disc-Jockey"
+    "repo": "https://github.com/SQL-MC/DJP-2.x"
   },
   "license": "MIT",
   "icon": "assets/disc_jockey/icon.png",
@@ -37,7 +37,7 @@
   ],
   "depends": {
     "fabric-api": "*",
-    "minecraft": ">=26.3-rc.2",
+    "minecraft": ">=26.3",
     "cloth-config": "*"
   }
 }

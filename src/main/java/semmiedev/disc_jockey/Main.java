@@ -24,8 +24,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
-import net.minecraft.resources.Identifier;         // ✅ 26.3 真实类名
-import com.mojang.blaze3d.platform.InputConstants;          // ✅ 26.3 真实位置（javap 实锤）
+import net.minecraft.resources.Identifier;         
+import com.mojang.blaze3d.platform.InputConstants;          
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,7 +50,7 @@ public class Main implements ClientModInitializer {
     public static final Logger LOGGER = LogManager.getLogger("Disc Jockey");
     public static final ArrayList<ClientTickEvents.StartLevelTick> TICK_LISTENERS = new ArrayList<>();
 
-    // ========== ✅ 唯一新增：版本号（来自 gradle.properties） ==========
+    
     public static final String VERSION;
 
     static {
@@ -65,90 +65,78 @@ public class Main implements ClientModInitializer {
         VERSION = v;
     }
 
-// ========== 2.6.2：统一入口 ==========
+
     public static final Previewer PREVIEWER = new Previewer();
     public static final SongPlayer SONG_PLAYER = new SongPlayer();
     public static final SpectrumVisualizer SPECTRUM = new SpectrumVisualizer();
-    static { LyricsPlayer.register(); }   // ✅ 26.3：注册歌词播放器
-    // ====================================
-    // ====================================
+    static { LyricsPlayer.register(); }   
+    
+    
 
     // ✅ 独立频谱缓冲器实例（和PREVIEWER/SONG_PLAYER同级，不破坏原有逻辑）
     public static final SpectrumDataSmoother SMOOTHER = new SpectrumDataSmoother();
 
     public static File songsFolder;
-    // ✅ 明确指向你自己的Config类，避免和JDK内置Config冲突
+    
     public static semmiedev.disc_jockey.Config config;
-    // ✅ 泛型明确为你自己的Config类
+    
     public static ConfigHolder<semmiedev.disc_jockey.Config> configHolder;
 
-    // ========== ✅ bool → boolean ==========
+    
     private static boolean sentWelcome = false;
 
-    // ========== 2.6.2：预览快捷键 ==========
+    
     private KeyMapping muteKey;
     private KeyMapping loopKey;
-    // ======================================
+    
 
     // ========== ✅ 升降调快捷键（[ 降 / ] 升） ==========
     private KeyMapping transposeDownKey;
     private KeyMapping transposeUpKey;
-    // ========================================================
+    
 
-    // ========== ✅ 菜单按钮按键绑定 ==========
-    private KeyMapping djKey;      // ← K 键，🎵
-    private KeyMapping pianoKey;   // ← P 键，🎹
-    // ==============================================
+    
+    private KeyMapping djKey;      
+    private KeyMapping pianoKey;   
+    
 
     // ========== ✅ DJP021500：预览播放速度（/discjockey speed 共享，问题3） ==========
     //   默认 1.0；由 /discjockey speed 同时设置，Previewer.tickAndPlay 步进乘此值。
     //   Smoother/Visualizer 不动，仅 Previewer 步进乘此值。
     public static float PREVIEW_SPEED = 1.0F;
-    // ============================================================
+    
 
-    // ========== ✅ FIX DJP010928：删掉 lastInjectedScreen 缓存 ==========
-    // 原因：资源包重载会 new TitleScreen()，旧实例上的按钮随旧实例 GC，
-    //       缓存导致新实例不被重新注入 → 按钮消失。
-    // 改用 ensureMenuButton() 每帧幂等检查，有按钮跳过、没有就加。
-    // ==============================================
+    
+    
+    
+    
+    
 
-    /*
-       =========================================================
-       ✅ 第一条：静音系统（非智能版 · 26.2 最稳）
-       =========================================================
-    */
+    
     private static boolean mutedByDJ = false;
 
 
-    /*
-       =========================================================
-       ✅ 替代方案：空实现，保证编译通过
-       =========================================================
-    */
+    
     private static void muteGameMusic() {}
     private static void restoreGameMusic() {}
 
     // ========== ✅ DJP020002：跨帧安全开界面队列（根治 /discjockey 偶发打不开） ==========
-    // 问题根因：命令执行完聊天框会立即关闭自己，同帧 setScreen 会被连带关闭带走。
-    // 解法：命令只往队列里 offer，由下一帧 START_CLIENT_TICK 消费并 setScreen，
-    //       此时聊天框早已关闭完毕，界面不会被带走。ConcurrentLinkedQueue 保证线程安全。
+    
+    
+    
     private static final ConcurrentLinkedQueue<Screen> pendingScreens = new ConcurrentLinkedQueue<>();
 
-    /**
-     * 线程安全地请求打开一个界面。由下一帧 START_CLIENT_TICK 统一 setScreen，
-     * 彻底避开命令执行完毕时聊天框关闭把界面一起带走的竞争。
-     * 供 DiscjockeyCommand（及任何非渲染线程调用方）使用。
-     */
+    
     public static void openScreenOnNextTick(Screen screen) {
         if (screen != null) {
             pendingScreens.offer(screen);
         }
     }
-    // =============================================================================
+    
 
     @Override
     public void onInitializeClient() {
-        // ✅ 适配新版AutoConfig API，直接获取已注册的ConfigHolder
+        
         configHolder = AutoConfig.register(semmiedev.disc_jockey.Config.class, JanksonConfigSerializer::new);
         config = configHolder.getConfig();
 
@@ -158,8 +146,8 @@ public class Main implements ClientModInitializer {
             configHolder.save();
         }
 
-        // ✅ DJP021500：强制常驻频谱可见（问题2根因修复）
-        //   旧配置若 spectrumAlwaysVisible=false，主菜单 screen==null → HUD lambda 直接 return → 频谱不显示。
+        
+        
         //   无条件置 true 并持久化，确保主菜单/世界内频谱 HUD 始终注册渲染。
         if (!config.spectrumAlwaysVisible) {
             config.spectrumAlwaysVisible = true;
@@ -173,25 +161,16 @@ public class Main implements ClientModInitializer {
         if (!songsFolder.isDirectory()) songsFolder.mkdirs();
 
         SongLoader.loadSongs();
-        /*
-           =========================================================
-           ✅ 占位：保持 CLIENT_STARTED 注册习惯
-           ✅ 【终极修复版】纯反射 + 系统ClassLoader Proxy
-           ✅ 编译期不引用任何 Fabric HUD 类（避免类找不到）
-           ✅ 运行时通过 Thread.getContextClassLoader() 获取 Fabric 的 ClassLoader
-           ✅ Fabric 的 instanceof HudElement 检查必过
-           ✅ 运行时探测 HudElement 的真实 SAM 方法名
-           =========================================================
-        */
+        
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             LOGGER.info("[Disc Jockey] Client fully started, beginning HUD reflection setup...");
 
             try {
-                // ===== 1) 拿到 Fabric 的 ClassLoader =====
+                
                 ClassLoader fabricClassLoader = Thread.currentThread().getContextClassLoader();
                 LOGGER.info("[Disc Jockey] ✓ Got Fabric ClassLoader: {}", fabricClassLoader);
 
-                // ===== 2) 用 Fabric 的 ClassLoader 加载 HUD 相关类 =====
+                
                 Class<?> hudRegistryClass = fabricClassLoader.loadClass(
                         "net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry");
                 Class<?> hudElementClass = fabricClassLoader.loadClass(
@@ -199,7 +178,7 @@ public class Main implements ClientModInitializer {
                 LOGGER.info("[Disc Jockey] ✓ Loaded HudElementRegistry class");
                 LOGGER.info("[Disc Jockey] ✓ Loaded HudElement class");
 
-                // ===== 3) 运行时探测 HudElement 的单一抽象方法（SAM）=====
+                
                 Method samMethod = null;
                 for (Method m : hudElementClass.getDeclaredMethods()) {
                     if (Modifier.isAbstract(m.getModifiers())) {
@@ -239,7 +218,7 @@ public class Main implements ClientModInitializer {
                         "semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager");
                 LOGGER.info("[Disc Jockey] ✓ Loaded SpectrumRendererManager class");
 
-                // ===== 5) 创建 Identifier =====
+                
                 Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
                 Constructor<?> identifierCtor =
                         identifierClass.getDeclaredConstructor(String.class, String.class);
@@ -247,12 +226,12 @@ public class Main implements ClientModInitializer {
                 Object spectrumLayer = identifierCtor.newInstance(MOD_ID, "spectrum");
                 LOGGER.info("[Disc Jockey] ✓ Created Identifier: {}", spectrumLayer);
 
-                // ===== 6) 获取 addLast 方法 =====
+                
                 Method addLast = hudRegistryClass.getMethod(
                         "addLast", identifierClass, hudElementClass);
                 LOGGER.info("[Disc Jockey] ✓ Cached HudElementRegistry.addLast method");
 
-                // ===== 7) 用 Fabric ClassLoader 创建 Proxy =====
+                
                 Object hudElement = java.lang.reflect.Proxy.newProxyInstance(
                         fabricClassLoader,
                         new Class<?>[]{hudElementClass},
@@ -310,7 +289,7 @@ public class Main implements ClientModInitializer {
                                     }
 
                                     int bottomY = height - 75;
-                                    LOGGER.info("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}",
+                                    LOGGER.debug("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}",
                                             width, height, bottomY);
 
                                     Object manager = spectrumRendererClass.getMethod("getCurrent")
@@ -334,14 +313,14 @@ public class Main implements ClientModInitializer {
 
                                     if (renderMethod != null) {
                                         if (renderMethod.getParameterCount() == 6) {
-                                            // ✅ 使用 SMOOTHER 缓冲后的数据，和 GUI 内频谱同款平滑
+                                            
                                             renderMethod.invoke(manager,
                                                     guiGraphicsExtractor, width, height,
                                                     SMOOTHER.getSmoothedLevels(), 15, bottomY);
                                         } else if (renderMethod.getParameterCount() == 1) {
                                             renderMethod.invoke(manager, guiGraphicsExtractor);
                                         }
-                                        LOGGER.info("[Disc Jockey] ✅ HUD render completed");
+                                        LOGGER.debug("[Disc Jockey] ✅ HUD render completed");
                                     }
 
                                 } catch (Throwable renderEx) {
@@ -371,11 +350,7 @@ public class Main implements ClientModInitializer {
                 LOGGER.info("[Disc Jockey] 26.3 HUD(legacy fallback) (HudElementRegistry) not available, falling back to legacy Proxy method", officialEx);
             }
 
-            /*
-               =========================================================
-               ✅ 第二优先级：原有反射注册逻辑（26.1及以下兼容，100%保留你原来的代码）
-               =========================================================
-            */
+            
             try {
                 LOGGER.info("[Disc Jockey] Loading Minecraft reflection classes...");
                 Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
@@ -471,7 +446,7 @@ public class Main implements ClientModInitializer {
                                 if (renderMethod != null) {
                                     LOGGER.info("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}", width, height, bottomY);
                                     if (renderMethod.getParameterCount() == 6) {
-                                        // ✅ 使用 SMOOTHER 缓冲后的数据
+                                        
                                         renderMethod.invoke(manager, guiGraphicsExtractor, width, height, SMOOTHER.getSmoothedLevels(), 15, bottomY);
                                     } else if (renderMethod.getParameterCount() == 1) {
                                         renderMethod.invoke(manager, guiGraphicsExtractor);
@@ -511,11 +486,7 @@ public class Main implements ClientModInitializer {
             } catch (Throwable hudEx) {
                 LOGGER.error("[Disc Jockey] ❌ HUD reflection initialization failed! Check stack trace below:", hudEx);
 
-                /*
-                   =========================================================
-                   ✅ 【26.2 兼容层】当反射失败时，尝试使用 26.2 新 API
-                   =========================================================
-                */
+                
                 try {
                     LOGGER.info("[Disc Jockey] Attempting 26.2 HUD compatibility layer...");
 
@@ -601,7 +572,7 @@ public class Main implements ClientModInitializer {
                                     if (renderMethod != null) {
                                         LOGGER.info("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}", width, height, bottomY);
                                         if (renderMethod.getParameterCount() == 6) {
-                                            // ✅ 使用 SMOOTHER 缓冲后的数据
+                                            
                                             renderMethod.invoke(manager, guiGraphicsExtractor, width, height, SMOOTHER.getSmoothedLevels(), 15, bottomY);
                                         } else if (renderMethod.getParameterCount() == 1) {
                                             renderMethod.invoke(manager, guiGraphicsExtractor);
@@ -624,16 +595,7 @@ public class Main implements ClientModInitializer {
                 }
             }
 
-            /*
-               =========================================================
-               ✅ 【26.2 对策】全向音符盒 — if(false) 死代码包裹
-               ✅ 26.2 中 SoundPlayCallback / SoundInstancePlayCallback 均已移除
-               ✅ 用 if(false) 把整个块包住：代码完整保留、编译为死代码、运行期零开销
-               ✅ 不引入 Mixin、不改 build.gradle、不加新文件
-               ✅ 等 Fabric 出新声音 API 后，把 if(false) 改成版本检测即可恢复
-               ✅ 下面所有代码（含兼容层）一字未删，全部保留
-               =========================================================
-            */
+            
             LOGGER.info("[Disc Jockey] Omnidirectional note block: disabled on 26.2 (API removed, code preserved for future restore)");
             if (false) {
             LOGGER.info("[Disc Jockey] Beginning omnidirectional note block setup...");
@@ -849,12 +811,12 @@ public class Main implements ClientModInitializer {
             }
         });
 
-        // ========== 26.3 键绑定：三参构造 KeyMapping(String, keysym, Category) ==========
-        // 官方证实：26.3 仍支持此构造器；keysym 用 InputConstants.KEY_*，Fabric 内部适配 SDL3。
-        // ⚠️ 严禁改成 Type.SCANCODE（NoSuchFieldError）或 GLFW.GLFW_KEY_*（26.3 已移除）。
+        
+        
+        
 
 
-        // ========== 已有：打开 GUI（J 键） ==========
+        
         KeyMapping openScreenKeyBind = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.open_screen",
@@ -863,7 +825,7 @@ public class Main implements ClientModInitializer {
                 )
         );
 
-        // ========== 2.6.2：预览静音（M） ==========
+        
         muteKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.preview_mute",
@@ -872,7 +834,7 @@ public class Main implements ClientModInitializer {
                 )
         );
 
-        // ========== 2.6.2：预览循环（L 键，避免和 P 键钢琴冲突） ==========
+        
         loopKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.preview_loop",
@@ -885,7 +847,7 @@ public class Main implements ClientModInitializer {
         transposeDownKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.transpose_down",
-                        InputConstants.KEY_LBRACKET, // [  (GLFW_KEY_LEFT_BRACKET = 91)
+                        InputConstants.KEY_LBRACKET, 
                         KeyMapping.Category.MISC
                 )
         );
@@ -893,47 +855,43 @@ public class Main implements ClientModInitializer {
         transposeUpKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
                         MOD_ID + ".key_bind.transpose_up",
-                        InputConstants.KEY_RBRACKET, // ]  (GLFW_KEY_RIGHT_BRACKET = 93)
+                        InputConstants.KEY_RBRACKET, 
                         KeyMapping.Category.MISC
                 )
         );
 
-        // ========== ✅ 菜单按钮按键（K=开DJ toggle，P=开钢琴） ==========
+        
         djKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
-                        "🎵", // ← Emoji 显示，不和 J 重复
-                        InputConstants.KEY_B, // ← K 键（26.3: GLFW_KEY_B → InputConstants.KEY_B）
+                        "🎵", 
+                        InputConstants.KEY_B, 
                         KeyMapping.Category.MISC
                 )
         );
         pianoKey = KeyMappingHelper.registerKeyMapping(
                 new KeyMapping(
-                        "🎹", // ← Emoji 显示
-                        InputConstants.KEY_P, // ← P 键
+                        "🎹", 
+                        InputConstants.KEY_P, 
                         KeyMapping.Category.MISC
                 )
         );
-        // ==============================================================
+        
 
-        /*
-           ============================================================
-           START_CLIENT_TICK：客户端级 tick（最安全）
-           ✅ DJP010930 修复：升降调从 START_LEVEL_TICK 移到这里
-           ✅ 原因：主菜单没有 level → START_LEVEL_TICK 永不触发 → 移调失效
-           ✅ 同时用 consumeClick() + isDown() 双通道检测防抖
-           ✅ DJP020002：消费跨帧开界面队列（根治 /discjockey 偶发打不开）
-           ============================================================
-        */
+        
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
-            // ========== ✅ DJP020002：消费跨帧开界面队列（最早执行，优先开界面） ==========
+            for (ClientTickEvents.StartLevelTick listener : TICK_LISTENERS) {
+                if (listener instanceof Previewer) continue;   
+                listener.onStartTick(client.level);
+            }
+            
             Screen nextScreen;
             while ((nextScreen = pendingScreens.poll()) != null) {
                 setScreenCompat(client, nextScreen);
             }
-            // ================================================================================
+            
 
             // ✅ 主菜单频谱数据更新（根治"世界外没频谱"）
-            //   进世界后 START_LEVEL_TICK 也会调，不冲突（双重更新无害，数据一致）
+            
             if (client.level == null) {
                 SPECTRUM.tick();
                 SMOOTHER.tick();
@@ -956,7 +914,7 @@ public class Main implements ClientModInitializer {
                     );
                     SongLoader.showToast = true;
                 } else {
-                    // ✅ 26.2 兼容：反射调 setScreen
+                    
                     setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
                 }
             }
@@ -983,12 +941,12 @@ public class Main implements ClientModInitializer {
                 );
             }
 
-            // ========== ✅ 升降调快捷键处理（DJP010930 修复：在 CLIENT_TICK 里） ==========
+            
             boolean transposed = false;
             int newVal = Main.SONG_PLAYER.transpose;
 
-            // ✅ DJP021500：仅 consumeClick（边缘触发，按下瞬间一次）。
-            //   原 `|| isDown()` 每 tick 为 true 都会 ±1，长按一秒约跳 20 次 → 过灵敏。
+            
+            
             if (transposeDownKey.consumeClick()) {
                 newVal = Main.SONG_PLAYER.transpose - 1;
                 if (newVal < -24) newVal = -24;
@@ -1017,14 +975,10 @@ public class Main implements ClientModInitializer {
                         true
                 );
             }
-            // ==============================================
+            
         });
 
-        /*
-           ============================================================
-           START_LEVEL_TICK：世界 tick（播放 / 预览 / 频谱）
-           ============================================================
-        */
+        
         ClientTickEvents.START_LEVEL_TICK.register(world -> {
             try {
                 if (SONG_PLAYER.running && !mutedByDJ) {
@@ -1032,13 +986,19 @@ public class Main implements ClientModInitializer {
                 }
 
                 for (ClientTickEvents.StartLevelTick listener : TICK_LISTENERS) {
+                    if (listener instanceof Previewer) continue;   
                     listener.onStartTick(world);
                 }
 
-                // ========== ✅ 2.6.2：频谱完整驱动链 ==========
+                
+                if (Previewer.isRunning()) {
+                    Previewer.getInstance().onStartTick(world);
+                }
+
+                
                 AudioLevelCollector.update();
                 SPECTRUM.tick();
-                // ✅ 驱动独立频谱缓冲器（和SPECTRUM.tick()同级，不破坏原有逻辑）
+                
                 SMOOTHER.tick();
 
             } catch (Exception e) {
@@ -1049,19 +1009,10 @@ public class Main implements ClientModInitializer {
             }
         });
 
-        /*
-           ============================================================
-           ✅✅✅ 菜单按钮注入：END_CLIENT_TICK（完整版，不删减）
-           ✅ DJP010928 修复：改用 ensureMenuButton() 每帧幂等检查
-           ✅ 删掉 lastInjectedScreen 缓存，重载后新 TitleScreen 自动补按钮
-           ✅ 主菜单 / 暂停菜单 左下角注入 ♪ 按钮
-           ✅ 反射调 addRenderableWidget 绕过 protected
-           ✅ 去重：已有 ♪ 就跳过
-           ============================================================
-        */
+        
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
-            // ✅ 26.2 兼容：通过反射获取当前 screen
+            
             Screen currentScreen = null;
             try {
                 Field guiField = client.getClass().getDeclaredField("gui");
@@ -1074,7 +1025,7 @@ public class Main implements ClientModInitializer {
                 currentScreen = null;
             }
 
-            // K 键：toggle DiscJockey 界面（🎵）
+            
             while (djKey.consumeClick()) {
                 if (currentScreen == null) {
                     setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
@@ -1083,7 +1034,7 @@ public class Main implements ClientModInitializer {
                 }
             }
 
-            // P 键：开关钢琴界面（保持你原有逻辑）
+            
             while (pianoKey.consumeClick()) {
                 try {
                     Class<?> pianoClass = Class.forName("semmiedev.disc_jockey.gui.screen.PianoKeyboardScreen");
@@ -1094,7 +1045,7 @@ public class Main implements ClientModInitializer {
                 }
             }
 
-            // ✅ DJP010928 修复：每帧确保按钮存在（无缓存，重载后自动补）
+            
             if (currentScreen != null) {
                 String cn = currentScreen.getClass().getName();
                 if (cn.endsWith(".TitleScreen") || cn.endsWith(".PauseScreen")) {
@@ -1103,13 +1054,7 @@ public class Main implements ClientModInitializer {
             }
         });
 
-        /*
-           ============================================================
-           ✅✅✅ 频谱渲染：END_CLIENT_TICK（完整覆盖版）
-           ✅ 使用反射兼容 getScreen() / getScaledWidth() / getScaledHeight()
-           ✅ 不删除任何原有代码，仅修正编译错误
-           ============================================================
-        */
+        
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             try {
                 Object mc = Minecraft.getInstance();
@@ -1127,7 +1072,7 @@ public class Main implements ClientModInitializer {
                     }
                 }
 
-                // ===== 渲染频谱 =====
+                
                 renderSpectrumStandalone(mc);
 
             } catch (Throwable t) {
@@ -1150,9 +1095,7 @@ public class Main implements ClientModInitializer {
         });
     }
 
-    /* =========================================================
-       ✅ 反射获取当前 Screen（26.2 兼容）
-       ========================================================= */
+    
     private static Screen getCurrentScreen(Object mc) {
         try {
             Field guiField = mc.getClass().getDeclaredField("gui");
@@ -1166,14 +1109,10 @@ public class Main implements ClientModInitializer {
         }
     }
 
-    /* =========================================================
-       ✅ DJP010928 修复：ensureMenuButton（幂等，无缓存）
-       ✅ 每帧检查当前 screen 有无 ♪ 按钮，没有就加
-       ✅ 重载后新 TitleScreen 自动补上，不再消失
-       ========================================================= */
+    
     private static void ensureMenuButton(Screen screen) {
         try {
-            // 去重：已经有 ♪ 就跳过
+            
             for (Object c : screen.children()) {
                 if (c instanceof Button) {
                     Button b = (Button) c;
@@ -1201,7 +1140,7 @@ public class Main implements ClientModInitializer {
                     )
             ).build();
 
-            // 反射调 addRenderableWidget（26.2 protected 绕过）
+            
             Method m = Screen.class.getDeclaredMethod("addRenderableWidget",
                     net.minecraft.client.gui.components.events.GuiEventListener.class);
             m.setAccessible(true);
@@ -1213,9 +1152,7 @@ public class Main implements ClientModInitializer {
         }
     }
 
-    /* =========================================================
-       ✅ 反射获取屏幕高度（兼容 26.2 各种方法名）
-       ========================================================= */
+    
     private static int getScreenHeight(Object mc) {
         try {
             Method getWindow = mc.getClass().getMethod("getWindow");
@@ -1232,12 +1169,10 @@ public class Main implements ClientModInitializer {
                 } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
-        return 480; // fallback
+        return 480; 
     }
 
-    /* =========================================================
-       ✅ 独立频谱渲染（END_CLIENT_TICK 用）
-       ========================================================= */
+    
     private static void renderSpectrumStandalone(Object mc) {
         try {
             int w = 0, h = 0;
@@ -1277,11 +1212,7 @@ public class Main implements ClientModInitializer {
         } catch (Throwable ignored) {}
     }
 
-    /**
-     * ✅ 26.2 兼容：反射调用 setScreen。
-     * 优先尝试 Minecraft.setScreen(Screen)，失败则 fallback 到 Minecraft.gui.setScreen(Screen)。
-     * 这样无论 26.2 怎么改名都不会编译失败。
-     */
+    
     private static void setScreenCompat(Object mc, Screen screen) {
         try {
             mc.getClass().getMethod("setScreen", Screen.class).invoke(mc, screen);
@@ -1299,52 +1230,39 @@ public class Main implements ClientModInitializer {
         }
     }
 
-    /**
-     * ✅ 供外部类（DiscJockeyCommand 等）调用的静态版本。
-     * ✅ DJP020002：保留原 setScreenCompatStatic（渲染线程 fallback）作为兼容入口；
-     *   新增 openScreenOnNextTick（跨帧队列）作为根治偶发打不开的首选入口。
-     */
+    
     public static void setScreenCompatStatic(Object mc, Screen screen) {
-        // ✅ DJP021500：包到渲染线程（问题4根因修复）
+        
         //   外接屏/虚拟桌面环境下，若命令在 non-render 线程调用 setScreen，
         //   会触发 fabric-screen-api "screen not correctly initialised"。
-        //   用 Minecraft.execute(...) 切到渲染线程后再 setScreen。
+        
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
         client.execute(() -> setScreenCompat(mc, screen));
     }
 
-    /**
-     * ✅ DJP010930 修复：主菜单安全播放
-     * 主菜单下 level == null，走 SoundManager 直接播放路径
-     * ✅ 不依赖 PianoAPI（该类在 26.2 中不存在）
-     */
+    
     public static void playSafeOnMainMenu(int noteId, float volume) {
         try {
             Minecraft mc = Minecraft.getInstance();
-            // 游戏内和主菜单统一走 SoundManager 反射路径
+            
             playNoteViaSoundManager(mc, noteId, volume);
         } catch (Throwable t) {
             LOGGER.warn("Main menu play failed (noteId={}): {}", noteId, t.getMessage());
         }
     }
 
-    /**
-     * 通过反射调用 SoundManager 播放音符盒声音
-     * 不依赖 PianoAPI 类，兼容 26.2
-     * noteId: 0-87 对应 MIDI 音符
-     * volume: 0.0-1.0
-     */
+    
     private static void playNoteViaSoundManager(Minecraft mc, int noteId, float volume) {
         try {
-            // noteId 0-87 → pitch 0.5~2.0
+            
             float pitch = 0.5f + (noteId / 87.0f) * 1.5f;
             pitch = Math.max(0.5f, Math.min(2.0f, pitch));
             volume = Math.max(0.0f, Math.min(1.0f, volume));
 
             Object sm = mc.getClass().getMethod("getSoundManager").invoke(mc);
 
-            // 1) 拿 NOTE_BLOCK_HARP 的 Holder
+            
             Class<?> locClass = Class.forName("net.minecraft.resources.ResourceLocation");
             Constructor<?> locCtor = locClass.getDeclaredConstructor(String.class, String.class);
             locCtor.setAccessible(true);
@@ -1360,14 +1278,14 @@ public class Main implements ClientModInitializer {
                 return;
             }
 
-            // 2) 用 forUI(Holder, float) 造实例（1.21 真实存在的方法）[4,8](@ref)
+            
             Class<?> simpleSoundClass = Class.forName("net.minecraft.client.resources.sounds.SimpleSoundInstance");
             Method forUI = simpleSoundClass.getMethod("forUI",
-                    soundEventHolder.getClass(),  // Holder<SoundEvent>
+                    soundEventHolder.getClass(),  
                     float.class);
             Object instance = forUI.invoke(null, soundEventHolder, pitch);
 
-            // 3) 通过 SoundManager.play 播放
+            
             sm.getClass().getMethod("play",
                     Class.forName("net.minecraft.client.resources.sounds.SoundInstance"))
                     .invoke(sm, instance);

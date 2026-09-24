@@ -54,20 +54,16 @@ public class BinaryReader {
 
   
   public byte readByte() throws IOException {
-/* 57 */     int b = this.in.read();
-/* 58 */     if (b < 0) throw new EOFException(); 
-/* 59 */     return (byte)b;
+     int b = this.in.read();
+     if (b < 0) throw new EOFException(); 
+     return (byte)b;
   }
   
   public byte[] readBytes(int length) throws IOException {
-/* 63 */     byte[] bytes = new byte[length];
-/* 64 */     for (int i = 0; i < length; ) { bytes[i] = readByte(); i++; }
-/* 65 */      return bytes;
+     byte[] bytes = new byte[length];
+     for (int i = 0; i < length; ) { bytes[i] = readByte(); i++; }
+      return bytes;
   }
 }
 
 
-/* Location:              D:\Minecraft\Minecraft Java\jars\Disc_Jockey_Plus 测试版\2.x\2.0.1\可用文件\DJP-Fabric-2.0.1-rc-0.0.13+mc26.2.jar!\semmiedev\disc_jockey\BinaryReader.class
- * Java compiler version: 25 (69.0)
- * JD-Core Version:       1.1.3
- */

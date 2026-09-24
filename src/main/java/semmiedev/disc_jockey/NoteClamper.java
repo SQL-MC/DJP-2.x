@@ -3,14 +3,7 @@ package semmiedev.disc_jockey;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-/**
- * ✅ 音符盒八度折叠工具
- * 
- * - buildFoldedNotes: noteId + transpose, 折叠到 0~24
- * - applyTranspose: 运行时 transpose 工具方法
- * - checkSong: 检查歌曲是否需要折叠
- * - clearFoldedNotes / hasFoldedNotes: 缓存管理
- */
+
 public class NoteClamper {
 
     public static final int NOTE_SHIFT = 40;
@@ -23,13 +16,7 @@ public class NoteClamper {
         );
     }
 
-    /**
-     * ✅ 安全的 transpose + 八度折叠
-     * 
-     * 用 Note.extractNoteId 还原有符号 noteId（-33 ~ +53）
-     * 然后 + transpose，再八度折叠到 0~24
-     * 不改 instrumentId（Tuner 按 instrument 分组）
-     */
+    
     public static void buildFoldedNotes(Song song, int transpose) {
         if (song == null || song.notes == null || song.notes.length == 0) return;
 
@@ -39,13 +26,13 @@ public class NoteClamper {
             long note = song.notes[i];
 
             int instrumentId = (int) ((note >> 32L) & 0xFF);
-            int rawNoteId = Note.extractNoteId(note); // ✅ 有符号还原，替代旧的 >>> NOTE_SHIFT
+            int rawNoteId = Note.extractNoteId(note); 
 
             int foldedId = rawNoteId + transpose;
 
-            // ✅【修复】八度折叠替代取模
-            // 取模会把 #F24+1 变成 #F0（差一个八度，音高错乱）
-            // 八度折叠把超出的音就近折回 0~24 范围内
+            
+            
+            
             while (foldedId > 24) foldedId -= 12;
             while (foldedId < 0)  foldedId += 12;
             if (foldedId < 0)  foldedId = 0;
@@ -67,10 +54,7 @@ public class NoteClamper {
         return song != null && song.foldedNotes != null && song.foldedNotes.length > 0;
     }
 
-    /**
-     * ✅ 运行时 transpose（SongPlayer.applyTranspose 用）
-     * ✅ 八度折叠替代取模，保护 #F24 不被压掉
-     */
+    
     public static int applyTranspose(int rawNoteId, int transpose) {
         int result = rawNoteId + transpose;
         while (result > 24) result -= 12;
@@ -84,7 +68,7 @@ public class NoteClamper {
         if (song == null || song.notes == null) return 0;
         int min = 255, max = 0;
         for (long note : song.notes) {
-            int n = Note.extractNoteId(note); // ✅ 有符号还原
+            int n = Note.extractNoteId(note); 
             min = Math.min(min, n);
             max = Math.max(max, n);
         }

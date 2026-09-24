@@ -9,7 +9,7 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry;
 @me.shedaniel.autoconfig.annotation.Config.Gui.Background("textures/block/note_block.png")
 public class Config implements ConfigData {
 
-    /** ✅ 正式版必须：配置版本号 */
+    
     public int configVersion = 1;
 
     public boolean hideWarning;
@@ -20,11 +20,11 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip(count = 2)
     public boolean omnidirectionalNoteBlockSounds = true;
 
-    /* ========== ✅ 频谱常驻开关 ========== */
+    
     @ConfigEntry.Gui.Tooltip(count = 2)
     public boolean spectrumAlwaysVisible = true;
 
-    /* ================== Enum 区 ================== */
+    
     public enum ExpectedServerVersion {
         All,
         v1_20_4_Or_Earlier,
@@ -142,27 +142,26 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip(count = 2)
     public boolean lyricsUseSelector = true;
 
-    /** 播放列表（存储歌曲的 relativePath） */
+    
     public List<String> playlist = new ArrayList<>();
 
-    /** 播放列表循环模式 */
+    
     public enum RepeatMode {
-        SEQUENTIAL,   // 顺序播完即停
-        PLAYLIST,     // 播完列表从头循环
-        SINGLE        // 单曲循环
+        SEQUENTIAL,   
+        PLAYLIST,     
+        SINGLE        
     }
 
-    /** 播放列表循环模式，默认 SEQUENTIAL */
-    public RepeatMode repeatMode = RepeatMode.SEQUENTIAL;   // ← 原来是 null
+    
+    public RepeatMode repeatMode = RepeatMode.SEQUENTIAL;   
 
-    /** 是否随机播放 */
+    
     public boolean shufflePlaylist = false;
 
-    /* ========== ✅ Modrinth 项目标识（供 /discjockey update 使用）==========
-       ✅ 公开项目查询无需 API key；填你的 Modrinth slug（如 disc-jockey-plus）或 project ID */
+    
     public String modrinthProjectId = "disc-jockey-plus";
 
-    /* ========== ✅ 26.3：反序列化兜底，修复旧存档里的 null 字段 ========== */
+    
     @Override
     public void validatePostLoad() {
         if (repeatMode == null) {
@@ -184,5 +183,5 @@ public class Config implements ConfigData {
             favorites = new ArrayList<>();
         }
     }
-    /* ==================================================================== */
+    
 }

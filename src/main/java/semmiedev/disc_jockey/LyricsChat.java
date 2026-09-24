@@ -6,15 +6,9 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 
-/**
- * Pushes lyric lines into the game, either to public chat or to the players nearby.
- * <p>
- * Everything goes through the vanilla chat and command paths, so no other mod is required on the
- * server. Sending is rate limited because vanilla disconnects players who exceed roughly one chat
- * message or command per second.
- */
+
 public final class LyricsChat {
-    /** Vanilla rejects longer chat messages and commands. */
+    
     private static final int MAX_LENGTH = 256;
 
     private static long lastSentAt;
@@ -22,7 +16,7 @@ public final class LyricsChat {
     private LyricsChat() {
     }
 
-    /** Registers the listener that notices when a server refuses target selectors. */
+    
     public static void register() {
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (!LyricsDispatch.awaitingSelectorProbe()) return;
@@ -51,9 +45,9 @@ public final class LyricsChat {
         }
     }
 
-    /** Warns the player that the private mode is spread over many players. Returns true if warned. */
+    
     public static boolean shouldWarnAboutTargets() {
-        // Counted before the recipients are capped to the burst, which never exceeds nine players.
+        
         return LyricsDispatch.playersInRadius() > LyricsDispatch.WARN_TARGET_COUNT;
     }
 

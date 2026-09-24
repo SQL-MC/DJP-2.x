@@ -2,12 +2,7 @@ package semmiedev.disc_jockey;
 
 import java.util.List;
 
-/**
- * ✅ 纯工具类
- * - 只读取 Song / Note
- * - 不碰 SongPlayer / Tuner
- * - 不写盘、不改状态、不改播放逻辑
- */
+
 public class FoldAnalyzer {
 
     public record RangeReport(
@@ -37,8 +32,8 @@ public class FoldAnalyzer {
         int max = 0;
 
         for (long note : song.notes) {
-            // ✅【修复】用 Note.extractNoteId 还原有符号 noteId
-            // 原代码 (note >> 40L) & 0xFF 对有符号值会读错
+            
+            
             int rawNoteId = Note.extractNoteId(note);
             min = Math.min(min, rawNoteId);
             max = Math.max(max, rawNoteId);
@@ -63,16 +58,13 @@ public class FoldAnalyzer {
         );
     }
 
-    /* =========================================================
-       ✅【修复】原逻辑 bug：return c++ 永远返回 0
-       ✅ 其余逻辑、签名、返回值全部不变
-       ========================================================= */
+    
     public static int countSongsNeedingFold(List<Song> songs) {
         int c = 0;
         for (Song s : songs) {
             if (analyze(s).needsFold()) {
-                // ✅ 原错误写法：return c++;
-                // ✅ 正确写法：累加后继续遍历
+                
+                
                 c++;
             }
         }

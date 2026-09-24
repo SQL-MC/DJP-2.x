@@ -9,7 +9,7 @@ import java.util.*;
 
 public class NbsToMidiExporter {
 
-    /* ==================== 核心常量 ==================== */
+    
     private static final int PPQ = 4;
     private static final int VELOCITY_BASE = 120;
     private static final int VELOCITY_MIN = 25;
@@ -89,11 +89,11 @@ public class NbsToMidiExporter {
 
             all.sort(Comparator.comparingLong(Exp::order));
 
-            // ★ 力度 + 踩镲压制
+            
             for (Exp e : all) {
                 int simul = tickCount.getOrDefault(e.tick, 1);
                 e.vel = scaledVelocity(VELOCITY_BASE, simul);
-                if (e.instr == 4) {                    // ★ 踩镲额外压 60%
+                if (e.instr == 4) {                    
                     e.vel = Math.max(10, (int)(e.vel * 0.4));
                 }
             }
@@ -148,7 +148,7 @@ public class NbsToMidiExporter {
         }
     }
 
-    /* ==================== 辅助方法 ==================== */
+    
 
     private static int channelFor(int instr, int layer) {
         if (ROUTE_DRUMS_TO_CHANNEL_10 && isDrum(instr)) return DRUM_CHANNEL;
@@ -198,7 +198,7 @@ public class NbsToMidiExporter {
             case 16: case 17: case 18: case 19: return 57;
             case 2:  return 36;
             case 3:  return 38;
-            case 4:  return 54; // ★ Tambourine 替代 Hi-Hat(42), 消除嘶嘶白噪
+            case 4:  return 54; 
             default: return 0;
         }
     }
@@ -233,7 +233,7 @@ public class NbsToMidiExporter {
         @Override public int compareTo(Event o) { return Long.compare(tick, o.tick); }
     }
 
-    // ===== writeNbs 及相关(完整保留,不删减) =====
+    
     public static byte[] writeNbs(Song song) {
         if (song == null) throw new IllegalArgumentException("song is null");
         ByteBuffer head = ByteBuffer.allocate(0x2E).order(ByteOrder.LITTLE_ENDIAN);
@@ -309,6 +309,6 @@ public class NbsToMidiExporter {
         NoteRec(int t, int l, int k, int i, int v, int p) { tick = t; layer = l; key = k; instrument = i; velocity = v; panning = p; }
     }
 
-    /** MIDI→NBS 入口 */
+    
     public static Song importMidi(File midiFile) { return MidiToNbsImporter.importMidi(midiFile); }
 }

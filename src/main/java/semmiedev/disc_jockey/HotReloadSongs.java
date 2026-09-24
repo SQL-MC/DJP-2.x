@@ -25,14 +25,14 @@ public class HotReloadSongs {
                     ENTRY_MODIFY
             );
         } catch (IOException ignored) {
-            // 初始化失败不影响主流程
+            
         }
     }
 
     public static void tick() {
         if (watcher == null) return;
 
-        // 节流：1 tick 最多处理一次
+        
         if (!dirty.compareAndSet(true, false)) {
             WatchKey key = watcher.poll();
             if (key == null) return;

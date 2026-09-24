@@ -1,5 +1,6 @@
 package semmiedev.disc_jockey;
 
+import semmiedev.disc_jockey.LyricsPlayer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -22,14 +23,17 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
     public static boolean previewMute = false;
     public static boolean loopPreview = false;
     public static boolean running = false;
-    public static boolean continuousPreview = true; // ✅ 联播开关：true=列表循环，false=播完最后一首就停
+    public static boolean continuousPreview = true; 
 
     private int i;
     private float tick;
     private Song song;
     private ClientLevel prevWorld = null;
 
-    // ✅ 静态块：主菜单 tick（只在无世界时执行）—— 原样保留
+    
+    private int lyricsNextIndex = 0;
+
+    
     static {
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             if (running && mc.level == null) {
@@ -44,6 +48,15 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         return INSTANCE;
     }
 
+    
+    public float getTick() {
+        return tick;
+    }
+
+    
+    public static boolean isRunning() {
+        return running;
+    }
     public Song getSong() {
         return song;
     }
@@ -62,10 +75,10 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
     }
 
     public static void rebuildTranspose() {
-        // 空操作，实时转调
+        
     }
 
-    // ✅ 改进：获取下一首歌（带日志，返回 null 只在列表为空时）
+    
     private Song getNextSong() {
         if (SongLoader.SONGS.isEmpty()) {
             LOGGER.warn("[DJ] getNextSong: SONGS list is empty!");
@@ -79,14 +92,14 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         int idx = SongLoader.SONGS.indexOf(this.song);
         if (idx < 0) {
             LOGGER.warn("[DJ] getNextSong: current song not found in SONGS list (idx=-1), returning first");
-            return SongLoader.SONGS.get(0); // 找不到就从头播
+            return SongLoader.SONGS.get(0); 
         }
         if (idx < size - 1) {
             Song next = SongLoader.SONGS.get(idx + 1);
             LOGGER.info("[DJ] getNextSong: idx={}, next='{}'", idx, next.displayName);
             return next;
         }
-        // 到列表末尾
+        
         if (continuousPreview) {
             LOGGER.info("[DJ] getNextSong: at end, looping back to first");
             return SongLoader.SONGS.get(0);
@@ -95,7 +108,7 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         return null;
     }
 
-    // ========== start() —— 原样保留 ==========
+    
     public static void start(Song song) {
         if (song == null || song.notes == null || song.notes.length == 0) {
             LOGGER.warn("[DJ] Preview start rejected: song null or empty");
@@ -113,19 +126,24 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         INSTANCE.song = song;
         INSTANCE.i = 0;
         INSTANCE.tick = 0.0F;
+        INSTANCE.lyricsNextIndex = 0;   
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null) {
             INSTANCE.prevWorld = mc.level;
         } else {
-            INSTANCE.prevWorld = null; // 主菜单
+            INSTANCE.prevWorld = null; 
         }
 
-        Main.TICK_LISTENERS.add(INSTANCE);
+        
+        
+        
+        // Main.TICK_LISTENERS.add(INSTANCE);   
+
         running = true;
     }
 
-    // ========== stop() —— 原样保留 ==========
+    
     public static void stop() {
         if (!running) return;
 
@@ -134,10 +152,11 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         INSTANCE.i = 0;
         INSTANCE.tick = 0.0F;
         INSTANCE.song = null;
-
         INSTANCE.prevWorld = null;
+        INSTANCE.lyricsNextIndex = 0;   
 
-        Main.TICK_LISTENERS.remove(INSTANCE);
+        
+        // Main.TICK_LISTENERS.remove(INSTANCE);   
 
         if (Main.SPECTRUM != null && Main.SPECTRUM.currentLevels != null) {
             for (int k = 0; k < Main.SPECTRUM.currentLevels.length; k++) {
@@ -157,10 +176,31 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         return song.notes.length;
     }
 
-    // ========== tickAndPlay —— 联播逻辑改为直接切歌，不走 start() ==========
+    
+    private void advanceLyrics() {
+        if (!Main.config.lyricsChatOutput) return;
+        if (song == null || song.lyrics == null) return;
+        if (!running) return;
+
+        long songMillis = (long) (tick / 20.0F * 1000);  
+        Lyrics lyrics = song.lyrics;
+
+        while (lyricsNextIndex < lyrics.size()
+                && lyrics.line(lyricsNextIndex).timeMs() <= songMillis) {
+            if (Main.config.lyricsChatOutput) {
+                LyricsChat.send(lyrics.line(lyricsNextIndex).text());
+            }
+            lyricsNextIndex++;
+        }
+    }
+
+    
     private void tickAndPlay(ClientLevel world) {
         if (!running) return;
         if (song == null || getNoteCount() == 0) return;
+
+        
+        advanceLyrics();
 
         while (i < getNoteCount()) {
             long note = getNote(i);
@@ -201,20 +241,20 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
             i++;
             if (i >= getNoteCount()) {
                 if (loopPreview) {
-                    // 单曲循环
+                    
                     this.i = 0;
                     this.tick = 0.0F;
+                    this.lyricsNextIndex = 0;   
                     return;
                 }
-                // ✅ 联播逻辑：直接切歌，不走 start()（避免 stop() 副作用）
+                
                 Song next = getNextSong();
                 if (next != null) {
                     LOGGER.info("[DJ] Preview switching to next song: {}", next.displayName);
                     INSTANCE.song = next;
                     INSTANCE.i = 0;
                     INSTANCE.tick = 0.0F;
-                    // 不清 prevWorld，不移除 TICK_LISTENERS，不碰 running
-                    // 下一帧 while 循环会用新 song 继续
+                    INSTANCE.lyricsNextIndex = 0;   
                 } else {
                     LOGGER.info("[DJ] Preview: no next song, stopping");
                     stop();
@@ -226,7 +266,7 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         tick += song.tempo / 100.0F / 20.0F * Main.PREVIEW_SPEED;
     }
 
-    // ========== playSoundSafe —— 原样保留 ==========
+    
     private void playSoundSafe(ClientLevel world, Vec3 pos, SoundEvent sound,
                                SoundSource source, float volume, float pitch) {
         if (sound == null) return;
@@ -245,7 +285,7 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         }
     }
 
-    // ========== onStartTick —— 原样保留 ==========
+    
     @Override
     public void onStartTick(ClientLevel world) {
         if (prevWorld == null && world != null) {

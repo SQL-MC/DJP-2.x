@@ -1,7 +1,7 @@
 package semmiedev.disc_jockey.gui.screen;
 
-// [26.3-fix] KeyEvent import 保留：Screen 回调签名 = KeyEvent 单参（非三参 int），
-//   scancode 通过反射读 KeyEvent 的 scancode 字段（无 scancode() getter，已实测），回退 key()。
+
+
 import semmiedev.disc_jockey.Main;
 import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -28,7 +28,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 
-import com.mojang.blaze3d.platform.InputConstants;  // ★ 26.3：替代 org.lwjgl.glfw.GLFW
+import com.mojang.blaze3d.platform.InputConstants;  
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -36,7 +36,7 @@ import java.util.*;
 
 import javax.sound.midi.*;
 
-/* ✅ DJP024xxx：补入 FileOutputStream，供 MidiRecorder.stopAndSave 显式写出 .mid（混淆安全） */
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -45,11 +45,11 @@ public class PianoKeyboardScreen extends Screen {
     private static final int NOTE_ID_A0 = -39;
     private static final int NOTE_ID_C8 = 48;
 
-    /* ✅ DJP025xxx：Roll 全局坐标从 A-2 起算（A-2 = -39 - 2*12 = -63，MIDI 9） */
+    
     private static final int NOTE_ID_A_MIN = -63;
-    private static final int RW_SPAN = NOTE_ID_C8 - NOTE_ID_A_MIN + 1; // 48 - (-63) + 1 = 112
+    private static final int RW_SPAN = NOTE_ID_C8 - NOTE_ID_A_MIN + 1; 
 
-    // ★ PianoLib 的 key_0 = A0(noteId=-39)，转换偏移是 39
+    
     private static final int PIANO_KEY_CENTER = 39;
 
     private static final int DISPLAY_BASE = 4;
@@ -58,7 +58,7 @@ public class PianoKeyboardScreen extends Screen {
     private static final int INTERNAL_MIN = -3;
     private static final int INTERNAL_MAX = 3;
 
-    /* ===== 白键：A0(-39) ~ C8(48)，共52个，零点=A0 ===== */
+    
     private static final int[] WHITE_NOTE_IDS = {
         -39,-37,
         -36,-34,-32,-31,-29,-27,-25,
@@ -71,9 +71,9 @@ public class PianoKeyboardScreen extends Screen {
          48
     };
     private static final int TOTAL_WHITE = WHITE_NOTE_IDS.length;
-    private static final int C4_INDEX = 23; // WHITE_NOTE_IDS[23] = 0 = C4
+    private static final int C4_INDEX = 23; 
 
-    /* ===== 黑键：36个 ===== */
+    
     private static final int[] BLACK_NOTE_IDS = {
         -38,
         -35,-33,-30,-28,-26,
@@ -86,7 +86,7 @@ public class PianoKeyboardScreen extends Screen {
     };
     private static final int TOTAL_BLACK = BLACK_NOTE_IDS.length;
 
-    /* ===== 黑键排在哪个白键之后（已验证100%正确）===== */
+    
     private static final int[] BLACK_AFTER_WHITE = {
         0,
         2,3,5,6,7,
@@ -98,40 +98,33 @@ public class PianoKeyboardScreen extends Screen {
         44,45,47,48,49
     };
 
-    /* ===== 物理键映射：offset = 相对C4的半音数（C大调把位）
-     * ★ 26.3 终极修复：键一律用【SDL scancode】(USB usage page 0x07，物理键位，永久稳定)，
-     *   对应 Mojang "SDL scancodes for physical key positions"。scancode 表：
-     *     A=4 W=22 S=26 E=20 D=7 F=9 T=23 G=10 Y=28 H=11 U=24 J=13 K=14
-     *     O=18 L=15 P=19 ;=51 '=52  1=30 2=31 3=32  ESC=41  LEFT=80
-     *   keyPressed/keyReleased 回调用 getScancode()(=SDL scancode) 查表，
-     *   与下表 key 同一键码空间，天然对齐。彻底取代字符字面量/InputConstants.KEY_*。
-     * ★ 注意：scancode 数值 ≠ ASCII('A'=65) ≠ keycode，绝不能混用。 */
-    private static final int SC_ESC   = 41; // SDL_SCANCODE_ESCAPE
-    private static final int SC_RIGHT = 79; // →
-    private static final int SC_LEFT  = 80; // SDL_SCANCODE_LEFT
+    
+    private static final int SC_ESC   = 41; 
+    private static final int SC_RIGHT = 79; 
+    private static final int SC_LEFT  = 80; 
     private static final Map<Integer, Integer> KEY_MAP = new LinkedHashMap<>();
     static {
-        KEY_MAP.put(  4,  0);   // A -> C4
-        KEY_MAP.put( 22,  2);   // W -> C#4
-        KEY_MAP.put( 26,  1);   // S -> D4
-        KEY_MAP.put(  8,  3);   // E -> D#4
-        KEY_MAP.put(  7,  4);   // D -> E4
-        KEY_MAP.put(  9,  5);   // F -> F4
-        KEY_MAP.put( 23,  6);   // T -> F#4
-        KEY_MAP.put( 10,  7);   // G -> G4
-        KEY_MAP.put( 28,  8);   // Y -> G#4
-        KEY_MAP.put( 11,  9);   // H -> A4
-        KEY_MAP.put( 24, 10);   // U -> A#4
-        KEY_MAP.put( 13, 11);   // J -> B4
-        KEY_MAP.put( 14, 12);   // K -> C5
-        KEY_MAP.put( 18, 13);   // O -> C#5
-        KEY_MAP.put( 15, 14);   // L -> D5
-        KEY_MAP.put( 19, 15);   // P -> D#5
-        KEY_MAP.put( 51, 16);   // ; -> E5
+        KEY_MAP.put(  4,  0);   
+        KEY_MAP.put( 22,  2);   
+        KEY_MAP.put( 26,  1);   
+        KEY_MAP.put(  8,  3);   
+        KEY_MAP.put(  7,  4);   
+        KEY_MAP.put(  9,  5);   
+        KEY_MAP.put( 23,  6);   
+        KEY_MAP.put( 10,  7);   
+        KEY_MAP.put( 28,  8);   
+        KEY_MAP.put( 11,  9);   
+        KEY_MAP.put( 24, 10);   
+        KEY_MAP.put( 13, 11);   
+        KEY_MAP.put( 14, 12);   
+        KEY_MAP.put( 18, 13);   
+        KEY_MAP.put( 15, 14);   
+        KEY_MAP.put( 19, 15);   
+        KEY_MAP.put( 51, 16);   
         KEY_MAP.put( 52, 17);   // ' -> F5
     };
 
-    /** SDL scancode -> 键名（仅日志用；scancode 是物理键位，不依赖布局，永久稳定） */
+    
     private static final Map<Integer, String> SCAN_NAME;
     static {
         Map<Integer, String> m = new HashMap<>();
@@ -144,7 +137,7 @@ public class PianoKeyboardScreen extends Screen {
         SCAN_NAME = m;
     }
 
-    /* ===== 布局常量 ===== */
+    
     private static final int WKW = 48, WKH = 150;
     private static final int BKW = 30, BKH = 95;
     private static final int KX = 40;
@@ -155,7 +148,7 @@ public class PianoKeyboardScreen extends Screen {
     private static final int ICON = 22;
     private static final int TY = 8, TS = 22;
 
-    /* ===== MIDI 录制布局常量（左上角）===== */
+    
     private static final int REC_BTN_W = 60;
     private static final int REC_BTN_H = TS;
     private static final int REC_BTN_X = 10;
@@ -166,12 +159,10 @@ public class PianoKeyboardScreen extends Screen {
     private int shift = 0;
     private final Set<Integer> active = new HashSet<>();
 
-    /* ★ 26.3：heldKeys 由 keyPressed/keyReleased 回调维护，存入的值是 SDL scancode
-     *   （getScancode() 反射读字段，物理键位，布局无关，永久稳定）。
-     *   KEY_MAP / K1-K3 / ESC 全部以 scancode 为键查询，键码空间一致。 */
-    private static final boolean DEBUG_KEYS = true;  // ★ 验证映射期间保持 true；按键一一对应后改回 false
+    
+    private static final boolean DEBUG_KEYS = true;  
     private final Map<String, Boolean> keyState = new HashMap<>();
-    private final Set<Integer> heldKeys = new HashSet<>(); // ★ 26.3：回调维护的物理键集合（值=scancode）
+    private final Set<Integer> heldKeys = new HashSet<>(); 
     private boolean wasMouseDown = false;
 
     private boolean broadcast = false;
@@ -192,7 +183,7 @@ public class PianoKeyboardScreen extends Screen {
         Note(int n, int l, int i) { id = n; lx = l; iv = i; age = 0; }
     }
 
-    /* ===== PianoLib 反射 ===== */
+    
     private static volatile Boolean apiOK = null;
     private static volatile Class<?> apiCls = null;
     private static volatile Method apiPlay = null;
@@ -204,7 +195,7 @@ public class PianoKeyboardScreen extends Screen {
     private static volatile Method gwM = null, ghM = null;
     private static volatile boolean refDone = false;
 
-    /* ===== MIDI 录制器（单例）===== */
+    
     private static final MidiRecorder MIDI_REC = new MidiRecorder();
 
     public PianoKeyboardScreen(Screen parent) {
@@ -212,7 +203,7 @@ public class PianoKeyboardScreen extends Screen {
         this.parent = parent;
     }
 
-    /* ===== 显示/内部转换 ===== */
+    
     private void setShift(int s) {
         int old = shift;
         shift = Mth.clamp(s, INTERNAL_MIN, INTERNAL_MAX);
@@ -231,7 +222,7 @@ public class PianoKeyboardScreen extends Screen {
         setShift(d - DISPLAY_BASE);
     }
 
-    /* ===== 音名：允许负数八度（如 C-1, A-2）===== */
+    
     private static String name(int midi) {
         String[] n = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
         int cls = ((midi % 12) + 12) % 12;
@@ -267,9 +258,7 @@ public class PianoKeyboardScreen extends Screen {
         return apiOK;
     }
 
-    /**
-     * ★ 26.2 兼容版 initLib
-     */
+    
     private static void initLib() {
         if (libReady) return;
         int n = 0;
@@ -377,7 +366,7 @@ public class PianoKeyboardScreen extends Screen {
         }
     }
 
-/* ========== playLib() ========== */
+
     private static boolean playLib(int id) {
         if (id < NOTE_ID_A0 || id > NOTE_ID_C8) {
             System.out.println("[DJ] REJECT noteId=" + id + " out of range A0~C8");
@@ -387,7 +376,7 @@ public class PianoKeyboardScreen extends Screen {
         Minecraft m = Minecraft.getInstance();
         boolean inWorld = m.level != null && m.player != null;
 
-        // 路径1：世界里走 PianoAPI
+        
         if (inWorld && isPianoAPIAvail() && apiPlay != null) {
             try {
                 int apiKey = id + PIANO_KEY_CENTER;
@@ -399,7 +388,7 @@ public class PianoKeyboardScreen extends Screen {
             }
         }
 
-        // 路径2：PianoLib 缓存
+        
         if (!libReady) initLib();
         Object evt = libCache.get(id);
         if (evt != null) {
@@ -409,7 +398,7 @@ public class PianoKeyboardScreen extends Screen {
                     mcPlay.invoke(m.level, m.player.blockPosition(), evt, mcSrc, 2f, 1f, true);
                     System.out.println("[DJ] PianoLib noteId=" + id + "(" + nameOfId(id) + ") [world]");
                 } else {
-                    // ★ 主菜单：用 forUI 走 UI 音频通道（不依赖 Level）
+                    
                     SimpleSoundInstance inst = SimpleSoundInstance.forUI(soundEvent, 1.0f, 1.0f);
                     m.getSoundManager().play(inst);
                     System.out.println("[DJ] PianoLib noteId=" + id + "(" + nameOfId(id) + ") [mainmenu] inst=" + inst);
@@ -423,7 +412,7 @@ public class PianoKeyboardScreen extends Screen {
             System.out.println("[DJ] no cache for noteId=" + id + "(" + nameOfId(id) + ")");
         }
 
-        // 路径3：fallback HARP
+        
         try {
             int midiNote = id + 60;
             int useCount = midiNote - 54;
@@ -434,7 +423,7 @@ public class PianoKeyboardScreen extends Screen {
                         SoundEvents.NOTE_BLOCK_HARP.value(), SoundSource.RECORDS, 2.0f, pitch);
                     System.out.println("[DJ] Fallback HARP noteId=" + id + " pitch=" + pitch + " [world]");
                 } else {
-                    // ★ 主菜单：HARP 也走 forUI
+                    
                     SimpleSoundInstance inst = SimpleSoundInstance.forUI(
                         SoundEvents.NOTE_BLOCK_HARP.value(), 1.0f, pitch);
                     m.getSoundManager().play(inst);
@@ -738,18 +727,12 @@ public class PianoKeyboardScreen extends Screen {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    /* ==================== ★ 26.3 输入：回调维护 heldKeys（scancode，永久稳定）====================
-     * 根因：26.3 的 Screen.keyPressed/keyReleased 回调签名 = KeyEvent 单参
-     *   （非三参 int；写三参会报"需要 KeyEvent / 找到 int,int,int"）。
-     *   KeyEvent 有 scancode 字段但**没有** scancode() getter（直接调 -> NoSuchMethodError），
-     *   故用 getScancode() 反射读字段，回退 key()。结果 = SDL scancode（物理键，布局无关），
-     *   与 KEY_MAP 的 key 同键码空间 -> 天然对齐（根治实测"按LEFT显示KEY_P"）。
-     * ★ keyReleased 用 remove，绝不 add（旧版曾误写成 add -> 松键卡住）。 */
+    
     @Override
     public boolean keyPressed(KeyEvent evt) {
-        int sc = getScancode(evt);   // ★ SDL scancode（物理键位，与 KEY_MAP 同键码空间）
+        int sc = getScancode(evt);   
         heldKeys.add(sc);
-        // ★ 八度快捷键：← = SC_LEFT(80) 降八度，→ = SC_RIGHT(79) 升八度，不发声
+        
         if (sc == SC_LEFT)  { addDisp(-1); System.out.println("[DJ] octave <- " + getDisp()); return true; }
         if (sc == SC_RIGHT) { addDisp(+1); System.out.println("[DJ] octave -> " + getDisp()); return true; }
         return super.keyPressed(evt);
@@ -757,30 +740,26 @@ public class PianoKeyboardScreen extends Screen {
 
     @Override
     public boolean keyReleased(KeyEvent evt) {
-        heldKeys.remove(getScancode(evt));   // ★ remove，绝不 add（旧版误写成 add -> 松键卡住）
+        heldKeys.remove(getScancode(evt));   
         return super.keyReleased(evt);
     }
 
-    /* ===== ★ 26.3：从 KeyEvent 取 SDL scancode（物理键位，永久稳定）=====
-     * 为什么用反射：26.3 的 KeyEvent 有 scancode 字段但**没有** scancode() getter
-     *   （直接调用 event.scancode() -> NoSuchMethodError，已实测）。
-     *   -> 反射读私有字段 "scancode"（int），读不到则回退到 key()（GLFW keycode）。
-     *   字段/方法名均通过反射探测，失败不崩溃，返回 0。 */
+    
     private static int getScancode(Object evt) {
         if (evt == null) return 0;
         try {
-            // 优先：scancode 字段（SDL scancode，物理键位）
+            
             java.lang.reflect.Field f = evt.getClass().getDeclaredField("scancode");
             f.setAccessible(true);
             return ((Number) f.get(evt)).intValue();
         } catch (Throwable ignored) {}
         try {
-            // 次优先：scancode() getter（部分构建版本存在）
+            
             java.lang.reflect.Method m = evt.getClass().getMethod("scancode");
             return ((Number) m.invoke(evt)).intValue();
         } catch (Throwable ignored) {}
         try {
-            // 回退：key() -> GLFW keycode（字母区与 scancode 一致，标点区需 KEY_MAP 校准）
+            
             java.lang.reflect.Method m = evt.getClass().getMethod("key");
             return ((Number) m.invoke(evt)).intValue();
         } catch (Throwable ignored) {}
@@ -793,7 +772,7 @@ public class PianoKeyboardScreen extends Screen {
         return "scancode_" + scancode;
     }
 
-    /** ★ 调试用：按下任意键时在控制台打印 scancode + 键名，确认映射后关闭 DEBUG_KEYS */
+    
     private void debugKey(int scancode, String tag) {
         if (DEBUG_KEYS) {
             System.out.println("[DJ] " + tag + " scancode=" + scancode + " name=" + keyNameOf(scancode));
@@ -817,7 +796,7 @@ public class PianoKeyboardScreen extends Screen {
         return Math.max(64, Math.min(110, vel));
     }
 
-    /* ✅ DJP025xxx：addRoll 按 A-2 起算的全局坐标存 lx（history 跨八度连续） */
+    
     private void addRoll(int id) {
         int rw = WKW * TOTAL_WHITE;
         history.add(new Note(id, ((id - NOTE_ID_A_MIN) * rw) / RW_SPAN, 180));
@@ -848,26 +827,24 @@ public class PianoKeyboardScreen extends Screen {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    /* ✅ DJP025xxx：返回当前 shift 对应八度窗口在全局坐标（A-2 起算）里的起始 lx。
-       使 Roll 画布随 [-]/[+] 八度窗口滑动，高音/低音区音符均落入当前视图。 */
+    
     private int rollOrigin() {
-        // 当前 shift 下，琴键区第一个可见白键的 noteId（A0 + shift*12），再按 A-2 起算
+        
         int firstVisibleWhite = WHITE_NOTE_IDS[0] + shift * 12+24;
         int rw = WKW * TOTAL_WHITE;
         return ((firstVisibleWhite - NOTE_ID_A_MIN) * rw) / RW_SPAN;
     }
 
-    /* ✅ DJP025xxx：drawRoll 通过 rollOrigin() 让画布随 [-]/[+] 八度窗口滑动。
-       全局坐标从 A-2 起算（NOTE_ID_A_MIN=-63），A-2 在画布最左，C8 在最右。 */
+    
     private void drawRoll(GuiGraphicsExtractor c) {
         int rw = WKW * TOTAL_WHITE, rh = RH;
-        // 当前八度窗口起点（A-2 起算的全局 lx）
+        
         int origin = rollOrigin();
 
         c.fill(KX-1, RY-1, KX+rw+1, RY+rh+1, 0x55444444);
         c.fill(KX, RY, KX+rw, RY+rh, 0x990A0A0A);
 
-        // 背景刻度竖线：A-2 ~ C8，减去 origin
+        
         for (int n = NOTE_ID_A_MIN; n <= NOTE_ID_C8; n++) {
             int lx = KX + (((n - NOTE_ID_A_MIN) * rw) / RW_SPAN) - origin;
             if (lx < KX || lx > KX + rw) continue;
@@ -875,7 +852,7 @@ public class PianoKeyboardScreen extends Screen {
             c.fill(lx, RY, lx+1, RY+rh, (a<<24)|0x888888);
         }
 
-        // 历史音符：r.lx 已是 A-2 起算，减去 origin
+        
         for (Note r : history) {
             int bx = KX + r.lx + 1 - origin;
             if (bx < KX || bx > KX + rw) continue;
@@ -884,7 +861,7 @@ public class PianoKeyboardScreen extends Screen {
             c.fill(bx, by, bx + Math.max(2, rw/40), by+2, color(r.id, (int)(fade * r.iv)));
         }
 
-        // 实时按下高亮
+        
         for (int n : active) {
             int lx = KX + ((n - NOTE_ID_A_MIN) * rw) / RW_SPAN - origin;
             if (lx < KX || lx > KX + rw) continue;
@@ -1072,7 +1049,7 @@ public class PianoKeyboardScreen extends Screen {
         }
     }
 
-    /* ✅ DJP025xxx：color() 改用 A-2 起算的全局坐标，保持颜色随全局坐标渐变一致 */
+    
     private int color(int id, int a) {
         a = Mth.clamp(a, 30, 255);
         float t = (float)(id - NOTE_ID_A_MIN) / RW_SPAN;
@@ -1086,14 +1063,7 @@ public class PianoKeyboardScreen extends Screen {
     @Override
     public boolean isPauseScreen() { return false; }
 
-    /* ========================================================================
-     * ★ MidiRecorder —— 带钢琴延音/回音效果
-     * ------------------------------------------------------------------------
-     * ✅ DJP024xxx 混淆安全修复：
-     *   - start() 中 catch(InvalidMidiDataException e) 变量 e → t
-     *   - stopAndSave() 中 catch(InvalidMidiDataException | IOException e)
-     *     拆分为两个独立 catch，各自变量 t，并改用 FileOutputStream 显式写出
-     * ====================================================================== */
+    
     private static class MidiRecorder {
         private static final int PPQ = 480;
         private static final int CHANNEL = 0;

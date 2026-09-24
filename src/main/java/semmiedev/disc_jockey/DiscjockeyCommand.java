@@ -28,14 +28,7 @@ import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 public class DiscjockeyCommand {
 
-    /* ============================================================
-       ✅ DJP020000 修复说明：
-       原来用 ctx.getSource().getClient().setScreenAndShow(...)
-       → 26.2 上 setScreenAndShow 不一定存在（之前编译就报过）
-       → 改为 Main.openScreenOnNextTick() 跨帧队列（DJP020002）
-       → 彻底避开命令执行完毕时聊天框关闭把界面一起带走的竞争
-       → 同时处理从主菜单调用的情况（parent = null）
-       ============================================================ */
+    
 
     public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         final List<String> instrumentNames = new ArrayList<>();
@@ -53,7 +46,7 @@ public class DiscjockeyCommand {
                 .map(s -> s.name().toLowerCase())
                 .toList();
 
-        // ✅ DJP020002：用跨帧队列打开 GUI，彻底避开聊天框关闭竞争
+        
         dispatcher.register(literal("discjockey")
                         .executes(ctx -> {
                             if (isLoading(ctx)) return 0;
@@ -69,9 +62,7 @@ public class DiscjockeyCommand {
                             }
                         })
 
-                        /* ===============================
-                           ✅ /discjockey help
-                           =============================== */
+                        
                         .then(literal("help")
                                 .executes(ctx -> {
                                     FabricClientCommandSource src = ctx.getSource();
@@ -113,7 +104,7 @@ public class DiscjockeyCommand {
                                                     .withStyle(net.minecraft.ChatFormatting.YELLOW)
                                     );
 
-                                    /* ========== ✅ 新增：PianoLib 依赖库链接（允许新增，不删减）========== */
+                                    
                                     src.sendFeedback(
                                             Component.literal("§7[Disc Jockey] §f依赖库 §ePianoLib§f：为 DJP 提供 88 个钢琴音符")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
@@ -126,18 +117,14 @@ public class DiscjockeyCommand {
                                     return 1;
                                 })
                         )
-                        /* ===============================
-                           ✅ /discjockey update —— Modrinth 检查更新（语义化版本比较 + CurseForge 兜底）
-                           =============================== */
+                        
                         .then(literal("update")
                                 .executes(ctx -> {
                                     checkForUpdates(ctx.getSource());
                                     return 1;
                                 })
                         )
-                        /* ===============================
-                           ✅ /discjockey clamp
-                           =============================== */
+                        
                         .then(literal("clamp")
                                 .executes(ctx -> {
                                     if (isLoading(ctx)) return 0;
@@ -208,9 +195,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey unclamp
-                           =============================== */
+                        
                         .then(literal("unclamp")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
@@ -227,9 +212,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey clampstatus
-                           =============================== */
+                        
                         .then(literal("clampstatus")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
@@ -251,9 +234,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey fold
-                           =============================== */
+                        
                         .then(literal("fold")
                                 .then(literal("info")
                                         .then(argument("song", StringArgumentType.greedyString())
@@ -356,9 +337,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey transpose（DJP021482 修复）
-                           =============================== */
+                        
                         .then(literal("transpose")
                                 .then(argument("semitones", StringArgumentType.string())
                                         .suggests((ctx, builder) -> suggest(Arrays.asList("-24","-12","-6","-3","0","3","6","12","24"), builder))
@@ -413,9 +392,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey spectrum
-                           =============================== */
+                        
                         .then(literal("spectrum")
                                 .executes(ctx -> {
                                     Main.SPECTRUM.setEnabled(!Main.SPECTRUM.isEnabled());
@@ -471,9 +448,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey autoplay
-                           =============================== */
+                        
                         .then(literal("autoplay")
                                 .executes(ctx -> {
                                     Main.SONG_PLAYER.autoPlay = !Main.SONG_PLAYER.autoPlay;
@@ -489,9 +464,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey shuffle
-                           =============================== */
+                        
                         .then(literal("shuffle")
                                 .executes(ctx -> {
                                     Main.SONG_PLAYER.shuffle = !Main.SONG_PLAYER.shuffle;
@@ -508,9 +481,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey pause
-                           =============================== */
+                        
                         .then(literal("pause")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
@@ -529,9 +500,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey resume
-                           =============================== */
+                        
                         .then(literal("resume")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
@@ -554,9 +523,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey sleep
-                           =============================== */
+                        
                         .then(literal("sleep")
                                 .then(argument("minutes", StringArgumentType.word())
                                         .suggests((ctx, builder) ->
@@ -595,9 +562,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey reload
-                           =============================== */
+                        
                         .then(literal("reload")
                                 .executes(ctx -> {
                                     if (isLoading(ctx)) return 0;
@@ -609,9 +574,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey play
-                           =============================== */
+                        
                         .then(literal("play")
                                 .then(argument("song", StringArgumentType.greedyString())
                                         .suggests((ctx, builder) ->
@@ -634,9 +597,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey random
-                           =============================== */
+                        
                         .then(literal("random")
                                 .executes(ctx -> {
                                     if (isLoading(ctx) || SongLoader.SONGS.isEmpty()) {
@@ -651,9 +612,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey stop
-                           =============================== */
+                        
                         .then(literal("stop")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
@@ -671,9 +630,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey speed
-                           =============================== */
+                        
                         .then(literal("speed")
                                 .then(argument("speed", FloatArgumentType.floatArg(0.0001F, 15.0F))
                                         .suggests((ctx, builder) ->
@@ -691,9 +648,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey info
-                           =============================== */
+                        
                         .then(literal("info")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
@@ -731,9 +686,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey remapInstruments
-                           =============================== */
+                        
                         .then(literal("remapInstruments")
                                 .executes(ctx -> {
                                     ctx.getSource().sendFeedback(
@@ -876,9 +829,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey preview
-                           =============================== */
+                        
                         .then(literal("preview")
                                 .executes(ctx -> {
                                     ctx.getSource().sendFeedback(
@@ -906,9 +857,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey instrument
-                           =============================== */
+                        
                         .then(literal("instrument")
                                 .then(argument("name", StringArgumentType.word())
                                       .suggests((ctx, builder) ->
@@ -936,9 +885,7 @@ public class DiscjockeyCommand {
                                 )
                         )
 
-                        /* ===============================
-                           ✅ /discjockey progress
-                           =============================== */
+                        
                         .then(literal("progress")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running || Main.SONG_PLAYER.song == null) {
@@ -962,9 +909,7 @@ public class DiscjockeyCommand {
                                 })
                         )
 
-                        /* ===============================
-                           ✅ /discjockey now
-                           =============================== */
+                        
                         .then(literal("now")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
@@ -982,9 +927,7 @@ public class DiscjockeyCommand {
         ));
     }
 
-    /* ===============================
-       ✅ 辅助：设置当前 renderer 索引
-       =============================== */
+    
     private static void setCurrentRendererIndex(int index) {
         try {
             var field = SpectrumRendererManager.class.getDeclaredField("currentIndex");
@@ -993,9 +936,7 @@ public class DiscjockeyCommand {
         } catch (Exception ignored) {}
     }
 
-    /**
-     * ✅ DJP021500：通过反射设置 Previewer.notesPerFrameCap
-     */
+    
     private static void setPreviewerSpeedCap(float speed) {
         try {
             Field f = Previewer.class.getDeclaredField("notesPerFrameCap");
@@ -1009,21 +950,9 @@ public class DiscjockeyCommand {
         }
     }
 
-    /**
-     * ✅ Modrinth 检查更新（异步，公开项目无需 API key）
-     * 使用：/discjockey update
-     *
-     * GET https://api.modrinth.com/v2/project/{project_id}/version?version_type=release
-     * 返回数组首个即最新正式版；取 version_number 与 Main.VERSION 做语义化比较。
-     * project_id 可为 slug（如 "disc-jockey-plus"）或 Modrinth project ID。
-     *
-     * ✅ 比较逻辑：采用语义化版本比较（compareSemver）。
-     *   - lat > cur → 真正发现新版本，提示 Modrinth 下载链接
-     *   - lat < cur → 本地领先（典型：Modrinth 因依赖审核滞后），提示去 CurseForge
-     *   - lat == cur → 已是最新
-     */
+    
     private static void checkForUpdates(FabricClientCommandSource source) {
-        // ✅ 优先读 Config，未配置则回退硬编码占位
+        
         String projectId = (Main.config != null && Main.config.modrinthProjectId != null && !Main.config.modrinthProjectId.isEmpty())
                 ? Main.config.modrinthProjectId
                 : "disc-jockey-plus";
@@ -1079,17 +1008,17 @@ public class DiscjockeyCommand {
                     String lat = stripV(finalLatest);
                     int cmp = compareSemver(lat, cur);
                     if (cmp > 0) {
-                        // 真正发现新版本
+                        
                         source.sendFeedback(Component.literal("§e[Disc Jockey] §f发现新版本！§7 当前：§c" + cur + " §7最新：§a" + lat));
                         source.sendFeedback(Component.literal("§7前往下载：§nhttps://modrinth.com/mod/" + projectId));
                     } else if (cmp < 0) {
-                        // 本地版本领先于 Modrinth（典型：Modrinth 因依赖审核滞后）
+                        
                         source.sendFeedback(Component.literal("§a[Disc Jockey] §f本地版本（§a" + cur + "§f）已领先于 Modrinth 最新版（§7" + lat + "§f）。"));
                         source.sendFeedback(Component.literal("§7Modrinth 版本可能仍在审核中；Disc Jockey 最新稳定版 / PianoLib 依赖请前往 CurseForge 查看："));
                         source.sendFeedback(Component.literal("§nhttps://www.curseforge.com/minecraft/mc-mods/disc-jockey-plus"));
                         source.sendFeedback(Component.literal("§7PianoLib（DJP 依赖库）：§nhttps://www.curseforge.com/minecraft/mc-mods/pianolib"));
                     } else {
-                        // 完全相等
+                        
                         source.sendFeedback(Component.literal("§a[Disc Jockey] §f已是最新版本（§a" + cur + "§f）。"));
                     }
                 });
@@ -1102,7 +1031,7 @@ public class DiscjockeyCommand {
         });
     }
 
-    /** 去掉版本号前缀 v/V，便于语义化比较 */
+    
     private static String stripV(String v) {
         if (v == null) return "";
         String s = v.strip();
@@ -1110,7 +1039,7 @@ public class DiscjockeyCommand {
         return s;
     }
 
-    /** 语义化版本比较：返回 >0 表示 v1>v2，=0 表示相等，<0 表示 v1<v2 */
+    
     private static int compareSemver(String v1, String v2) {
         String a = v1.split("-")[0];
         String b = v2.split("-")[0];

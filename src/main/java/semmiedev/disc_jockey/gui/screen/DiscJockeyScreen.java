@@ -2,9 +2,9 @@ package semmiedev.disc_jockey.gui.screen;
 
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
 import me.shedaniel.autoconfig.AutoConfigClient;
-import java.nio.file.StandardCopyOption;   // ← 文件复制要
+import java.nio.file.StandardCopyOption;   
 import java.nio.file.StandardOpenOption;
-import java.util.stream.Stream;            // ← Files.walk 的 stream 要
+import java.util.stream.Stream;            
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -37,18 +37,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class DiscJockeyScreen extends Screen {
-    /* ========== ★ 一键同步本地 NBS 仓库 ==========
-       ✅ 源路径硬编码 D:/songs/songs（你的本地 NBS 仓库）
-       ✅ 目标用 Main.songsFolder（config/disc_jockey/songs），与 SongLoader 一致
-       ✅ 子线程复制 → 不卡 UI；minecraft.execute 回主线程刷新
-       ✅ 轮询 loadingSongs，避免读到半截数据 */
+    
     public SongListWidget getSongListWidget() {
             return songListWidget;
         }
     private static final Path NBS_SOURCE = Paths.get("D:/songs/songs");
 
-    /** 对 GitHub raw 的 path 做分段 URL 编码。
-     *  空格→%20，中文→UTF-8 百分号编码，斜杠保留原样。 */
+    
     private static String encodePath(String path) {
         if (path == null || path.isEmpty()) return path;
         StringBuilder sb = new StringBuilder(path.length() + 16);
@@ -63,11 +58,7 @@ public class DiscJockeyScreen extends Screen {
         }
         return sb.toString();
     }
-/* ========== ★ 从 GitHub 仓库 SQL-MC/Nbs 下载 NBS ==========
-       ✅ 用 GitHub Tree API 拿 songs/ 目录文件列表
-       ✅ 用 raw.githubusercontent.com 直链下载
-       ✅ 子线程下载 → 不卡 UI
-       ✅ 下载完回主线程重建歌单 */
+
     private static final String GITHUB_API = "https://api.github.com/repos/SQL-MC/Nbs/git/trees/main?recursive=1";
     private static final String RAW_BASE  = "https://raw.githubusercontent.com/SQL-MC/Nbs/main/";
 
@@ -82,7 +73,7 @@ public class DiscJockeyScreen extends Screen {
         new Thread(() -> {
             java.util.List<String> nbsFiles = new java.util.ArrayList<>();
             try {
-                // ✅ 第1步：Tree API 拿完整文件清单
+                
                 String treeJson = httpGet(GITHUB_API);
                 nbsFiles = parseTree(treeJson);
             } catch (IOException e) {
@@ -98,12 +89,12 @@ public class DiscJockeyScreen extends Screen {
                 return;
             }
 
-            // ✅ 第2步：逐个下载
+            
             int ok = 0, fail = 0;
             for (String path : nbsFiles) {
                 String name = path.substring(path.lastIndexOf('/') + 1);
                 try {
-                    String url = RAW_BASE + encodePath(path);   // ✅ 加编码
+                    String url = RAW_BASE + encodePath(path);   
                     java.net.URL u = new java.net.URL(url);
                     Path out = destDir.resolve(name);
                     try (java.io.InputStream in = u.openStream();
@@ -130,7 +121,7 @@ public class DiscJockeyScreen extends Screen {
         }, "DJ-GithubNbs").start();
     }
 
-    /** 解析 GitHub Tree API 的 JSON，筛出 songs/ 下的 .nbs 文件 */
+    
     private java.util.List<String> parseTree(String json) {
         java.util.List<String> list = new java.util.ArrayList<>();
         // 找所有 "path":"..." 字段
@@ -146,13 +137,13 @@ public class DiscJockeyScreen extends Screen {
         return list;
     }
 
-    /** 简单 HTTP GET，带 UA 头（GitHub API 要求 UA） */
+    
     private String httpGet(String urlStr) throws IOException {
         java.net.URL url = new java.net.URL(urlStr);
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
         conn.setConnectTimeout(15_000);
         conn.setReadTimeout(30_000);
-        conn.setRequestProperty("User-Agent", "DiscJockey/2.6.3");   // ← GitHub 强制要求
+        conn.setRequestProperty("User-Agent", "DiscJockey/2.6.3");   
         conn.setRequestProperty("Accept", "application/vnd.github+json");
         int code = conn.getResponseCode();
         if (code != 200) throw new IOException("HTTP " + code + " for " + urlStr);
@@ -162,7 +153,7 @@ public class DiscJockeyScreen extends Screen {
         }
     }
 
-    /** 轮询 loadingSongs，加载完再刷新列表 */
+    
     private void awaitSongReload() {
         if (SongLoader.loadingSongs) {
             minecraft.execute(() -> awaitSongReload());
@@ -171,7 +162,7 @@ public class DiscJockeyScreen extends Screen {
         rebuildSongList();
     }
 
-    /** 用 SongLoader.SONGS 重建 SongListWidget 条目 */
+    
     private void rebuildSongList() {
         if (this.songListWidget == null) return;
         java.util.List<SongListWidget.SongEntry> entries = new java.util.ArrayList<>();
@@ -180,15 +171,11 @@ public class DiscJockeyScreen extends Screen {
         }
         songListWidget.safeReplaceEntries(entries);
     }
-    /* =========================================================
-       ✅ parent screen：从主菜单/暂停菜单打开时记录，关闭后返回
-       ========================================================= */
+    
     private Screen parent = null;
 
     public void setParent(Screen parent) { this.parent = parent; }
-    /* =========================================================
-       ✅ 原有常量（一字未动）
-       ========================================================= */
+    
     private static final MutableComponent
             SELECT_SONG = Component.translatable(Main.MOD_ID + ".screen.select_song"),
             PLAY = Component.translatable(Main.MOD_ID + ".screen.play"),
@@ -217,33 +204,29 @@ public class DiscJockeyScreen extends Screen {
     private SongTimeSliderWidget timeBar;
     private Button configButton;
 
-    /* =========================================================
-       ✅ 频谱样式切换按钮
-       ========================================================= */
+    
     private CycleButton<SpectrumRendererManager.Style> spectrumStyleButton;
-/* ========== ✅ 26.3：歌词入口控件（频谱样式正上方）========== */
-    private CycleButton<Boolean> lyricsToggleButton;      // 歌词总开关
+
+    private CycleButton<Boolean> lyricsToggleButton;      
     private CycleButton<Boolean> lyricsOutputButton;      // 公屏/私聊
-    private Button lyricsOffsetMinusButton;                // 偏移 -
-    private net.minecraft.client.gui.components.EditBox lyricsOffsetEditBox; // 偏移值
-    private Button lyricsOffsetPlusButton;                 // 偏移 +
-    /* =========================================================
-       ✅✅✅ 速度 + 移调按钮（DJP021700：频谱右侧，对齐 DiscjockeyCommand）
-       ========================================================= */
-    /** 速度预设（0.5 / 0.75 / 1.0 / 1.25 / 1.5），与 /discjockey speed 一致 */
+    private Button lyricsOffsetMinusButton;                
+    private net.minecraft.client.gui.components.EditBox lyricsOffsetEditBox; 
+    private Button lyricsOffsetPlusButton;                 
+    
+    
     private static final Float[] SPEED_VALUES = { 0.5F, 0.75F, 1.0F, 1.25F, 1.5F };
-    /** 移调预设（半音），与 /discjockey transpose 范围 -24~24 的子集 */
+    
     private static final Integer[] TRANSPOSE_VALUES = { -12, -6, -3, 0, 3, 6, 12 };
 
     private CycleButton<Float> speedButton;
-    private Button playlistButton;
+    private Button refreshSongsButton;
     private CycleButton<Integer> transposeButton;
 
     private SongListWidget songListWidget;
     private Button playButton, previewButton;
     private boolean shouldFilter;
     private String query = "";
-/** ✅ 26.3：保存配置（复用 Main.configHolder，工程标准做法） */
+
     private void saveConfig() {
         try {
             Main.configHolder.save();
@@ -252,8 +235,8 @@ public class DiscJockeyScreen extends Screen {
         }
     }
 
-    /** ✅ 26.3：调整当前歌曲的歌词偏移（毫秒） */
-/** ✅ 26.3：调整当前歌曲的歌词偏移（毫秒） */
+    
+
     private void adjustLyricsOffset(long delta) {
         Song playing = Main.SONG_PLAYER.song;
         if (playing == null || playing.lyrics == null) {
@@ -263,7 +246,7 @@ public class DiscJockeyScreen extends Screen {
         }
         long newOffset = playing.lyrics.offsetMillis() + delta;
         try {
-            playing.lyrics.setOffsetMillis(newOffset);   // ✅ 新增的 setter
+            playing.lyrics.setOffsetMillis(newOffset);   
         } catch (IOException e) {
             Main.LOGGER.warn("[DJ] 歌词偏移写入失败：{}", e.getMessage());
             this.minecraft.gui.chatListener().handleSystemMessage(
@@ -277,29 +260,25 @@ public class DiscJockeyScreen extends Screen {
                 false);
     }
 
-/** ✅ 26.3：刷新偏移值显示框（歌曲切换时偏移跟着变） */
+
     private void refreshOffsetDisplay() {
         if (lyricsOffsetEditBox == null) return;
-        if (lyricsOffsetEditBox.isFocused()) return;   // 正在编辑时不覆盖
+        if (lyricsOffsetEditBox.isFocused()) return;   
         Song playing = Main.SONG_PLAYER.song;
         long offset = (playing != null && playing.lyrics != null) ? playing.lyrics.offsetMillis() : 0L;
         lyricsOffsetEditBox.setValue(String.format("%+d", offset));
     }
-    /* =========================================================
-       ✅ 频谱平滑缓存
-       ========================================================= */
+    
     private float[] smoothedLevels = new float[16];
 
-    /* =========================================================
-       ✅ 构造器：无参（J键）+ parent版（菜单按钮）
-       ========================================================= */
-    /** 从 J 键 / 正常流程进来：无 parent */
+    
+    
     public DiscJockeyScreen() {
         super(Main.NAME);
         this.parent = null;
     }
 
-    /** 从主菜单 / 暂停菜单按钮进来：带 parent，关闭时回退 */
+    
     public DiscJockeyScreen(Screen parent) {
         super(Main.NAME);
         this.parent = parent;
@@ -443,11 +422,11 @@ public class DiscJockeyScreen extends Screen {
                 .size(20, 20)
                 .build();
         addRenderableWidget(stopButton);
-/* ========== ✅ 26.3：歌词入口（频谱样式正上方）========== */
+
         int lx = 115;
         int ly = height - 79;
 
-        // 歌词总开关（onOffBuilder + withValues + 单独 setTooltip）
+        
         lyricsToggleButton = CycleButton.onOffBuilder(Main.config.lyricsChatOutput)
                 .withValues(true, false)
                 .create(lx, ly, 72, 18,
@@ -475,14 +454,14 @@ public class DiscJockeyScreen extends Screen {
                         });
         addRenderableWidget(lyricsOutputButton);
 
-        // 偏移 -
+        
         lyricsOffsetMinusButton = Button.builder(
                         Component.literal("-"),
                         b -> adjustLyricsOffset(-500))
                 .bounds(lx + 140, ly, 18, 18).build();
         addRenderableWidget(lyricsOffsetMinusButton);
 
-        // 偏移值显示框
+        
         lyricsOffsetEditBox = new net.minecraft.client.gui.components.EditBox(
                 this.font, lx + 161, ly + 1, 56, 16,
                 Component.translatable(Main.MOD_ID + ".screen.lyrics.offset"));
@@ -495,7 +474,7 @@ public class DiscJockeyScreen extends Screen {
                     playing.lyrics.setOffsetMillis(ms);
                     saveConfig();
                 }
-            } catch (NumberFormatException ignored) { /* 输入中 */ }
+            } catch (NumberFormatException ignored) {  }
               catch (IOException e) {
                 Main.LOGGER.warn("[DJ] 歌词偏移写入失败：{}", e.getMessage());
             }
@@ -503,31 +482,36 @@ public class DiscJockeyScreen extends Screen {
         refreshOffsetDisplay();
         addRenderableWidget(lyricsOffsetEditBox);
 
-        // 偏移 +
+        
         lyricsOffsetPlusButton = Button.builder(
                         Component.literal("+"),
                         b -> adjustLyricsOffset(+500))
                 .bounds(lx + 220, ly, 18, 18).build();
         addRenderableWidget(lyricsOffsetPlusButton);
-        /* =========================================================
-           ✅ Config 按钮（26.2 正确 API：走 Main.setScreenCompatStatic）
-           ========================================================= */
+        
         configButton = Button.builder(CONFIG, b ->
                 Main.setScreenCompatStatic(minecraft,
                         AutoConfigClient.getConfigScreen(semmiedev.disc_jockey.Config.class, this).get())
         ).pos(10, height - 30).size(100, 20).build();
         addRenderableWidget(configButton);
-        playlistButton = Button.builder(
-                        Component.translatable(Main.MOD_ID + ".screen.playlist"),
-                        b -> Main.openScreenOnNextTick(new PlaylistScreen(this)))
-                .bounds(lx + 138, ly, 90, 18)
+        refreshSongsButton = Button.builder(
+                Component.translatable(Main.MOD_ID + ".screen.refresh_songs"),
+                b -> {
+                    if (SongLoader.loadingSongs) {
+                        minecraft.gui.chatListener().handleSystemMessage(
+                                Component.translatable(Main.MOD_ID + ".screen.refresh_songs.already"), false);
+                        return;
+                    }
+                    SongLoader.loadSongs();
+                    minecraft.gui.chatListener().handleSystemMessage(
+                            Component.translatable(Main.MOD_ID + ".screen.refresh_songs.done"), false);
+                })
+                .bounds(lx + 138, ly + 22, 90, 18)
                 .tooltip(Tooltip.create(
-                        Component.translatable(Main.MOD_ID + ".screen.playlist.tooltip")))
+                        Component.translatable(Main.MOD_ID + ".screen.refresh_songs.tooltip")))
                 .build();
-        addRenderableWidget(playlistButton);
-        /* =========================================================
-           ✅ MIDI 导出按钮（完整保留）
-           ========================================================= */
+        addRenderableWidget(refreshSongsButton);
+        
         Button exportMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.export_midi"),
                 btn -> {
@@ -570,13 +554,7 @@ public class DiscJockeyScreen extends Screen {
         ).pos(115, height - 30).size(100, 20).build();
         addRenderableWidget(exportMidiButton);
 
-/* =========================================================
-           ★ 新增：从 GitHub 仓库 SQL-MC/Nbs 下载 NBS 到本地
-           ✅ 源：GitHub raw + Tree API
-           ✅ 目标：Main.songsFolder（= config/disc_jockey/songs）
-           ✅ 网络请求在子线程跑，不卡 UI
-           ✅ 下载完回主线程重建歌单
-           ========================================================= */
+
         Button downloadNbsButton = Button.builder(
                 Component.translatable(Main.MOD_ID + ".button.download_nbs"),
                 btn -> downloadNbsFromGithub()
@@ -585,12 +563,7 @@ public class DiscJockeyScreen extends Screen {
          .tooltip(Tooltip.create(Component.translatable(Main.MOD_ID + ".button.download_nbs.tooltip")))
          .build();
         addRenderableWidget(downloadNbsButton);
-        /* =========================================================
-           ✅ WAV 导出按钮（方案C：纯 Java 合成真实音频，零依赖）
-           ✅ 位置：export_midi 正上方，组成"导出组"
-           ✅ 文案全部硬编码字面量，不走 lang key
-           ✅ 合成较慢，放后台线程，避免卡 UI
-           ========================================================= */
+        
         Button exportWavButton = Button.builder(
                 Component.translatable(Main.MOD_ID + ".button.wav_out"),
                 btn -> {
@@ -603,7 +576,7 @@ public class DiscJockeyScreen extends Screen {
                         return;
                     }
                     final Song song = entry.song;
-                    btn.active = false;   // ★ 导出期间置灰，防重复点击
+                    btn.active = false;   
                     new Thread(() -> {
                         try {
                             NbsToWavExporter.exportSong(song);   // → config/disc_jockey/wav/<名>.wav
@@ -622,16 +595,14 @@ public class DiscJockeyScreen extends Screen {
                                     )
                             );
                         } finally {
-                            minecraft.execute(() -> btn.active = true);  // ★ 恢复
+                            minecraft.execute(() -> btn.active = true);  
                         }
                     }, "DJ-WAV-Export").start();
                 }
         ).pos(115, height - 55).size(100, 20).build();
         addRenderableWidget(exportWavButton);
 
-        /* =========================================================
-           ✅ 频谱样式按钮（26.2 正确签名）
-           ========================================================= */
+        
         CycleButton.Builder<SpectrumRendererManager.Style> styleBuilder =
                 CycleButton.<SpectrumRendererManager.Style>builder(
                         s -> Component.literal(s.displayName),
@@ -646,9 +617,7 @@ public class DiscJockeyScreen extends Screen {
                 );
         addRenderableWidget(this.spectrumStyleButton);
 
-        /* =========================================================
-           ✅✅✅ 移调按钮（DJP021700：IMPORT MIDI 左边最左侧，同一行 y=5）
-           ========================================================= */
+        
         this.transposeButton = CycleButton.<Integer>builder(
                 v -> Component.literal("🎵 " + (v == 0 ? "0" : String.format("%+d", v))),
                 Main.SONG_PLAYER.transpose
@@ -675,9 +644,7 @@ public class DiscJockeyScreen extends Screen {
                 );
         addRenderableWidget(this.transposeButton);
 
-        /* =========================================================
-           ✅✅✅ 速度按钮（DJP021700：IMPORT MIDI 左边，移调右边，同一行 y=5）
-           ========================================================= */
+        
         this.speedButton = CycleButton.<Float>builder(
                 v -> Component.literal("⚡ " + (v == 1.0F ? "1.0x" : String.format("%sx", v))),
                 getCurrentSpeed()
@@ -698,9 +665,7 @@ public class DiscJockeyScreen extends Screen {
                 );
         addRenderableWidget(this.speedButton);
 
-        /* =========================================================
-           ✅ Piano 按钮（26.2 正确 API：走 Main.setScreenCompatStatic）
-           ========================================================= */
+        
         Button pianoButton = Button.builder(
                 Component.literal("🎹 🎶→"),
                 btn -> {
@@ -714,11 +679,7 @@ public class DiscJockeyScreen extends Screen {
         ).pos(325, height - 30).size(100, 20).build();
         addRenderableWidget(pianoButton);
 
-        /* =========================================================
-           ✅ Fabric 原生 Import MIDI 按钮（26.2 正确 API）
-           ✅ 位置：屏幕右上角（最右边）
-           ✅ 走 Main.setScreenCompatStatic
-           ========================================================= */
+        
         Button importMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.import_midi"),
                 btn -> {
@@ -737,9 +698,7 @@ public class DiscJockeyScreen extends Screen {
         ).pos(width - 110, 5).size(100, 20).build();
         addRenderableWidget(importMidiButton);
 
-        /* =========================================================
-           ✅ Import MIDI 路径提示（在 IMPORT MIDI 下方）
-           ========================================================= */
+        
         File midiDir = new File(Main.songsFolder.getParentFile(), "midi");
         String fullPath = midiDir.getAbsolutePath();
         String displayPath = fullPath;
@@ -762,19 +721,17 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(midiPathHint);
     }
 
-    /* =========================================================
-       ✅✅✅ 读取当前播放速度（DJP021700：兼容字段名差异）
-       ========================================================= */
+    
     private static Float getCurrentSpeed() {
         try {
             // 预览/联播运行时，优先读 PREVIEW_SPEED
             if (Main.PREVIEWER.running) {
                 return Main.PREVIEW_SPEED;
             }
-            // 普通播放，读 SONG_PLAYER.speed
+            
             return Main.SONG_PLAYER.speed;
         } catch (Throwable t) {
-            // 兜底：尝试反射（兼容旧版本字段名）
+            
             try {
                 java.lang.reflect.Field f = Main.SONG_PLAYER.getClass().getDeclaredField("speed");
                 f.setAccessible(true);
@@ -858,9 +815,7 @@ public class DiscJockeyScreen extends Screen {
         previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
         playButton.setMessage(Main.SONG_PLAYER.running ? PLAY_STOP : PLAY);
         
-        /* =========================================================
-           ✅✅✅ 同步速度/移调按钮显示（DJP021700：值与 SONG_PLAYER 保持一致）
-           ========================================================= */
+        
         if (speedButton != null) {
             Float cur = getCurrentSpeed();
             if (!cur.equals(speedButton.getValue())) {
@@ -893,9 +848,7 @@ public class DiscJockeyScreen extends Screen {
         }
     }
 
-    /* =========================================================
-       ✅ 频谱渲染（读 SMOOTHER 缓冲）
-       ========================================================= */
+    
     private void renderSpectrum(GuiGraphicsExtractor context, int screenWidth, int screenHeight) {
         float[] levels = Main.SMOOTHER.getSmoothedLevels();
         SpectrumRendererManager.getCurrent().render(
@@ -908,9 +861,7 @@ public class DiscJockeyScreen extends Screen {
         );
     }
 
-    /* =========================================================
-       ✅ lerpColor（保留使用）
-       ========================================================= */
+    
     private int lerpColor(int a, int b, float t) {
         t = Math.max(0, Math.min(1, t));
         int ai = (a >> 24) & 0xFF;
@@ -948,7 +899,7 @@ public class DiscJockeyScreen extends Screen {
                 .collect(Collectors.joining(", "));
         if (str.length() > 300) str = str.substring(0, 300) + "...";
 
-        // ✅ FIX：26.2 没有 minecraft.setScreen()，改用 Main.setScreenCompatStatic
+        
         Main.setScreenCompatStatic(minecraft, new ConfirmScreen(
                 confirmed -> {
                     if (confirmed) {
@@ -984,10 +935,7 @@ public class DiscJockeyScreen extends Screen {
         return false;
     }
 
-    /* =========================================================
-       ✅ onClose：有 parent 回退菜单，无 parent 走默认
-       ✅ 走 Main.setScreenCompatStatic（26.2 兼容）
-       ========================================================= */
+    
     @Override
     public void onClose() {
         new Thread(() -> Main.configHolder.save()).start();
@@ -997,10 +945,7 @@ public class DiscJockeyScreen extends Screen {
             super.onClose();
         }
     }
-    /* =========================================================
-   ✅ MIDI 导入后通知列表刷新（供 MidiFileSelectScreen 回调）
-   ✅ 内部走 shouldFilter 机制（与 init() 里的导入按钮回调一致）
-   ========================================================= */
+    
     public void markSongsDirty() {
         this.shouldFilter = true;
     }

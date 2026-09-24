@@ -5,12 +5,9 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 纯反射钢琴播放器，零编译期MC依赖，适配MC 26.2+
- * 直接调用MC原生API播放已注册的钢琴音效，绕过所有映射兼容问题
- */
+
 public final class PianoPlayer {
-    // ==================== 反射缓存 ====================
+    
     private static Class<?> clazzResourceLocation;
     private static Method methodFromNamespaceAndPath;
     private static Class<?> clazzSoundEvent;
@@ -27,7 +24,7 @@ public final class PianoPlayer {
     private static Method methodPlayLocalSound;
     private static Object soundSourceRecords;
 
-    // ==================== 状态 ====================
+    
     private static boolean initialized = false;
     private static boolean available = false;
     private static String diagnostic = "not initialized";
@@ -36,11 +33,11 @@ public final class PianoPlayer {
 
     private PianoPlayer() {}
 
-    /** 初始化反射缓存，启动时自动调用 */
+    
     public static void init() {
         if (initialized) return;
         try {
-            // 1. ResourceLocation（兼容新旧MC版本）
+            
             clazzResourceLocation = Class.forName("net.minecraft.resources.ResourceLocation");
             try {
                 methodFromNamespaceAndPath = clazzResourceLocation.getMethod("fromNamespaceAndPath", String.class, String.class);
@@ -48,17 +45,17 @@ public final class PianoPlayer {
                 methodFromNamespaceAndPath = clazzResourceLocation.getMethod("fromNamespaceAndPath", String.class, String.class);
             }
 
-            // 2. SoundEvent
+            
             clazzSoundEvent = Class.forName("net.minecraft.sounds.SoundEvent");
             fieldSoundEventEmpty = clazzSoundEvent.getField("EMPTY");
-            fieldSoundEventEmpty.setAccessible(true); // ✅ 关键修复：允许访问私有字段
+            fieldSoundEventEmpty.setAccessible(true); 
 
-            // 3. BuiltInRegistries
+            
             clazzBuiltInRegistries = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
             methodGetOptional = clazzBuiltInRegistries.getMethod("getOptional", 
                 Class.forName("net.minecraft.core.Registry"), Object.class);
 
-            // 4. Minecraft实例
+            
             clazzMinecraft = Class.forName("net.minecraft.client.Minecraft");
             methodGetInstance = clazzMinecraft.getMethod("getInstance");
             try {
@@ -72,11 +69,11 @@ public final class PianoPlayer {
                 methodGetPlayer = clazzMinecraft.getMethod("player");
             }
 
-            // 5. LocalPlayer
+            
             clazzLocalPlayer = Class.forName("net.minecraft.client.player.LocalPlayer");
             methodBlockPosition = clazzLocalPlayer.getMethod("blockPosition");
 
-            // 6. Level.playLocalSound（兼容MC 26.2的方法签名）
+            
             clazzLevel = Class.forName("net.minecraft.world.level.Level");
             Method found = null;
             try {
@@ -99,11 +96,11 @@ public final class PianoPlayer {
             }
             methodPlayLocalSound = found;
 
-            // 7. SoundSource.RECORDS
+            
             Class<?> clazzSoundSource = Class.forName("net.minecraft.sounds.SoundSource");
             soundSourceRecords = clazzSoundSource.getField("RECORDS").get(null);
 
-            // 8. 扫描所有已注册的钢琴音效
+            
             scanSounds();
 
             available = true;
@@ -120,12 +117,12 @@ public final class PianoPlayer {
         }
     }
 
-    /** 扫描两种命名规则的钢琴音效：disc_jockey:piano.* 和 pianolib:key_* */
+    
     private static void scanSounds() {
         soundCache.clear();
         try {
             Object registry = clazzBuiltInRegistries.getField("SOUND_EVENT").get(null);
-            // 优先扫描disc_jockey命名空间
+            
             for (int octave = 0; octave <= 8; octave++) {
                 for (int i = 0; i < 12; i++) {
                     String name = NOTE_NAMES[i] + octave;
@@ -138,9 +135,9 @@ public final class PianoPlayer {
                     }
                 }
             }
-            // 补充扫描pianolib命名空间
+            
             for (int key = 0; key <= 87; key++) {
-                int noteId = key - 39; // key_39 = C4 = noteId 0
+                int noteId = key - 39; 
                 if (noteId < -39 || noteId > 48 || soundCache.containsKey(noteId)) continue;
                 Object rl = methodFromNamespaceAndPath.invoke(null, "pianolib", "key_" + key);
                 Object optional = methodGetOptional.invoke(null, registry, rl);
@@ -154,7 +151,7 @@ public final class PianoPlayer {
         System.out.println("[PianoPlayer] 扫描到 " + soundCache.size() + " 个有效钢琴音效");
     }
 
-    /** 音名转noteId：a0=-39, c4=0, c8=48 */
+    
     private static int nameToNoteId(String name) {
         int oct = 0;
         int i = 0;
@@ -168,11 +165,11 @@ public final class PianoPlayer {
                 break;
             }
         }
-        int midi = oct * 12 + noteIdx + 21; // A0的MIDI编号是21
-        return midi - 60; // C4的MIDI是60，所以noteId=0对应C4
+        int midi = oct * 12 + noteIdx + 21; 
+        return midi - 60; 
     }
 
-    /** 播放指定noteId的音效，noteId=0对应C4 */
+    
     public static boolean play(int noteId) {
         if (!initialized) init();
         if (!available) {
@@ -186,7 +183,7 @@ public final class PianoPlayer {
             return false;
         }
         
-        // ✅ 关键修复：安全访问EMPTY字段，处理IllegalAccessException
+        
         try {
             if (evt == fieldSoundEventEmpty.get(null)) {
                 System.out.println("[PianoPlayer] ⚠ 音效为EMPTY: noteId=" + noteId + " (" + noteIdToLabel(noteId) + ")");
@@ -194,7 +191,7 @@ public final class PianoPlayer {
             }
         } catch (IllegalAccessException e) {
             System.out.println("[PianoPlayer] ⚠ 无法访问SoundEvent.EMPTY: " + e.getMessage());
-            // 即使无法访问EMPTY，也继续尝试播放（因为evt不为null）
+            
         }
         
         try {
@@ -205,7 +202,7 @@ public final class PianoPlayer {
             if (player == null) return false;
             Object pos = methodBlockPosition.invoke(player);
 
-            // 调用playLocalSound，兼容不同参数长度
+            
             Class<?>[] params = methodPlayLocalSound.getParameterTypes();
             if (params.length == 6 && params[5] == boolean.class) {
                 methodPlayLocalSound.invoke(level, pos, evt, soundSourceRecords, 2.0f, 1.0f, true);
@@ -221,12 +218,12 @@ public final class PianoPlayer {
         }
     }
 
-    /** noteId转显示标签：C4、F#3、A0等 */
+    
     public static String noteIdToLabel(int noteId) {
-        int shifted = noteId + 39; // A0对应shifted=0
+        int shifted = noteId + 39; 
         int idx = ((shifted % 12) + 12) % 12;
         int midi = shifted + 21;
-        int oct = (midi / 12) - 1; // 标准MIDI八度计算，C4对应八度4
+        int oct = (midi / 12) - 1; 
         return NOTE_NAMES[idx].toUpperCase() + oct;
     }
 

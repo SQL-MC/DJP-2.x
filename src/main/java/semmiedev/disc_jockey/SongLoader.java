@@ -65,7 +65,7 @@ public class SongLoader {
                 Main.LOGGER.error("Failed to load songs", e);
             } finally {
                 // ✅ 26.3：每次加载/刷新完成后绑定歌词
-                // （Song 会被重建，所以每次都要重新绑定）
+                
                 try {
                     SongLyricsLoader.loadLyrics();
                 } catch (Throwable t) {
@@ -84,7 +84,7 @@ public class SongLoader {
 
         song.fileName = file.getName().replaceAll("[\\n\\r]", "");
 
-        // ===== NBS Header =====
+        
         int length = reader.readShort() & 0xFFFF;
         boolean newFormat = (length == 0);
 
@@ -125,12 +125,12 @@ public class SongLoader {
         song.searchableFileName = song.fileName.toLowerCase().replaceAll("\\s", "");
         song.searchableName = song.name.toLowerCase().replaceAll("\\s", "");
 
-        // ===== NBS NOTE PARSING（纯净版：只做 -33，不做折叠，不做钳制）=====
+        
         int tick = -1;
         int jump;
 
-        // ✅【提速】用 LinkedHashSet 去重（O(1) 查找），保插入顺序，与原始 ArrayList 完全一致；
-        //    循环结束后回填到 final 的 uniqueNotes（clear + addAll，不重新赋值）
+        
+        
         Set<Note> seenNotes = new LinkedHashSet<>();
 
         while ((jump = reader.readShort() & 0xFFFF) != 0) {
@@ -147,9 +147,9 @@ public class SongLoader {
                 int noteId = noteIdRaw - 33;
 
                 if (newFormat) {
-                    reader.readByte(); // velocity
-                    reader.readByte(); // panning
-                    reader.readShort(); // pitch
+                    reader.readByte(); 
+                    reader.readByte(); 
+                    reader.readShort(); 
                 }
 
                 Note note = new Note(
@@ -157,9 +157,9 @@ public class SongLoader {
                         (byte) noteId
                 );
 
-                seenNotes.add(note);   // ✅ O(1)，整体 O(n)，不再线性扫描
+                seenNotes.add(note);   
 
-                // ✅【保持不变】用 Note.packNoteId 正确存储有符号 noteId，位域协议一行未动
+                
                 long packed = ((long) tick)
                                 | ((long) layer << 16)
                                 | ((long) instrumentId << 32);
@@ -170,7 +170,7 @@ public class SongLoader {
             }
         }
 
-        // ✅【提速回填】遵守 uniqueNotes 的 final 约束，元素集合 + 顺序与原始完全一致
+        
         song.uniqueNotes.clear();
         song.uniqueNotes.addAll(seenNotes);
 

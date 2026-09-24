@@ -57,26 +57,19 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         super.setSelected(entry);
     }
 
-    /* ========== ✅ 26.2 修复：实现 AbstractWidget 要求的 public 抽象方法 ==========
-       ✅ 修复 AbstractMethodError（crash-2026-08-27_17.27.10-client.txt）：
-           "SongListWidget does not define or inherit updateWidgetNarration"
-       ✅ 方法签名必须与父类一致：public void updateWidgetNarration(NarrationElementOutput)
-       ✅ 仅使用 output.add(NarratedElementType, Component) 提供朗读内容；
-           不调用不存在的 defaultNarrationText（该类在 26.2 中无此方法） */
+    
     @Override
     public void updateWidgetNarration(NarrationElementOutput output) {
         SongEntry selected = this.getSelected();
         if (selected != null && selected.song != null) {
-            // ★ 改用 safeName，杜绝 ______
+            
             output.add(NarratedElementType.TITLE, Component.literal(safeName(selected.song)));
         } else {
             output.add(NarratedElementType.TITLE, Component.translatable("disc_jockey.screen.select_song"));
         }
     }
 
-    /* ========== ★ 新增：歌名兜底（修列表/聊天栏显示 ______）==========
-       ✅ 空串 / null / 纯下划线(______) → 用 fileName(去后缀)，再不行用 "Untitled"
-       ✅ 保持原 "name (fileName)" 样式；只读字段、绝不修改 Song */
+    
     public static String safeName(Song s) {
         if (s == null) return "Untitled";
         String n = safePart(s.name);
@@ -89,7 +82,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         return (base != null && !base.isEmpty()) ? base : "Untitled";
     }
 
-    /** 非空、非纯下划线的有效片段；"___"/"______" 返回 null */
+    
     private static String safePart(String t) {
         if (t == null) return null;
         String trimmed = t.trim();
@@ -133,28 +126,24 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
                 context.fill(x + 1, y + 1, x + entryWidth - 1, y + entryHeight - 1, 0x000000);
             }
 
-            // ★ 改用 safeName，杜绝 ______
-            // ✅ 26.3：跟 26.2 一致的 text 写法（5 参数 String 版；报错了加 shadow 成 6 参数）
+            
+            
             context.text(client.font, safeName(song), x + entryWidth / 2, y + 5,
                     selected ? 0xFFFFFFFF : 0xFF808080);
 
-            /* ★ 收藏星标（26.3 修复：照 26.2 写法，仅 u/v 升为 float）
-               ✅ 26.2：blit(GUI_TEXTURED, ICONS, x, y, frame, 0, 13, 12, 52, 12) 像素坐标
-               ✅ 26.3：u/v 为 float，传 (float)frame / 0f
-               ✅ icons.png = 52×12，4 帧横排，每帧 13×12：
-                  frame = 0(空)/13(空+hover)/26(满)/39(满+hover) */
+            
             int iconX = x + 2;
             int iconY = y + 2;
             int frame = (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0); // 0/13/26/39
             context.blit(RenderPipelines.GUI_TEXTURED,
                     ICONS, iconX, iconY,
                     (float) frame, 0f,   // ✅ u/v 为 float（像素坐标转 float）
-                    13, 12,              // 绘制宽高 = 纹理帧宽高
-                    52, 12);             // 纹理总宽高
+                    13, 12,              
+                    52, 12);             
         }
 
         public Component getNarrateText() {
-            // ★ 改用 safeName，杜绝 ______
+            
             return Component.literal(safeName(song));
         }
 

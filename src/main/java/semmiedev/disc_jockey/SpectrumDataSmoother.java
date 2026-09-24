@@ -1,14 +1,6 @@
 package semmiedev.disc_jockey;
 
-/**
- * ✅ 频谱缓冲器（最终版 · 峰值保持）
- * 
- * 问题：computeIntensity() 的 exp 衰减太快（1~2tick 就掉到 0.3）
- *       → 渲染读到时峰值已过 → "不缓冲"
- * 
- * 修复：每个 band 保持峰值 2~3 tick 再衰减
- *       → 渲染一定能读到峰值 → 柱子顶上去 → 丝滑落下
- */
+
 public class SpectrumDataSmoother {
 
     public static final int BAND_COUNT = 16;
@@ -16,34 +8,28 @@ public class SpectrumDataSmoother {
     private float[] smoothed = new float[BAND_COUNT];
     private float[] lastValid = new float[BAND_COUNT];
 
-    /* =========================================================
-       ✅ 峰值保持（核心机制）
-       ========================================================= */
-    /** 每个 band 当前保持的峰值 */
+    
+    
     private float[] peakHold = new float[BAND_COUNT];
 
-    /** 每个 band 的峰值计时器（tick 数） */
+    
     private int[] peakTimer = new int[BAND_COUNT];
 
-    /** 峰值保持时长（tick）— 2~3 最丝滑 */
+    
     private static final int PEAK_HOLD_TICKS = 3;
 
-    /* =========================================================
-       ✅ 平滑参数（和 GUI 的 Screen 平滑一致）
-       ========================================================= */
-    private static final float ATTACK = 0.25F;   // 上升（几乎即时）
-    private static final float DECAY = 0.45F;   // 下降（丝滑拖尾）
+    
+    private static final float ATTACK = 0.25F;   
+    private static final float DECAY = 0.45F;   
     private static final float SNAP = 0.001F;
 
-    /* =========================================================
-       ✅ 输出放大（高度已验证正确 = 96px）
-       ========================================================= */
+    
     private static final float OUTPUT_BOOST = 1.14514F;
 
-    /** 静止衰减 */
+    
     private static final float IDLE_DECAY = 0.15F;
 
-    /** 信号阈值 */
+    
     private static final float SIGNAL_THRESH = 0.05F;
 
     public void tick() {
@@ -62,7 +48,7 @@ public class SpectrumDataSmoother {
             System.arraycopy(raw, 0, lastValid, 0, BAND_COUNT);
         }
 
-        // ✅ 同时检测播放和预览状态
+        
         boolean isPlaying = false;
         try {
             boolean songRunning = Main.SONG_PLAYER != null
@@ -90,7 +76,7 @@ public class SpectrumDataSmoother {
             float rawVal = raw[i] * OUTPUT_BOOST;
             if (rawVal > 1.0F) rawVal = 1.0F;
 
-            // === 峰值保持逻辑 ===
+            
             if (rawVal > peakHold[i]) {
                 peakHold[i] = rawVal;
                 peakTimer[i] = PEAK_HOLD_TICKS;
@@ -100,7 +86,7 @@ public class SpectrumDataSmoother {
                 peakHold[i] = rawVal;
             }
 
-            // === 用 peakHold 做平滑输出 ===
+            
             float target = peakHold[i];
             float current = smoothed[i];
 

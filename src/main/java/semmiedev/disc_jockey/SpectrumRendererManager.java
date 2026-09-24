@@ -60,11 +60,7 @@ public class SpectrumRendererManager {
         currentIndex = style.getIndex();
     }
 
-    /*
-       ✅ 26.2 修正：GuiGraphicsExtractor 本身就是绘制上下文
-       ✅ 不再调 extractor.graphics()，直接透传 extractor
-       ✅ 底层 Renderer.render 第一个参数必须是 GuiGraphicsExtractor
-    */
+    
     public static void render(
             GuiGraphicsExtractor extractor,
             int width,
@@ -77,7 +73,7 @@ public class SpectrumRendererManager {
         if (renderer == null) return;
 
         try {
-            // 直接调 26.2 签名：render(GuiGraphicsExtractor, int, int, float[], int, int)
+            
             renderer.getClass().getMethod(
                 "render",
                 GuiGraphicsExtractor.class,
@@ -86,7 +82,7 @@ public class SpectrumRendererManager {
                 int.class, int.class
             ).invoke(renderer, extractor, width, height, levels, bands, baseY);
         } catch (Throwable t) {
-            // 老 Renderer 还没改签名时打日志，不崩
+            
             System.err.println("[Disc Jockey] SpectrumRenderer render failed (check renderer signature): " + t);
         }
     }

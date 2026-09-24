@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.item.component.SwingAnimation;
 import semmiedev.disc_jockey.Config.ExpectedServerVersion;
-//import java.io.ObjectInputFilter.Config;
+
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,12 +75,12 @@ public class Tuner {
         availableInteracts = 0;
     }
 
-    // ============================================================
-    // ✅ DJP000016：新增方法
-    // 从 foldedNotes 提取 (instrument, transposedNoteId) 列表
-    // 保证 Tuner 绑定的 key == 播放时查询的 key
-    // fallback：foldedNotes 不存在时用原始 uniqueNotes
-    // ============================================================
+    
+    
+    
+    
+    
+    
     private ArrayList<Note> getNotesToBind(Song song) {
         if (song == null) return new ArrayList<>();
         
@@ -88,21 +88,21 @@ public class Tuner {
             ArrayList<Note> result = new ArrayList<>();
             HashMap<Long, Boolean> seen = new HashMap<>();
             for (long foldedNote : song.foldedNotes) {
-                // bits 32-39 = NBS instrument ID
+                
                 byte instrId = (byte) (foldedNote >> Note.INSTRUMENT_SHIFT);
-                // bits 40-47 = transposed noteId
+                
                 byte nid = (byte) ((foldedNote >> Note.NOTE_SHIFT) & 0xFF);
-                // 去重
+                
                 long key = ((long) (instrId & 0xFF) << 8) | (nid & 0xFF);
                 if (seen.containsKey(key)) continue;
                 seen.put(key, true);
-                // NBS instrument ID → NoteBlockInstrument enum
+                
                 NoteBlockInstrument enumInst = Note.INSTRUMENTS[instrId & 0xFF];
                 result.add(new Note(enumInst, nid));
             }
             return result;
         }
-        // fallback：transpose=0 或 foldedNotes 未生成
+        
         return song.uniqueNotes;
     }
 
@@ -113,7 +113,7 @@ public class Tuner {
         final ClientLevel world = client.level;
         if (player == null || world == null || song == null) return false;
 
-        // Create list of available noteblock positions per used instrument
+        
         HashMap<NoteBlockInstrument, ArrayList<BlockPos>> noteblocksForInstrument = new HashMap<>();
         for (NoteBlockInstrument instrument : NoteBlockInstrument.values())
             noteblocksForInstrument.put(instrument, new ArrayList<>());
@@ -153,7 +153,7 @@ public class Tuner {
             }
         }
 
-        // Remap instruments
+        
         if (!instrumentMap.isEmpty()) {
             HashMap<NoteBlockInstrument, ArrayList<BlockPos>> newNoteblocksForInstrument = new HashMap<>();
             for (NoteBlockInstrument orig : noteblocksForInstrument.keySet()) {
@@ -170,11 +170,11 @@ public class Tuner {
 
         noteBlocks = new HashMap<>();
 
-        // ============================================================
-        // ✅ DJP000016：用 foldedNotes 的 transposed noteIds 绑定
-        // 原来：for (Note note : song.uniqueNotes)
-        // 现在：for (Note note : getNotesToBind(song))
-        // ============================================================
+        
+        
+        
+        
+        
         ArrayList<Note> notesToBind = getNotesToBind(song);
 
         ArrayList<Note> capturedNotes = new ArrayList<>();
@@ -290,11 +290,11 @@ public class Tuner {
         if (lastInteractAt == Util.TIMESTAMP_UNINITIALIZED)
             lastInteractAt = Util.now();
 
-        // ============================================================
-        // ✅ DJP000016：tickTuning 也用 foldedNotes 的 transposed noteIds
-        // 原来：for (Note note : selectedSong.uniqueNotes)
-        // 现在：for (Note note : getNotesToBind(selectedSong))
-        // ============================================================
+        
+        
+        
+        
+        
         ArrayList<Note> tuningNotes = getNotesToBind(selectedSong);
 
         int fullyTunedBlocks = 0;

@@ -15,7 +15,7 @@ public class BlocksOverlay {
     private static final ItemStack NOTE_BLOCK = Blocks.NOTE_BLOCK.asItem().getDefaultInstance();
 
     public static void extractContent(GuiGraphicsExtractor context, DeltaTracker tickCounter) {
-        // ✅ 正式版必须：防空指针
+        
         if (itemStacks == null || amounts == null) return;
 
         context.fill(2, 2, 62, (itemStacks.length + 1) * 20 + 7, ARGB.color(255, 22, 22, 27));
