@@ -1,1 +1,2 @@
 Download the mod at [Modrinth](https://modrinth.com/mod/disc-jockey-plus) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/disc-jockey-plus)
+You need to Install [Modrinth](https://modrinth.com/mod/pianolib) or [CurseForge](https://www.curseforge.com/minecraft/mc-mods/pianolib)

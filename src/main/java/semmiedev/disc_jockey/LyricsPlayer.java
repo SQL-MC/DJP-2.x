@@ -67,7 +67,7 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
             Song ps = sp ? Main.SONG_PLAYER.song : null;
             Song pps = pp ? Main.PREVIEWER.getSong() : null;
             if (DEBUG_TICK) {
-                Main.LOGGER.info("[DJ-DEBUG] tick: SP_running={}, SP_song={}, PV_running={}, PV_song={}, curSong={}, hasLyrics={}, nextIndex={}",
+                Main.LOGGER.debug("[DJ-DEBUG] tick: SP_running={}, SP_song={}, PV_running={}, PV_song={}, curSong={}, hasLyrics={}, nextIndex={}",
                     sp, ps == null ? "null" : ps.displayName,
                     pp, pps == null ? "null" : pps.displayName,
                     currentSong() == null ? "null" : currentSong().displayName,
