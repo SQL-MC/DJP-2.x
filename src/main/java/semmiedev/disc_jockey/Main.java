@@ -1,5 +1,9 @@
 package semmiedev.disc_jockey;
 
+import net.minecraft.world.item.Item;        // Item, Item.Properties
+import net.minecraft.core.Registry;           // Registry.register
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -12,6 +16,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
 
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -105,14 +110,6 @@ public class Main implements ClientModInitializer {
     //   Smoother/Visualizer 不动，仅 Previewer 步进乘此值。
     public static float PREVIEW_SPEED = 1.0F;
     
-
-    
-    
-    
-    
-    
-
-    
     private static boolean mutedByDJ = false;
 
 
@@ -132,11 +129,20 @@ public class Main implements ClientModInitializer {
             pendingScreens.offer(screen);
         }
     }
-    
+    public static final Item JUKEBOX_PROJECTOR = Registry.register(
+        BuiltInRegistries.ITEM,
+        Identifier.fromNamespaceAndPath(MOD_ID, "jukebox_projector"),
+        new JukeboxProjectorItem(new Item.Properties().setId(
+                ResourceKey.create(Registries.ITEM,
+                        Identifier.fromNamespaceAndPath(MOD_ID, "jukebox_projector")))));
+    static {
+    // 注册完立刻把引用塞给物品类，保证单实例
+        JukeboxProjectorItem.INSTANCE = (JukeboxProjectorItem) JUKEBOX_PROJECTOR;
+    }                  
 
     @Override
     public void onInitializeClient() {
-        
+        DiscJockeyCreativeTab.register();
         configHolder = AutoConfig.register(semmiedev.disc_jockey.Config.class, JanksonConfigSerializer::new);
         config = configHolder.getConfig();
 

@@ -10,52 +10,68 @@ import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 public record Note(NoteBlockInstrument instrument, byte note) {
     public static final HashMap<NoteBlockInstrument, Block> INSTRUMENT_BLOCKS = new HashMap<>();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     public static final byte LAYER_SHIFT = Short.SIZE;
     public static final byte INSTRUMENT_SHIFT = Short.SIZE * 2;
     public static final byte NOTE_SHIFT = Short.SIZE * 2 + Byte.SIZE;
 
-    
     public static int extractNoteId(long note) {
         long raw = (note >>> NOTE_SHIFT) & 0xFF;
         return raw < 128 ? (int) raw : (int) (raw - 256);
     }
 
-    
     public static long packNoteId(long baseNote, int noteId) {
         byte b = (byte) noteId;
         return (baseNote & ~(0xFFL << NOTE_SHIFT))
              | ((long) (b & 0xFF) << NOTE_SHIFT);
     }
 
+    // ---- NBS 版本映射表 ----
+    public static final NoteBlockInstrument[] NBS_V0 = new NoteBlockInstrument[]{
+        NoteBlockInstrument.HARP,
+        NoteBlockInstrument.BASS,
+        NoteBlockInstrument.BASEDRUM,
+        NoteBlockInstrument.SNARE,
+        NoteBlockInstrument.HAT,
+        NoteBlockInstrument.GUITAR,
+        NoteBlockInstrument.FLUTE,
+        NoteBlockInstrument.BELL,
+        NoteBlockInstrument.CHIME,
+        NoteBlockInstrument.XYLOPHONE,
+    };
+
+    public static final NoteBlockInstrument[] NBS_V4 = new NoteBlockInstrument[]{
+        NoteBlockInstrument.HARP,
+        NoteBlockInstrument.BASS,
+        NoteBlockInstrument.BASEDRUM,
+        NoteBlockInstrument.SNARE,
+        NoteBlockInstrument.HAT,
+        NoteBlockInstrument.GUITAR,
+        NoteBlockInstrument.FLUTE,
+        NoteBlockInstrument.BELL,
+        NoteBlockInstrument.CHIME,
+        NoteBlockInstrument.XYLOPHONE,
+        NoteBlockInstrument.IRON_XYLOPHONE,
+        NoteBlockInstrument.COW_BELL,
+        NoteBlockInstrument.DIDGERIDOO,
+        NoteBlockInstrument.BIT,
+        NoteBlockInstrument.BANJO,
+        NoteBlockInstrument.PLING,
+    };
+
+    public static NoteBlockInstrument[] instrumentsForVersion(int version) {
+        if (version >= 0 && version <= 3) return NBS_V0;
+        return NBS_V4;
+    }
+
+    public static NoteBlockInstrument fromNbs(int version, int instrumentId) {
+        NoteBlockInstrument[] table = instrumentsForVersion(version);
+        if (instrumentId < 0 || instrumentId >= table.length) {
+            return NoteBlockInstrument.HARP;
+        }
+        return table[instrumentId];
+    }
+
+    // 原版 INSTRUMENTS 数组保留，向后兼容
     public static final NoteBlockInstrument[] INSTRUMENTS = new NoteBlockInstrument[]{
             NoteBlockInstrument.HARP,
             NoteBlockInstrument.BASS,

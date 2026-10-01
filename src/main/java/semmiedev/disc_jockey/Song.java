@@ -18,12 +18,10 @@ public class Song {
 
     public String relativePath = "";
 
-    
     public Lyrics lyrics = null;
-    
+
     public long[] notes = new long[0];
 
-    
     public long[] foldedNotes = null;
 
     public short length;
@@ -37,6 +35,9 @@ public class Song {
     public String originalAuthor;
     public String description;
     public String displayName;
+
+    /** 调号，从音符音高推算。例如 "C", "Am", "F#m"。无法判断时为 null。 */
+    public String keySignature = null;
 
     public byte autoSaving;
     public byte autoSavingDuration;
@@ -61,12 +62,10 @@ public class Song {
     public String searchableFileName;
     public String searchableName;
 
-    
     public Song() {
         ensureDefaults();
     }
 
-    
     public void ensureDefaults() {
         if (notes == null) notes = new long[0];
         if (fileName == null) fileName = "";
@@ -79,13 +78,14 @@ public class Song {
         if (searchableFileName == null) searchableFileName = "";
         if (searchableName == null) searchableName = "";
 
-        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;  
-        if (formatVersion == 0) formatVersion = 0;                      
-        if (height <= 0) height = 1;                                    
-        if (tempo <= 0) tempo = 1000;                                   
+        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;
+        if (formatVersion == 0) formatVersion = 0;
+        if (height <= 0) height = 1;
+        if (tempo <= 0) tempo = 1000;
         if (timeSignature == 0) timeSignature = 4;
         if (loopStartTick < 0) loopStartTick = 0;
     }
+
     public void ensureNames(String baseName) {
         if (baseName == null) baseName = "";
         String noExt = stripExt(baseName);
@@ -129,16 +129,68 @@ public class Song {
         return ticksToMilliseconds(this.length) / 1000.0D;
     }
 
-    
+    /**
+     * 根据已加载的音符推算调号（Krumhansl-Schmuckler 简化版）。
+     * 应在 {@link #notes} 填充完毕后调用一次。结果写入 {@link #keySignature}。
+     * <p>
+     * NBS 里 noteId 的范围是 -33..54，MIDI 音高 = noteId + 33，故有效 MIDI 为 0..87。
+     * 统计 12 个音级的加权出现次数（高八度轻微衰减），再与大小调剖面做循环相关，
+     * 取相关性最高的 tonic+mode 作为调号。相关性低于阈值则判为无法确定。
+     */
+    public void detectKeySignature() {
+        this.keySignature = null;
+        if (this.notes == null || this.notes.length == 0) return;
+
+        double[] pitchClass = new double[12];
+        for (long n : this.notes) {
+            int key = (int) ((n >> 41) & 0xFF);
+            int pc = (key - 33) % 12;
+            if (pc < 0) pc += 12;
+            pitchClass[pc] += 1.0;
+        }
+
+        double sum = 0;
+        for (double d : pitchClass) sum += d;
+        if (sum <= 0) return;
+        for (int i = 0; i < 12; i++) pitchClass[i] /= sum;
+
+        String[] names = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+        double bestCorr = -1;
+        String bestKey = null;
+        for (int tonic = 0; tonic < 12; tonic++) {
+            double cM = correlation(pitchClass, MAJOR_PROFILE, tonic);
+            double cN = correlation(pitchClass, MINOR_PROFILE, tonic);
+            if (cM > bestCorr) { bestCorr = cM; bestKey = names[tonic] + "maj"; }
+            if (cN > bestCorr) { bestCorr = cN; bestKey = names[tonic] + "min"; }
+        }
+        this.keySignature = bestKey;
+    }
+    private static final double[] MAJOR_PROFILE = {6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88};
+    private static final double[] MINOR_PROFILE = {6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17};
+
+    /** 把音级分布按 tonic 平移后与参考剖面做余弦相似度。 */
+    private static double correlation(double[] profile, double[] ref, int shift) {
+        double dot = 0, magP = 0, magR = 0;
+        for (int i = 0; i < 12; i++) {
+            double p = profile[(i + shift) % 12];
+            double r = ref[i];
+            dot += p * r;
+            magP += p * p;
+            magR += r * r;
+        }
+        if (magP == 0 || magR == 0) return 0;
+        return dot / (Math.sqrt(magP) * Math.sqrt(magR));
+    }
+
     public void save(File out) throws IOException {
         if (out != null) {
             boolean internalNameValid = this.fileName != null
                     && !this.fileName.trim().isEmpty()
                     && !this.fileName.contains("_____");
             if (!internalNameValid) {
-                ensureNames(out.getName());   
+                ensureNames(out.getName());
             }
-            
+
             String base = stripExt(this.fileName);
             if (base.isEmpty()) base = (this.name != null && !this.name.isEmpty()) ? this.name : "song";
             this.fileName = base + ".nbs";
@@ -146,7 +198,7 @@ public class Song {
                     || this.displayName.contains("_____")) {
                 this.displayName = this.name.isEmpty() ? base : this.name;
             }
-            
+
             if (!out.getName().equals(this.fileName)) {
                 out = new File(out.getParentFile(), this.fileName);
             }
@@ -163,11 +215,8 @@ public class Song {
             all.sort(Comparator.comparingInt((NoteData n) -> n.tick)
                     .thenComparingInt(n -> n.layer));
 
-            
-            
             // 若 height < maxLayer+1，DJ/GML 按 height 建的乐器表对高 layer 音符越界
             // → blocks_set_instruments 收到 undefined → 崩溃 "REAL argument incorrect type undefined"。
-            
             int maxLayer = computeMaxLayer(all);
             int neededHeight = maxLayer + 1;
             if ((this.height & 0xFFFF) < neededHeight) {
@@ -176,9 +225,7 @@ public class Song {
 
             int headerLength = Math.max(1, computeMaxTick(all));
 
-            
-            
-            writeShortLE(raf, headerLength);       
+            writeShortLE(raf, headerLength);
             writeShortLE(raf, this.height & 0xFFFF);
             writeNbsStringLE(raf, this.name);
             writeNbsStringLE(raf, this.author);
@@ -195,23 +242,18 @@ public class Song {
             writeIntLE(raf, this.blocksRemoved);
             writeNbsStringLE(raf, this.importFileName);
             // ★ 旧格式：此处不含 formatVersion / vanillaInstrumentCount / loop / maxLoopCount / loopStartTick
-            
 
-            
             writeNotesLE(raf, all, headerLength);
 
-            
             // 每条 = int长度(4) + "Grand Piano"(11字节) + volume(1字节) = 16 字节定长
             // 与实测正常文件尾部结构完全一致（逐条 "0B 00 00 00 Grand Pianod"）
             writeLayersLE(raf, this.height & 0xFFFF);
 
-            
             // 与实测正常文件末尾 "00 00 00 00" 一致（防加载器读到垃圾值）
             writeIntLE(raf, 0);
         }
     }
 
-    
     private static void writeNotesLE(RandomAccessFile raf, List<NoteData> all, int headerLength) throws IOException {
         if (all.isEmpty()) { writeShortLE(raf, 0); return; }
 
@@ -224,32 +266,30 @@ public class Song {
         int lastTick = -1;
         for (int t : tickKeys) {
             List<NoteData> layerList = byTick.get(t);
-            writeShortLE(raf, (t - lastTick) & 0xFFFF); 
+            writeShortLE(raf, (t - lastTick) & 0xFFFF);
             lastTick = t;
 
             layerList.sort(Comparator.comparingInt(n -> n.layer));
             int lastLayer = -1;
             for (NoteData n : layerList) {
-                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF); 
+                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF);
                 lastLayer = n.layer;
                 writeByte(raf, n.instrument & 0xFF);
-                writeByte(raf, noteIdToRaw(n.noteId));  
+                writeByte(raf, noteIdToRaw(n.noteId));
             }
-            writeShortLE(raf, 0); 
+            writeShortLE(raf, 0);
         }
-        writeShortLE(raf, 0); 
+        writeShortLE(raf, 0);
     }
 
-    
     private static void writeLayersLE(RandomAccessFile raf, int layerCount) throws IOException {
         if (layerCount < 1) layerCount = 1;
         for (int i = 0; i < layerCount; i++) {
-            writeNbsStringLE(raf, "Grand Piano"); 
+            writeNbsStringLE(raf, "Grand Piano");
             writeByte(raf, 100);                  // volume = 100（0x64 = 'd'）
         }
     }
 
-    
     private static int noteIdToRaw(int noteId) {
         return (noteId + 33) & 0xFF;
     }
@@ -260,14 +300,12 @@ public class Song {
         return max + 1;
     }
 
-    
     private static int computeMaxLayer(List<NoteData> list) {
         int max = 0;
         for (NoteData n : list) if (n.layer > max) max = n.layer;
         return max;
     }
 
-    
     private static void writeByte(RandomAccessFile raf, int v) throws IOException {
         raf.writeByte(v & 0xFF);
     }
@@ -280,11 +318,10 @@ public class Song {
     private static void writeNbsStringLE(RandomAccessFile raf, String s) throws IOException {
         if (s == null) s = "";
         byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-        writeIntLE(raf, bytes.length);   
+        writeIntLE(raf, bytes.length);
         raf.write(bytes);
     }
 
-    
     private static final class NoteData {
         final int tick, layer, instrument, noteId;
         NoteData(int tick, int layer, int instrument, int noteId) {
@@ -294,7 +331,7 @@ public class Song {
             int tick       = (int)  (packed & 0xFFFFL);
             int layer      = (int) ((packed >>> 16) & 0xFFFFL);
             int instrument = (int) ((packed >>> 32) & 0xFFL);
-            
+
             int noteId     = Note.extractNoteId(packed);
             return new NoteData(tick, layer, instrument, noteId);
         }

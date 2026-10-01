@@ -9,7 +9,7 @@ import java.util.List;
 
 
 public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
-    
+    private static final boolean DEBUG_TICK = false;
     private static final long BACKWARD_SEEK_MILLIS = 500;
     
     private static final long FORWARD_SKIP_MILLIS = 1500;
@@ -66,11 +66,13 @@ public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
             boolean pp = Main.PREVIEWER.isRunning();
             Song ps = sp ? Main.SONG_PLAYER.song : null;
             Song pps = pp ? Main.PREVIEWER.getSong() : null;
-            Main.LOGGER.info("[DJ-DEBUG] tick: SP_running={}, SP_song={}, PV_running={}, PV_song={}, curSong={}, hasLyrics={}, nextIndex={}",
+            if (DEBUG_TICK) {
+                Main.LOGGER.info("[DJ-DEBUG] tick: SP_running={}, SP_song={}, PV_running={}, PV_song={}, curSong={}, hasLyrics={}, nextIndex={}",
                     sp, ps == null ? "null" : ps.displayName,
                     pp, pps == null ? "null" : pps.displayName,
                     currentSong() == null ? "null" : currentSong().displayName,
                     hasLyrics(), nextIndex);
+            }
         }
         Song playing = currentSong();
         Lyrics playingLyrics = currentLyrics();

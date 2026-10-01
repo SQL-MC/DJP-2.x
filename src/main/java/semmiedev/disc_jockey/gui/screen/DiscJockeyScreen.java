@@ -226,7 +226,7 @@ public class DiscJockeyScreen extends Screen {
     private Button playButton, previewButton;
     private boolean shouldFilter;
     private String query = "";
-
+    private String lastShownKey = null;
     private void saveConfig() {
         try {
             Main.configHolder.save();
@@ -798,6 +798,7 @@ public class DiscJockeyScreen extends Screen {
         }
 
         renderSpectrum(context, this.width, this.height);
+        
     }
 
     @Override
@@ -807,15 +808,36 @@ public class DiscJockeyScreen extends Screen {
         songState.setMessage(getPlaybackStateText());
         timeBar.update();
         playPauseButton.setValue(Main.SONG_PLAYER.running);
+        Song song = null;
+        if (Main.SONG_PLAYER.running) {
+            song = Main.SONG_PLAYER.getSong();
+        } else if (Main.PREVIEWER.isRunning()) {
+            song = Main.PREVIEWER.getInstance().getSong();
+        }
         songTitle.setMessage(
-                Main.SONG_PLAYER.song != null
-                        ? Component.literal(Main.SONG_PLAYER.song.displayName)
-                        : PLEASE_SELECT_SONG
+                song != null ? Component.literal(song.displayName) : PLEASE_SELECT_SONG
         );
+            if (song != null) {
+            if (song.keySignature == null) song.detectKeySignature();
+            if (song.keySignature != null) {
+                String k = song.keySignature;
+                if (!k.equals(this.lastShownKey)) {
+                    this.lastShownKey = k;
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    mc.gui.hud.getChat().addClientSystemMessage(
+                        net.minecraft.network.chat.Component.literal("§e[Disc Jockey] §fProbable Key Signature Recognition(可能的调号): §a" + k)
+                    );
+                }
+            }
+        } else {
+            this.lastShownKey = null;
+        }
+
+        previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
         previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
         playButton.setMessage(Main.SONG_PLAYER.running ? PLAY_STOP : PLAY);
-        
-        
+
+
         if (speedButton != null) {
             Float cur = getCurrentSpeed();
             if (!cur.equals(speedButton.getValue())) {

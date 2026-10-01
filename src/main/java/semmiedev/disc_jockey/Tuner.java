@@ -75,34 +75,29 @@ public class Tuner {
         availableInteracts = 0;
     }
 
-    
-    
-    
-    
-    
-    
     private ArrayList<Note> getNotesToBind(Song song) {
         if (song == null) return new ArrayList<>();
-        
+
         if (NoteClamper.hasFoldedNotes(song)) {
             ArrayList<Note> result = new ArrayList<>();
             HashMap<Long, Boolean> seen = new HashMap<>();
+            int version = song.formatVersion & 0xFF;
             for (long foldedNote : song.foldedNotes) {
-                
+
                 byte instrId = (byte) (foldedNote >> Note.INSTRUMENT_SHIFT);
-                
+
                 byte nid = (byte) ((foldedNote >> Note.NOTE_SHIFT) & 0xFF);
-                
+
                 long key = ((long) (instrId & 0xFF) << 8) | (nid & 0xFF);
                 if (seen.containsKey(key)) continue;
                 seen.put(key, true);
-                
-                NoteBlockInstrument enumInst = Note.INSTRUMENTS[instrId & 0xFF];
+
+                NoteBlockInstrument enumInst = Note.fromNbs(version, instrId & 0xFF);
                 result.add(new Note(enumInst, nid));
             }
             return result;
         }
-        
+
         return song.uniqueNotes;
     }
 
@@ -113,7 +108,6 @@ public class Tuner {
         final ClientLevel world = client.level;
         if (player == null || world == null || song == null) return false;
 
-        
         HashMap<NoteBlockInstrument, ArrayList<BlockPos>> noteblocksForInstrument = new HashMap<>();
         for (NoteBlockInstrument instrument : NoteBlockInstrument.values())
             noteblocksForInstrument.put(instrument, new ArrayList<>());
@@ -153,7 +147,6 @@ public class Tuner {
             }
         }
 
-        
         if (!instrumentMap.isEmpty()) {
             HashMap<NoteBlockInstrument, ArrayList<BlockPos>> newNoteblocksForInstrument = new HashMap<>();
             for (NoteBlockInstrument orig : noteblocksForInstrument.keySet()) {
@@ -170,11 +163,6 @@ public class Tuner {
 
         noteBlocks = new HashMap<>();
 
-        
-        
-        
-        
-        
         ArrayList<Note> notesToBind = getNotesToBind(song);
 
         ArrayList<Note> capturedNotes = new ArrayList<>();
@@ -267,6 +255,9 @@ public class Tuner {
     }
 
     public @Nullable TuningFail tickTuning(Minecraft client) {
+        if (noteBlocks == null) {
+            return null; // 扫描未完成或已失败，跳过本 tick 防 NPE
+        }
         if (tunedAfter != Util.TIMESTAMP_UNINITIALIZED) return null;
 
         if (client.player == null || client.level == null) return TuningFail.NotIngame;
@@ -290,11 +281,6 @@ public class Tuner {
         if (lastInteractAt == Util.TIMESTAMP_UNINITIALIZED)
             lastInteractAt = Util.now();
 
-        
-        
-        
-        
-        
         ArrayList<Note> tuningNotes = getNotesToBind(selectedSong);
 
         int fullyTunedBlocks = 0;
@@ -326,8 +312,10 @@ public class Tuner {
 
         int existingUniqueNotesCount = 0;
         for (Note n : tuningNotes) {
-            if (noteBlocks.get(n.instrument()).get(n.note()) != null)
+            HashMap<Byte, BlockPos> notesForInst = noteBlocks.get(n.instrument());
+            if (notesForInst != null && notesForInst.get(n.note()) != null) {
                 existingUniqueNotesCount++;
+            }
         }
 
         if (untunedNotes.isEmpty() && fullyTunedBlocks == existingUniqueNotesCount) {

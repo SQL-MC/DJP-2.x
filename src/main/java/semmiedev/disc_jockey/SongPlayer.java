@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -151,9 +152,11 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
         return song.notes[idx];
     }
 
-    
+    // ★ 唯一改动：用 fromNbs 替代 Note.INSTRUMENTS[instrumentId]
     private @Nullable BlockPos findNoteBlock(byte instrumentId, int noteId) {
-        var instrumentMap = tuner.getNoteBlocks().get(Note.INSTRUMENTS[instrumentId]);
+        int version = (song != null) ? (song.formatVersion & 0xFF) : 4;
+        NoteBlockInstrument resolvedInstrument = Note.fromNbs(version, instrumentId & 0xFF);
+        var instrumentMap = tuner.getNoteBlocks().get(resolvedInstrument);
         if (instrumentMap == null) return null;
         return instrumentMap.get((byte) noteId);
     }

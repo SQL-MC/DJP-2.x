@@ -135,11 +135,6 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
             INSTANCE.prevWorld = null; 
         }
 
-        
-        
-        
-        // Main.TICK_LISTENERS.add(INSTANCE);   
-
         running = true;
     }
 
@@ -156,8 +151,6 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         INSTANCE.lyricsNextIndex = 0;   
 
         
-        // Main.TICK_LISTENERS.remove(INSTANCE);   
-
         if (Main.SPECTRUM != null && Main.SPECTRUM.currentLevels != null) {
             for (int k = 0; k < Main.SPECTRUM.currentLevels.length; k++) {
                 Main.SPECTRUM.currentLevels[k] = 0f;
@@ -213,12 +206,14 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
             int transposedNoteId = rawNoteId + Main.SONG_PLAYER.transpose;
             int noteId = foldToRange(transposedNoteId);
 
-            if (instrumentId < 0 || instrumentId >= NoteBlockInstrument.values().length) {
+            // ★ 唯一改动：用 fromNbs 替代 NoteBlockInstrument.values()[instrumentId]
+            int version = (song != null) ? (song.formatVersion & 0xFF) : 4;
+            NoteBlockInstrument instrument = Note.fromNbs(version, instrumentId);
+            if (instrument == null) {
                 i++;
                 continue;
             }
 
-            NoteBlockInstrument instrument = NoteBlockInstrument.values()[instrumentId];
             var soundHolder = instrument.getSoundEvent();
 
             SoundEvent sound;

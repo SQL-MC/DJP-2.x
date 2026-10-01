@@ -64,8 +64,6 @@ public class SongLoader {
             } catch (Exception e) {
                 Main.LOGGER.error("Failed to load songs", e);
             } finally {
-                // ✅ 26.3：每次加载/刷新完成后绑定歌词
-                
                 try {
                     SongLyricsLoader.loadLyrics();
                 } catch (Throwable t) {
@@ -84,7 +82,6 @@ public class SongLoader {
 
         song.fileName = file.getName().replaceAll("[\\n\\r]", "");
 
-        
         int length = reader.readShort() & 0xFFFF;
         boolean newFormat = (length == 0);
 
@@ -92,6 +89,10 @@ public class SongLoader {
             song.formatVersion = reader.readByte();
             song.vanillaInstrumentCount = reader.readByte();
             length = reader.readShort() & 0xFFFF;
+        } else {
+            // v0-v3：没有 version/vanillaInstrumentCount 字段
+            song.formatVersion = 0;
+            song.vanillaInstrumentCount = 10;
         }
 
         song.length = (short) length;
@@ -125,12 +126,9 @@ public class SongLoader {
         song.searchableFileName = song.fileName.toLowerCase().replaceAll("\\s", "");
         song.searchableName = song.name.toLowerCase().replaceAll("\\s", "");
 
-        
         int tick = -1;
         int jump;
 
-        
-        
         Set<Note> seenNotes = new LinkedHashSet<>();
 
         while ((jump = reader.readShort() & 0xFFFF) != 0) {
@@ -143,23 +141,22 @@ public class SongLoader {
                 int instrumentId = reader.readByte() & 0xFF;
                 int noteIdRaw = reader.readByte() & 0xFF;
 
-                // ✅ NBS 规范：33 = Minecraft F#0，不做任何折叠/钳制
+                // NBS 规范：33 = Minecraft F#0
                 int noteId = noteIdRaw - 33;
 
                 if (newFormat) {
-                    reader.readByte(); 
-                    reader.readByte(); 
-                    reader.readShort(); 
+                    reader.readByte();
+                    reader.readByte();
+                    reader.readShort();
                 }
 
                 Note note = new Note(
-                        Note.INSTRUMENTS[instrumentId],
+                        Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
                         (byte) noteId
                 );
 
-                seenNotes.add(note);   
+                seenNotes.add(note);
 
-                
                 long packed = ((long) tick)
                                 | ((long) layer << 16)
                                 | ((long) instrumentId << 32);
@@ -170,9 +167,10 @@ public class SongLoader {
             }
         }
 
-        
         song.uniqueNotes.clear();
         song.uniqueNotes.addAll(seenNotes);
+
+        song.detectKeySignature();
 
         return song;
     }
