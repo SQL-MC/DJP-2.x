@@ -64,7 +64,6 @@ public class JukeboxProjectorItem extends Item {
         Level level = ctx.getLevel();
 
         if (level.isClientSide()) {
-            // 客户端：首次有效点击锁住，同握后续点击直接吞，只排一次放置
             Object key = ctx.getPlayer();
             if (!IN_FLIGHT.add(key)) return InteractionResult.SUCCESS;
             Minecraft.getInstance().execute(() -> IN_FLIGHT.remove(key));
@@ -74,12 +73,12 @@ public class JukeboxProjectorItem extends Item {
             ctx.getItemInHand().shrink(1);
         }
 
-        // 服务端：本地模板存在则直接排放置；冷却只留给“下载中”
         BlockPos origin = ctx.getClickedPos().relative(ctx.getClickedFace());
         File local = getLocalFile();
         if (local.exists() && local.length() > 0) {
             System.out.println("[Disc Jockey] 使用本地模板: " + local.getAbsolutePath());
-            Minecraft.getInstance().execute(() -> pasteLitematic(level, origin, local));
+            // ★ 服务端直接同步放置，不再丢回客户端线程
+            pasteLitematic(level, origin, local);
         } else {
             if (downloading) {
                 System.out.println("[Disc Jockey] 模板下载中，请稍候…");
@@ -87,18 +86,18 @@ public class JukeboxProjectorItem extends Item {
             }
             downloading = true;
             System.out.println("[Disc Jockey] 本地模板不存在，开始下载...");
-            Minecraft mc = Minecraft.getInstance();
             CompletableFuture.supplyAsync(() -> downloadFile(REMOTE_URL, local))
                     .thenAccept(success -> {
                         downloading = false;
                         if (success) {
                             System.out.println("[Disc Jockey] 下载完成，开始放置");
-                            mc.execute(() -> pasteLitematic(level, origin, local));
+                            // 下载在后台线程完成，放置仍交回服务端 tick：用 server execute
+                            level.getServer().execute(() -> pasteLitematic(level, origin, local));
                         } else {
                             System.out.println("[Disc Jockey] 下载失败，回退到自动生成模板");
                             Song song = getCurrentSong();
                             if (song != null) {
-                                mc.execute(() -> generateSongTemplate(level, origin, song));
+                                level.getServer().execute(() -> generateSongTemplate(level, origin, song));
                             }
                         }
                     })
@@ -113,15 +112,9 @@ public class JukeboxProjectorItem extends Item {
 
     /**
      * 解析并放置 litematic。
-     *
-     * 已通过反编译 Litematica 26.3-0.29.1 的 LitematicaSchematic 源码 + 对目标文件
-     * 音乐厅.litematic 做实测数据验证，确认：
-     *
-     *   1) 存储顺序 = YZX（Y 最外层，Z 中层，X 最内层）
-     *        index = ly * (width * length) + lz * width + lx
-     *   2) 坐标合成 = placeBlocksToWorld 标准：localOff = minCorner(regionPos, posEndRel) - regionPos
-     *   3) 目标文件实测：Size=(13,17,-13), Position=(0,0,12) -> localOff=(0,0,-13)
-     *   4) 位压缩：bitsPerIndex=ceilLog2(palette)，startBit=index*bits（Litematica 26.3 标准）
+     * 存储顺序 YZX；localOff = minCorner - regionPos；位压缩 bitsPerIndex=ceilLog2(palette)。
+     * 模板 Size=(13,17,-13) Pos=(0,0,12) -> localOff=(0,0,-13)
+     * ★ 本方法现在运行在服务端线程，直接 setBlock，不碰 Minecraft.getInstance()
      */
     public static void pasteLitematic(Level level, BlockPos origin, File file) {
         try (DataInputStream dis = new DataInputStream(
@@ -182,25 +175,20 @@ public class JukeboxProjectorItem extends Item {
                 long longsNeeded = (totalBlocks * bitsPerIndex + 63) / 64;
                 if (blockStates.length < longsNeeded) {
                     System.out.println("[Disc Jockey][FATAL] BlockStates 长度不足: need " + longsNeeded
-                            + " got " + blockStates.length
-                            + " (totalBlocks=" + totalBlocks + " palette=" + palette.size()
-                            + " bits=" + bitsPerIndex + ")");
+                            + " got " + blockStates.length);
                     return;
                 }
 
                 System.out.println("[Disc Jockey] Region='" + regionName + "'"
                         + " Size=(" + sx + "," + sy + "," + sz + ")"
-                        + " Pos=(" + posX + "," + posY + "," + posZ + ")"
                         + " localOff=(" + localOffX + "," + localOffY + "," + localOffZ + ")"
                         + " abs=" + width + "x" + height + "x" + length
-                        + " palette=" + palette.size() + " bits=" + bitsPerIndex
-                        + " longs=" + blockStates.length + "/" + longsNeeded);
+                        + " palette=" + palette.size() + " bits=" + bitsPerIndex);
 
                 long skippedUnknown = 0, skippedAir = 0, skippedPalette = 0;
                 boolean verifyPassed = verifyLayerStructure(
                         blockStates, palette, width, height, length, bitsPerIndex, blocksPerLong);
 
-                // ===== 先收集，再分批用 mc.execute 错帧放置（无 getServer().tell）=====
                 final List<BlockPos> posList = new ArrayList<>();
                 final List<BlockState> stateList = new ArrayList<>();
                 for (long i = 0; i < totalBlocks; i++) {
@@ -218,33 +206,15 @@ public class JukeboxProjectorItem extends Item {
                     long lz = rem / width;
                     long lx = rem % width;
 
-                    boolean isNote = state.getBlock() == Blocks.NOTE_BLOCK;
-                    if (i < 24 || (ly == 0 && lz == 0)
-                            || (isNote && lz == 0 && (lx == 0 || lx == width / 2))) {
-                        System.out.println("[Disc Jockey][DEBUG] i=" + i
-                                + " lx=" + lx + " ly=" + ly + " lz=" + lz
-                                + " local=(" + (localOffX + lx) + "," + (localOffY + ly) + "," + (localOffZ + lz) + ")"
-                                + " -> " + state.getBlock().getName().getString()
-                                + (isNote ? "[note=" + state.getValue(NoteBlock.NOTE) + "]" : ""));
-                    }
                     posList.add(origin.offset(localOffX + (int) lx, localOffY + (int) ly, localOffZ + (int) lz));
                     stateList.add(state);
                 }
 
-                // 分批：每批40个，用 mc.execute 排队（每批进不同帧，客户端不吞）
-                final int BATCH = 40;
-                Minecraft mc = Minecraft.getInstance();
-                for (int b = 0; b < posList.size(); b += BATCH) {
-                    final int from = b;
-                    final int to = Math.min(b + BATCH, posList.size());
-                    mc.execute(() -> {
-                        for (int k = from; k < to; k++) {
-                            level.setBlock(posList.get(k), stateList.get(k), 2);
-                        }
-                        System.out.println("[Disc Jockey] 分批放置 " + from + "~" + (to - 1)
-                                + " (" + to + "/" + posList.size() + ")");
-                    });
+                // ★ 服务端直接落块，一次性同步写完
+                for (int k = 0; k < posList.size(); k++) {
+                    level.setBlock(posList.get(k), stateList.get(k), 3);
                 }
+                System.out.println("[Disc Jockey] 服务端放置完成 " + posList.size() + " 块");
 
                 totalPlaced += posList.size();
                 regionCount++;
@@ -261,7 +231,6 @@ public class JukeboxProjectorItem extends Item {
         }
     }
 
-    // ===== 新增：处理 Litematica 26.3 palette 的 Compound / Int间接 / Long间接 三种形态 =====
     private static CompoundTag resolvePaletteEntry(ListTag palette, int idx) {
         if (idx < 0 || idx >= palette.size()) return null;
         if (palette.get(idx) instanceof CompoundTag) return palette.getCompound(idx).orElse(null);
@@ -301,22 +270,18 @@ public class JukeboxProjectorItem extends Item {
         }
         boolean okNotes = noteLayerCount == 4;
         boolean okLeaves = leavesLayerCount >= 2;
-        if (!okNotes || !okLeaves) {
-            System.out.println("[Disc Jockey][Verify] 结构自检未通过:"
-                    + " note_block 层=" + noteLayerCount + "(期望4)"
-                    + " 树叶冠层=" + leavesLayerCount + "(期望>=2)");
-        }
         return okNotes && okLeaves;
     }
 
+    // ===== readBlockState 容错（不再因属性解析失败吞非音符方块）=====
     private static BlockState readBlockState(CompoundTag tag) {
         String name = tag.getString("Name").orElse("");
         if (name.isEmpty()) return null;
+        if (name.equals("minecraft:air")) return null;
         Identifier id = Identifier.tryParse(name);
         if (id == null) { System.out.println("[Disc Jockey][readBlockState] 非法 ID: " + name); return null; }
         Block block = BuiltInRegistries.BLOCK.getValue(id);
         if (block == null) { System.out.println("[Disc Jockey][readBlockState] 未注册: " + name); return null; }
-        if (block == Blocks.AIR) return null;
         BlockState state = block.defaultBlockState();
         CompoundTag props = tag.getCompound("Properties").orElse(null);
         if (props == null) return state;
@@ -347,6 +312,9 @@ public class JukeboxProjectorItem extends Item {
                 if (v.toString().equalsIgnoreCase(value)) return v;
             for (Object v : ep.getPossibleValues())
                 if (((Enum<?>) v).name().equalsIgnoreCase(value)) return v;
+            String norm = value.toLowerCase().replace("-", "_");
+            for (Object v : ep.getPossibleValues())
+                if (v.toString().toLowerCase().replace("_", "").equals(norm.replace("_", ""))) return v;
         }
         return null;
     }

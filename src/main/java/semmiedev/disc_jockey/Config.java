@@ -141,22 +141,14 @@ public class Config implements ConfigData {
 
     @ConfigEntry.Gui.Tooltip(count = 2)
     public boolean lyricsUseSelector = true;
-
-    
-    public List<String> playlist = new ArrayList<>();
-
     
     public enum RepeatMode {
-        SEQUENTIAL,   
-        PLAYLIST,     
+        SEQUENTIAL, 
         SINGLE        
     }
 
     
-    public RepeatMode repeatMode = RepeatMode.SEQUENTIAL;   
-
-    
-    public boolean shufflePlaylist = false;
+    public RepeatMode repeatMode = RepeatMode.SEQUENTIAL;  
 
     
     public String modrinthProjectId = "disc-jockey-plus";
@@ -175,9 +167,6 @@ public class Config implements ConfigData {
         }
         if (tuningSpeed == null) {
             tuningSpeed = TuningSpeed.Spigot;
-        }
-        if (playlist == null) {
-            playlist = new ArrayList<>();
         }
         if (favorites == null) {
             favorites = new ArrayList<>();
