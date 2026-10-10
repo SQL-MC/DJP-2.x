@@ -198,6 +198,15 @@ public class PianoKeyboardScreen extends Screen {
     
     private static final MidiRecorder MIDI_REC = new MidiRecorder();
 
+    /** MIDI 回放：用 PianoLib 音色播放 .mid，同时驱动琴键高亮与滚落 */
+    private static final MidiPlayback MIDI_PLAY = new MidiPlayback();
+    private static final java.util.Queue<int[]> MIDI_EVENTS =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    private Button playMidiButton;
+    private Button midiFileButton;
+    private java.util.List<java.io.File> midiFiles = new java.util.ArrayList<>();
+    private int midiFileIndex = 0;
     public PianoKeyboardScreen(Screen parent) {
         super(Component.literal("[Disc Jockey] Piano"));
         this.parent = parent;
@@ -436,6 +445,48 @@ public class PianoKeyboardScreen extends Screen {
         }
         return false;
     }
+    /** MIDI 回放专用发声：与 playLib 同通路（PianoAPI → libCache → HARP），静默不刷日志 */
+    private static void playQuiet(int id, float vol) {
+        if (id < NOTE_ID_A0 || id > NOTE_ID_C8) return;
+        Minecraft m = Minecraft.getInstance();
+        if (m == null) return;
+        vol = Mth.clamp(vol, 0.15f, 1.0f);
+        boolean inWorld = m.level != null && m.player != null;
+
+        if (inWorld && isPianoAPIAvail() && apiPlay != null) {
+            try { apiPlay.invoke(null, id + PIANO_KEY_CENTER, vol); return; }
+            catch (Throwable ignored) {}
+        }
+        if (!libReady) initLib();
+        Object evt = libCache.get(id);
+        if (evt != null) {
+            try {
+                if (inWorld && mcPlay != null) {
+                    mcPlay.invoke(m.level, m.player.blockPosition(),
+                            evt, mcSrc, 2f * vol, 1f, true);
+                } else {
+                    m.getSoundManager().play(
+                            SimpleSoundInstance.forUI((SoundEvent) evt, 1.0f, vol));
+                }
+                return;
+            } catch (Throwable ignored) {}
+        }
+        try {
+            int midiNote = id + 60;
+            int useCount = midiNote - 54;
+            if (useCount >= 0 && useCount <= 24) {
+                float pitch = Mth.clamp((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
+                if (inWorld) {
+                    m.level.playSound(m.player, m.player.blockPosition(),
+                            SoundEvents.NOTE_BLOCK_HARP.value(),
+                            SoundSource.RECORDS, 2.0f * vol, pitch);
+                } else {
+                    m.getSoundManager().play(SimpleSoundInstance.forUI(
+                            SoundEvents.NOTE_BLOCK_HARP.value(), 1.0f, pitch));
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
     private static synchronized void initRef() {
         if (refDone) return;
         try {
@@ -589,6 +640,40 @@ public class PianoKeyboardScreen extends Screen {
                 .pos(REC_BTN_X, REC_BTN_Y).size(REC_BTN_W, REC_BTN_H).build();
             updateRecBtnColor(recBtn);
             addRenderableWidget(recBtn);
+            midiFiles = MidiPlayback.listFiles();
+            if (midiFileIndex >= midiFiles.size()) midiFileIndex = 0;
+
+            playMidiButton = Button.builder(
+                    Component.literal(MIDI_PLAY.isPlaying() ? "■ STOP" : "▶ PLAY"),
+                    b -> {
+                        if (MIDI_PLAY.isPlaying()) { stopMidiUI(); return; }
+                        if (midiFiles.isEmpty()) {
+                            minecraft.gui.chatListener().handleSystemMessage(
+                                    Component.literal("§c[DiscJockey] 没有 .mid 文件："
+                                            + MidiPlayback.dir().getAbsolutePath()), false);
+                            return;
+                        }
+                        if (MIDI_PLAY.start(midiFiles.get(midiFileIndex))) {
+                            b.setMessage(Component.literal("■ STOP"));
+                        }
+                    })
+                    .pos(REC_BTN_X + REC_BTN_W + 4, REC_BTN_Y)
+                    .size(60, REC_BTN_H).build();
+            addRenderableWidget(playMidiButton);
+
+            String fn = midiFiles.isEmpty() ? "(no midi)"
+                    : midiFiles.get(midiFileIndex).getName();
+            if (fn.length() > 12) fn = fn.substring(0, 11) + "…";
+            midiFileButton = Button.builder(Component.literal("♪ " + fn), b -> {
+                if (midiFiles.isEmpty()) return;
+                midiFileIndex = (midiFileIndex + 1) % midiFiles.size();
+                String n = midiFiles.get(midiFileIndex).getName();
+                if (n.length() > 12) n = n.substring(0, 11) + "…";
+                b.setMessage(Component.literal("♪ " + n));
+                if (MIDI_PLAY.isPlaying()) MIDI_PLAY.start(midiFiles.get(midiFileIndex));
+            }).pos(REC_BTN_X + REC_BTN_W + 68, REC_BTN_Y)
+              .size(90, REC_BTN_H).build();
+            addRenderableWidget(midiFileButton);
 
             addRenderableWidget(Button.builder(Component.literal("[-]"), b -> addDisp(-1)).pos(KX, BY).size(ICON, ICON).build());
             addRenderableWidget(Button.builder(Component.literal("[+]"), b -> addDisp(+1)).pos(KX+ICON+4, BY).size(ICON, ICON).build());
@@ -618,6 +703,19 @@ public class PianoKeyboardScreen extends Screen {
     public void tick() {
         super.tick();
         try {
+            // --- MIDI 回放事件：Sequencer 线程 → 渲染线程 ---
+            int[] ev;
+            while ((ev = MIDI_EVENTS.poll()) != null) {
+                if (ev[0] < 0) { stopMidiUI(); continue; }   // 播放结束
+                int noteId = ev[0] - 60;                     // MIDI note → DJ noteId
+                if (ev[2] == 1) {
+                    playQuiet(noteId, ev[1] / 127.0f);
+                    addRoll(noteId);                         // 滚落动画
+                    pressed.put(noteId, true);               // 琴键高亮
+                } else {
+                    pressed.remove(noteId);
+                }
+            }
             active.clear();
             for (int n : pressed.keySet())
                 if (n >= NOTE_ID_A0 && n <= NOTE_ID_C8) active.add(n);
@@ -1062,7 +1160,95 @@ public class PianoKeyboardScreen extends Screen {
 
     @Override
     public boolean isPauseScreen() { return false; }
+/** 用 Sequencer 解析 .mid，把音符事件转成 DJ noteId 推给 PianoLib。纯 javax.sound.midi，无 MC 依赖 */
+    private static class MidiPlayback {
+        static java.io.File dir() {
+            java.io.File base = (Main.songsFolder != null)
+                    ? Main.songsFolder.getParentFile() : null;
+            return new java.io.File(base, "midi");
+        }
 
+        static java.util.List<java.io.File> listFiles() {
+            java.util.List<java.io.File> out = new java.util.ArrayList<>();
+            try {
+                java.io.File d = dir();
+                if (d.isDirectory()) {
+                    java.io.File[] fs = d.listFiles(f -> f.isFile()
+                            && (f.getName().toLowerCase().endsWith(".mid")
+                             || f.getName().toLowerCase().endsWith(".midi")));
+                    if (fs != null) {
+                        out.addAll(java.util.Arrays.asList(fs));
+                        out.sort(java.util.Comparator.comparing(java.io.File::getName));
+                    }
+                }
+            } catch (Throwable ignored) {}
+            return out;
+        }
+
+        private javax.sound.midi.Sequencer sequencer;
+        private java.io.File current;
+        private volatile boolean playing;
+
+        boolean isPlaying() { return playing && sequencer != null && sequencer.isRunning(); }
+        java.io.File current() { return current; }
+
+        /** false = 不接 Java 自带合成器，只把事件转给自定义 Receiver（避免与 PianoLib 双份发声） */
+        boolean start(java.io.File file) {
+            stop();
+            if (file == null || !file.isFile()) return false;
+            try {
+                javax.sound.midi.Sequence seq = javax.sound.midi.MidiSystem.getSequence(file);
+                javax.sound.midi.Sequencer s = javax.sound.midi.MidiSystem.getSequencer(false);
+                if (s == null) return false;
+                s.open();
+                s.setSequence(seq);
+                s.getTransmitter().setReceiver(new javax.sound.midi.Receiver() {
+                    @Override public void send(javax.sound.midi.MidiMessage msg, long ts) {
+                        if (!(msg instanceof javax.sound.midi.ShortMessage sm)) return;
+                        if (sm.getChannel() == 9) return;          // 打击乐轨跳过
+                        int cmd = sm.getCommand();
+                        int d1 = sm.getData1();
+                        int d2 = sm.getData2();
+                        if (cmd == javax.sound.midi.ShortMessage.NOTE_ON && d2 > 0) {
+                            MIDI_EVENTS.offer(new int[]{d1, d2, 1});
+                        } else if (cmd == javax.sound.midi.ShortMessage.NOTE_OFF
+                                || (cmd == javax.sound.midi.ShortMessage.NOTE_ON && d2 == 0)) {
+                            MIDI_EVENTS.offer(new int[]{d1, 0, 0});
+                        }
+                    }
+                    @Override public void close() {}
+                });
+                s.addMetaEventListener(meta -> {
+                    if (meta.getType() == 0x2F) {                  // End of Track
+                        playing = false;
+                        MIDI_EVENTS.offer(new int[]{-1, 0, 0});
+                    }
+                });
+                s.start();
+                sequencer = s;
+                current = file;
+                playing = true;
+                System.out.println("[DJ] MIDI PLAY start: " + file.getName());
+                return true;
+            } catch (Throwable t) {
+                System.out.println("[DJ] MIDI PLAY failed: " + t.getMessage());
+                stop();
+                return false;
+            }
+        }
+
+        void stop() {
+            playing = false;
+            try {
+                if (sequencer != null) {
+                    if (sequencer.isRunning()) sequencer.stop();
+                    sequencer.close();
+                }
+            } catch (Throwable ignored) {}
+            sequencer = null;
+            MIDI_EVENTS.clear();
+        }
+    }
     
     private static class MidiRecorder {
         private static final int PPQ = 480;
@@ -1309,5 +1495,17 @@ public class PianoKeyboardScreen extends Screen {
         }
 
         private int clampVel(int v) { return Math.max(1, Math.min(127, v)); }
+    }
+    private void stopMidiUI() {
+        MIDI_PLAY.stop();
+        pressed.clear();
+        if (playMidiButton != null) playMidiButton.setMessage(Component.literal("▶ PLAY"));
+    }
+
+    @Override
+    public void onClose() {
+        MIDI_PLAY.stop();
+        pressed.clear();
+        super.onClose();
     }
 }
