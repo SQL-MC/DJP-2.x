@@ -110,10 +110,8 @@ public class DiscjockeyCommand {
                                     );
 
                                     sendFeedback(src, 
-                                            Component.translatable(
-                                                    "disc_jockey.command.help.version",
-                                                    Main.VERSION
-                                            ).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
+                                            Component.literal("版本: " + Main.VERSION)
+                                                    .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
                                     );
 
                                     sendFeedback(src, 
