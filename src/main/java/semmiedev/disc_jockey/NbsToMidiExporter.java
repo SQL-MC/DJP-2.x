@@ -6,8 +6,12 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NbsToMidiExporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/NbsToMidiExporter");
+
 
     
     private static final int PPQ = 4;
@@ -139,7 +143,7 @@ public class NbsToMidiExporter {
             if (out.getParentFile() != null && !out.getParentFile().exists()) out.getParentFile().mkdirs();
             MidiSystem.write(seq, 1, out);
 
-            System.out.println("[Export] ticks=" + (all.isEmpty() ? 0 : all.get(all.size()-1).tick)
+            LOGGER.info("[Export] ticks=" + (all.isEmpty() ? 0 : all.get(all.size()-1).tick)
                     + " notes=" + all.size() + " pitchFolded=" + pitchFolded
                     + " bpm=" + bpm);
 

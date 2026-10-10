@@ -53,14 +53,18 @@ public class SongLoader {
                         )
                 );
 
-                if (showToast && Minecraft.getInstance().font != null)
-                    SystemToast.add(
-                            Minecraft.getInstance().gui.toastManager(),
-                            SystemToast.SystemToastId.PACK_LOAD_FAILURE,
-                            Main.NAME,
-                            Component.translatable("disc_jockey.loading_done")
-                    );
-                showToast = true;
+                if (showToast) {
+                    Minecraft.getInstance().execute(() -> {
+                        Minecraft mc = Minecraft.getInstance();
+                        if (mc.font != null) {
+                            SystemToast.add(mc.gui.toastManager(),
+                                    SystemToast.SystemToastId.PACK_LOAD_FAILURE,
+                                    Main.NAME,
+                                    Component.translatable("disc_jockey.loading_done"));
+                        }
+                    });
+                    showToast = false;
+                }
             } catch (Exception e) {
                 Main.LOGGER.error("Failed to load songs", e);
             } finally {

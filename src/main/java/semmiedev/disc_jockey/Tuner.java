@@ -1,6 +1,5 @@
 package semmiedev.disc_jockey;
 
-import org.apache.commons.lang3.NotImplementedException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import net.minecraft.world.item.component.SwingAnimation;
@@ -14,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -117,11 +117,11 @@ public class Tuner {
         if (Main.config.expectedServerVersion == Config.ExpectedServerVersion.v1_20_4_Or_Earlier) {
             maxOffset = 7;
         } else if (Main.config.expectedServerVersion == Config.ExpectedServerVersion.v1_20_5_Or_Later) {
-            maxOffset = (int) Math.ceil(player.blockInteractionRange() + 1.0 + 1.0);
+            maxOffset = (int) Math.ceil(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0 + 1.0);
         } else if (Main.config.expectedServerVersion == Config.ExpectedServerVersion.All) {
-            maxOffset = Math.min(7, (int) Math.ceil(player.blockInteractionRange() + 1.0 + 1.0));
+            maxOffset = Math.min(7, (int) Math.ceil(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0 + 1.0));
         } else {
-            throw new NotImplementedException("ExpectedServerVersion Value not implemented: " + Main.config.expectedServerVersion.name());
+            throw new IllegalArgumentException("ExpectedServerVersion Value not implemented: " + Main.config.expectedServerVersion.name());
         }
         final ArrayList<Integer> orderedOffsets = new ArrayList<>();
         for (int offset = 0; offset <= maxOffset; offset++) {

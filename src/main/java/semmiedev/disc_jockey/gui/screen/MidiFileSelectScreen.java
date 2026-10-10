@@ -4,7 +4,7 @@ import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.MidiToNbsImporter;
 import semmiedev.disc_jockey.Song;
 import semmiedev.disc_jockey.SongLoader;
-import semmiedev.disc_jockey.gui.SongListWidget;   
+import semmiedev.disc_jockey.gui.SongListWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
@@ -28,7 +28,7 @@ public class MidiFileSelectScreen extends Screen {
     protected void init() {
         this.addRenderableWidget(
                 Button.builder(Component.literal("← Back"), btn ->
-                        Minecraft.getInstance().gui.setScreen(parent)
+                        minecraft.setScreenAndShow(parent)          // ← 改
                 )
                         .bounds(10, 10, 80, 20)
                         .build()
@@ -65,7 +65,6 @@ public class MidiFileSelectScreen extends Screen {
                 return;
             }
 
-            
             if (song.entry == null) {
                 song.entry = new SongListWidget.SongEntry(song, SongLoader.SONGS.size());
             }
@@ -76,7 +75,6 @@ public class MidiFileSelectScreen extends Screen {
             SongLoader.SONGS.add(song);
             SongLoader.sort();
 
-            
             if (parent instanceof DiscJockeyScreen djs) {
                 djs.markSongsDirty();
             }
@@ -87,7 +85,7 @@ public class MidiFileSelectScreen extends Screen {
                         : Component.translatable("disc_jockey.import.success", song.displayName),
                     false);
 
-            Minecraft.getInstance().gui.setScreen(parent);
+            minecraft.setScreenAndShow(parent);                      // ← 改
         } catch (Exception e) {
             Main.LOGGER.error("MIDI import failed", e);
             minecraft.gui.chatListener().handleSystemMessage(
@@ -104,7 +102,7 @@ public class MidiFileSelectScreen extends Screen {
             if (base.isEmpty()) base = "imported";
             File out = new File(Main.songsFolder, base + ".nbs");
             for (int i = 1; out.exists(); i++) out = new File(Main.songsFolder, base + "_" + i + ".nbs");
-            song.save(out);   
+            song.save(out);
             return out;
         } catch (Exception e) {
             Main.LOGGER.error("Failed to save imported NBS", e);

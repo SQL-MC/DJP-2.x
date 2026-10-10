@@ -4,13 +4,19 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.Song;
 
 public class SongDetailScreen extends Screen {
+    private final Screen parent;
     private final Song song;
 
-    public SongDetailScreen(Song song) {
+    /** 兼容旧调用点 */
+    public SongDetailScreen(Song song) { this(null, song); }
+
+    public SongDetailScreen(Screen parent, Song song) {
         super(Component.literal("Song Details"));
+        this.parent = parent;
         this.song = song;
     }
 
@@ -25,6 +31,11 @@ public class SongDetailScreen extends Screen {
         String desc = (song.description != null) ? song.description : "None";
         if (desc.length() > 120) desc = desc.substring(0, 120) + "...";
 
+        int noteCount = (song.notes != null) ? song.notes.length : 0;
+        // getLengthInSeconds() 返回 double，不能用 float 接收（会有精度丢失编译错误）
+        double seconds;
+        try { seconds = song.getLengthInSeconds(); } catch (Throwable t) { seconds = 0d; }
+
         addRenderableWidget(Button.builder(Component.literal("♪ " + displayName), b -> {})
                 .bounds(centerX - 150, startY, 300, 20).build());
 
@@ -38,17 +49,18 @@ public class SongDetailScreen extends Screen {
                 .bounds(centerX - 150, startY + 75, 300, 20).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal("Length: " + String.format("%.1f s", song.getLengthInSeconds())), b -> {})
+                Component.literal("Length: " + String.format("%.1f s", seconds)), b -> {})
                 .bounds(centerX - 150, startY + 100, 300, 20).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal("Notes: " + song.notes.length), b -> {})
+                Component.literal("Notes: " + noteCount), b -> {})
                 .bounds(centerX - 150, startY + 125, 300, 20).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal("Back"), b ->
-                minecraft.gui.setScreen(null)
-        ).bounds(centerX - 50, startY + 160, 100, 20).build());
+                Component.literal("Back"), b -> {
+                    if (parent != null) Main.setScreenCompatStatic(minecraft, parent);
+                    else minecraft.setScreenAndShow(null);
+                }).bounds(centerX - 50, startY + 160, 100, 20).build());
     }
 
     @Override

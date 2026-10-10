@@ -6,7 +6,6 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.entity.ai.attributes.Attributes;   
-import org.apache.commons.lang3.NotImplementedException;
 
 public class Util {
     public static final long TIMESTAMP_UNINITIALIZED = -1L;
@@ -38,6 +37,6 @@ public class Util {
                     && (new AABB(blockPos)).distanceToSqr(eyePos) < blockInteractRange * blockInteractRange);
         }
 
-        throw new NotImplementedException("ExpectedServerVersion Value not implemented: " + Main.config.expectedServerVersion.name());
+        throw new IllegalArgumentException("ExpectedServerVersion Value not implemented: " + Main.config.expectedServerVersion.name());
     }
 }

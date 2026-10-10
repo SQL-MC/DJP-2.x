@@ -25,6 +25,13 @@ public final class BlitCompat {
             "GUI_TEXT_HIGHLIGHT",
     };
 
+    private static final String[] PIPELINE_CLASS_CANDIDATES = {
+            "net.minecraft.client.renderer.RenderPipelines",
+            "com.mojang.blaze3d.pipeline.RenderPipelines",
+            "com.mojang.renderpearl.api.pipeline.RenderPipelines",
+            "net.minecraft.client.gui.render.pipelines.RenderPipelines",
+    };
+
     private static final Object PIPELINE;
     private static final String RESOLVED_NAME;
 
@@ -44,10 +51,16 @@ public final class BlitCompat {
         String name = "<none>";
 
         Class<?> rpClass = null;
-        try {
-            rpClass = Class.forName("net.minecraft.client.renderer.RenderPipelines");
-        } catch (Throwable t) {
-            LOGGER.warn("[BlitCompat] 找不到 RenderPipelines 类：{}", t.toString());
+        for (String cand : PIPELINE_CLASS_CANDIDATES) {
+            try {
+                rpClass = Class.forName(cand);
+                LOGGER.info("[BlitCompat] ✓ 找到 RenderPipelines 类：{}", cand);
+                break;
+            } catch (Throwable ignored) {
+            }
+        }
+        if (rpClass == null) {
+            LOGGER.warn("[BlitCompat] 未找到任何 RenderPipelines 类，将退化为无管线 blit");
         }
 
         if (rpClass != null) {
@@ -159,7 +172,7 @@ public final class BlitCompat {
         if (m != null) return m;
         synchronized (BlitCompat.class) {
             if (blitWithoutPipeline != null) return blitWithoutPipeline;
-            // 首参必须是 Identifier / ResourceLocation
+            // 首参必须是 Identifier / Identifier
             blitWithoutPipeline = findBlitMethod(9, Identifier.class);
             return blitWithoutPipeline;
         }
