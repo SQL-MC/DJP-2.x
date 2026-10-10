@@ -38,8 +38,12 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class JukeboxProjectorItem extends Item {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/JukeboxProjectorItem");
+
     public static JukeboxProjectorItem INSTANCE; // 由 Main 在注册后赋值
     private static final String REMOTE_URL =
             "https://raw.githubusercontent.com/SQL-MC/Nbs/main/NoteBlocks/%E9%9F%B3%E4%B9%90%E5%8E%85.litematic";
@@ -76,25 +80,25 @@ public class JukeboxProjectorItem extends Item {
         BlockPos origin = ctx.getClickedPos().relative(ctx.getClickedFace());
         File local = getLocalFile();
         if (local.exists() && local.length() > 0) {
-            System.out.println("[Disc Jockey] 使用本地模板: " + local.getAbsolutePath());
+            LOGGER.info("[Disc Jockey] 使用本地模板: " + local.getAbsolutePath());
             // ★ 服务端直接同步放置，不再丢回客户端线程
             pasteLitematic(level, origin, local);
         } else {
             if (downloading) {
-                System.out.println("[Disc Jockey] 模板下载中，请稍候…");
+                LOGGER.info("[Disc Jockey] 模板下载中，请稍候…");
                 return InteractionResult.SUCCESS;
             }
             downloading = true;
-            System.out.println("[Disc Jockey] 本地模板不存在，开始下载...");
+            LOGGER.info("[Disc Jockey] 本地模板不存在，开始下载...");
             CompletableFuture.supplyAsync(() -> downloadFile(REMOTE_URL, local))
                     .thenAccept(success -> {
                         downloading = false;
                         if (success) {
-                            System.out.println("[Disc Jockey] 下载完成，开始放置");
+                            LOGGER.info("[Disc Jockey] 下载完成，开始放置");
                             // 下载在后台线程完成，放置仍交回服务端 tick：用 server execute
                             level.getServer().execute(() -> pasteLitematic(level, origin, local));
                         } else {
-                            System.out.println("[Disc Jockey] 下载失败，回退到自动生成模板");
+                            LOGGER.info("[Disc Jockey] 下载失败，回退到自动生成模板");
                             Song song = getCurrentSong();
                             if (song != null) {
                                 level.getServer().execute(() -> generateSongTemplate(level, origin, song));
@@ -103,7 +107,7 @@ public class JukeboxProjectorItem extends Item {
                     })
                     .exceptionally(ex -> {
                         downloading = false;
-                        System.out.println("[Disc Jockey] 下载异常(已解锁): " + ex.getMessage());
+                        LOGGER.info("[Disc Jockey] 下载异常(已解锁): " + ex.getMessage());
                         return null;
                     });
         }
@@ -174,12 +178,12 @@ public class JukeboxProjectorItem extends Item {
 
                 long longsNeeded = (totalBlocks * bitsPerIndex + 63) / 64;
                 if (blockStates.length < longsNeeded) {
-                    System.out.println("[Disc Jockey][FATAL] BlockStates 长度不足: need " + longsNeeded
+                    LOGGER.info("[Disc Jockey][FATAL] BlockStates 长度不足: need " + longsNeeded
                             + " got " + blockStates.length);
                     return;
                 }
 
-                System.out.println("[Disc Jockey] Region='" + regionName + "'"
+                LOGGER.info("[Disc Jockey] Region='" + regionName + "'"
                         + " Size=(" + sx + "," + sy + "," + sz + ")"
                         + " localOff=(" + localOffX + "," + localOffY + "," + localOffZ + ")"
                         + " abs=" + width + "x" + height + "x" + length
@@ -214,20 +218,20 @@ public class JukeboxProjectorItem extends Item {
                 for (int k = 0; k < posList.size(); k++) {
                     level.setBlock(posList.get(k), stateList.get(k), 3);
                 }
-                System.out.println("[Disc Jockey] 服务端放置完成 " + posList.size() + " 块");
+                LOGGER.info("[Disc Jockey] 服务端放置完成 " + posList.size() + " 块");
 
                 totalPlaced += posList.size();
                 regionCount++;
-                System.out.println("[Disc Jockey] Region '" + regionName + "': 已放置 " + posList.size()
+                LOGGER.info("[Disc Jockey] Region '" + regionName + "': 已放置 " + posList.size()
                         + " [跳过: palette=" + skippedPalette + " unknown=" + skippedUnknown
                         + " air=" + skippedAir + "] verify=" + (verifyPassed ? "PASS" : "FAIL"));
             }
 
-            System.out.println("[Disc Jockey] 总计放置 " + totalPlaced + " 个方块，处理了 " + regionCount + " 个 region");
+            LOGGER.info("[Disc Jockey] 总计放置 " + totalPlaced + " 个方块，处理了 " + regionCount + " 个 region");
 
         } catch (IOException e) {
-            System.out.println("[Disc Jockey] 解析 litematic 失败: " + e.getMessage());
-            e.printStackTrace();
+            LOGGER.info("[Disc Jockey] 解析 litematic 失败: " + e.getMessage());
+            LOGGER.error("异常详情", e);
         }
     }
 
@@ -279,9 +283,9 @@ public class JukeboxProjectorItem extends Item {
         if (name.isEmpty()) return null;
         if (name.equals("minecraft:air")) return null;
         Identifier id = Identifier.tryParse(name);
-        if (id == null) { System.out.println("[Disc Jockey][readBlockState] 非法 ID: " + name); return null; }
+        if (id == null) { LOGGER.info("[Disc Jockey][readBlockState] 非法 ID: " + name); return null; }
         Block block = BuiltInRegistries.BLOCK.getValue(id);
-        if (block == null) { System.out.println("[Disc Jockey][readBlockState] 未注册: " + name); return null; }
+        if (block == null) { LOGGER.info("[Disc Jockey][readBlockState] 未注册: " + name); return null; }
         BlockState state = block.defaultBlockState();
         CompoundTag props = tag.getCompound("Properties").orElse(null);
         if (props == null) return state;
@@ -374,7 +378,7 @@ public class JukeboxProjectorItem extends Item {
             }
             col++;
         }
-        System.out.println("[Disc Jockey] 自动生成模板: " + instOrder.size() + " 种乐器"
+        LOGGER.info("[Disc Jockey] 自动生成模板: " + instOrder.size() + " 种乐器"
                 + (unknownInstruments > 0 ? "（" + unknownInstruments + " 种无底座跳过）" : "") + ", 原点=" + origin);
     }
 
@@ -384,10 +388,10 @@ public class JukeboxProjectorItem extends Item {
             HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).build();
             HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).header("User-Agent", "DiscJockey/1.0").build();
             HttpResponse<byte[]> resp = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (resp.statusCode() / 100 != 2) { System.out.println("[Disc Jockey] 下载失败 HTTP " + resp.statusCode()); return false; }
+            if (resp.statusCode() / 100 != 2) { LOGGER.info("[Disc Jockey] 下载失败 HTTP " + resp.statusCode()); return false; }
             try (FileOutputStream fos = new FileOutputStream(dest)) { fos.write(resp.body()); }
-            System.out.println("[Disc Jockey] 已保存: " + dest.getAbsolutePath() + " (" + dest.length() + " bytes)");
+            LOGGER.info("[Disc Jockey] 已保存: " + dest.getAbsolutePath() + " (" + dest.length() + " bytes)");
             return true;
-        } catch (Exception e) { System.out.println("[Disc Jockey] 下载异常: " + e.getMessage()); return false; }
+        } catch (Exception e) { LOGGER.info("[Disc Jockey] 下载异常: " + e.getMessage()); return false; }
     }
 }

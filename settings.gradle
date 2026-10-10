@@ -1,10 +1,25 @@
 pluginManagement {
     repositories {
-        maven {
-            name = 'Fabric'
-            url = 'https://maven.fabricmc.net/'
-        }
         gradlePluginPortal()
+        maven { url = 'https://maven.neoforged.net/releases' }
+        // 国内兜底，防 forge maven 超时放大到 8h+
+        maven { url = 'https://maven.aliyun.com/repository/public' }
     }
 }
-/*꧁꫞愚人斗兽场 ꫞꧂*/
+
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven { url = 'https://maven.aliyun.com/repository/public' }
+        mavenCentral()
+        maven { url = 'https://maven.neoforged.net/releases' }
+        maven { url = 'https://maven.shedaniel.me/' }      // cloth-config
+        maven { url = 'https://maven.terraformersmc.com/' }
+        maven { url = 'https://files.minecraftforge.net/maven/' }
+    }
+}
+
+rootProject.name = 'disc_jockey_plus'

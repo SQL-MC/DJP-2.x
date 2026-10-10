@@ -11,8 +11,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MidiToNbsImporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/MidiToNbsImporter");
+
 
     private static final int DEFAULT_BPM = 120;
 
@@ -262,18 +266,18 @@ public class MidiToNbsImporter {
             long k = (p & 0xFFFFL) | (((p >>> 16) & 0xFFFFL) << 32);
             if (!seen.add(k)) conflicts++;
         }
-        System.out.println("[MidiToNbsImporter] DIAG notes=" + notesArray.length
+        LOGGER.info("[MidiToNbsImporter] DIAG notes=" + notesArray.length
                 + " maxTick=" + maxTick + " maxLayer=" + maxLayer
                 + " | length=" + song.length + " height=" + song.height
                 + " tempo=" + song.tempo
                 + " | bpm=" + bpm + " ppq=" + ppq + " tickRatio=" + tickRatio);
-        System.out.println("[MidiToNbsImporter] DIAG (tick,layer)冲突=" + conflicts
+        LOGGER.info("[MidiToNbsImporter] DIAG (tick,layer)冲突=" + conflicts
                 + " ← 必须为 0（非 0 会导致 ONBS 提前终止、后面全空）");
-        System.out.println("[MidiToNbsImporter] DIAG 每track最大voice=" + maxVoices
+        LOGGER.info("[MidiToNbsImporter] DIAG 每track最大voice=" + maxVoices
                 + " layer上限=" + allowedLayers
                 + " 网格≈" + ((long) safeLength * safeHeight * 8L / 1024) + "KB");
         if (skipped > 0) {
-            System.out.println("[MidiToNbsImporter] ⚠ 因 layer 上限丢弃音符=" + skipped
+            LOGGER.info("[MidiToNbsImporter] ⚠ 因 layer 上限丢弃音符=" + skipped
                     + "（可忽略，或缩短歌曲 / 增大 GRID_BYTE_LIMIT）");
         }
 

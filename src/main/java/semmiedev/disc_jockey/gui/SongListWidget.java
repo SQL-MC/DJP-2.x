@@ -6,10 +6,9 @@ import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.narration.NarratedElementType;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
+import semmiedev.disc_jockey.util.BlitCompat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-
 import org.jetbrains.annotations.Nullable;
 import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.Song;
@@ -57,19 +56,26 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         super.setSelected(entry);
     }
 
-    
+    /* ========== ✅ 26.2 修复：实现 AbstractWidget 要求的 public 抽象方法 ==========
+       ✅ 修复 AbstractMethodError（crash-2026-08-27_17.27.10-client.txt）：
+           "SongListWidget does not define or inherit updateWidgetNarration"
+       ✅ 方法签名必须与父类一致：public void updateWidgetNarration(NarrationElementOutput)
+       ✅ 仅使用 output.add(NarratedElementType, Component) 提供朗读内容；
+           不调用不存在的 defaultNarrationText（该类在 26.2 中无此方法） */
     @Override
     public void updateWidgetNarration(NarrationElementOutput output) {
         SongEntry selected = this.getSelected();
         if (selected != null && selected.song != null) {
-            
+            // ★ 改用 safeName，杜绝 ______
             output.add(NarratedElementType.TITLE, Component.literal(safeName(selected.song)));
         } else {
             output.add(NarratedElementType.TITLE, Component.translatable("disc_jockey.screen.select_song"));
         }
     }
 
-    
+    /* ========== ★ 新增：歌名兜底（修列表/聊天栏显示 ______）==========
+       ✅ 空串 / null / 纯下划线(______) → 用 fileName(去后缀)，再不行用 "Untitled"
+       ✅ 保持原 "name (fileName)" 样式；只读字段、绝不修改 Song */
     public static String safeName(Song s) {
         if (s == null) return "Untitled";
         String n = safePart(s.name);
@@ -82,7 +88,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         return (base != null && !base.isEmpty()) ? base : "Untitled";
     }
 
-    
+    /** 非空、非纯下划线的有效片段；"___"/"______" 返回 null */
     private static String safePart(String t) {
         if (t == null) return null;
         String trimmed = t.trim();
@@ -97,7 +103,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         return (name == null) ? "" : name.replaceAll("\\.(?i)(nbs|mid)$", "");
     }
 
-    public static class SongEntry extends Entry<SongListWidget.SongEntry> {
+    public static class SongEntry extends Entry<SongEntry> {
         private static final Identifier ICONS = Identifier.fromNamespaceAndPath(Main.MOD_ID, "textures/gui/icons.png");
 
         public final int index;
@@ -107,7 +113,9 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
         public SongListWidget songListWidget;
         private long lastClickedAt = Util.TIMESTAMP_UNINITIALIZED;
 
-        private final Minecraft client = Minecraft.getInstance();
+        // ❌ 已删除：private final Minecraft client = Minecraft.getInstance();
+        //    原因：SongEntry 常在 Minecraft 实例就绪前（后台线程 SongLoader）被构造，
+        //    final 字段会把 null 永久固化 → 渲染时 client.font 抛 NPE（打开歌曲列表即崩）。
 
         public SongEntry(Song song, int index) {
             this.song = song;
@@ -116,6 +124,10 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
 
         @Override
         public void extractContent(GuiGraphicsExtractor context, int mouseX, int mouseY, boolean hovered, float deltaTicks) {
+            // 渲染期实时取，此时 Minecraft 必定已就绪
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.font == null) return;
+
             int x = this.getX();
             int y = this.getY();
             int entryWidth = this.getWidth();
@@ -126,24 +138,24 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
                 context.fill(x + 1, y + 1, x + entryWidth - 1, y + entryHeight - 1, 0x000000);
             }
 
-            
-            
-            context.text(client.font, safeName(song), x + entryWidth / 2, y + 5,
-                    selected ? 0xFFFFFFFF : 0xFF808080);
+            // ★ 改用 safeName，杜绝 ______
+            context.text(mc.font, safeName(song), x + entryWidth / 2, y + 5, selected ? 0xFFFFFFFF : 0xFF808080);
 
-            
-            int iconX = x + 2;
-            int iconY = y + 2;
-            int frame = (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0); // 0/13/26/39
-            context.blit(RenderPipelines.GUI_TEXTURED,
-                    ICONS, iconX, iconY,
-                    (float) frame, 0f,   // ✅ u/v 为 float（像素坐标转 float）
-                    13, 12,              
-                    52, 12);             
+            /* ★ 收藏星标（26.3 最终修复：走 BlitCompat.blit，★ 无管线、不访问
+               RenderPipelines / RenderPipeline，从根本上消灭
+               NoSuchFieldError: GUI_TEXTURED）。
+               参数顺序：(context, texture, x, y, u, v, width, height, textureWidth, textureHeight)
+               icons.png = 52×12，4 帧横向排列：空星=0、空星hover=13、满星=26、满星hover=39，
+               每帧 13×12 → u∈{0,13,26,39}, width=13, height=12, tw=52, th=12。 */
+            BlitCompat.blit(context, ICONS,
+                    x + 2, y + 2,
+                    (favorite ? 26 : 0) + (isOverFavoriteButton(mouseX, mouseY) ? 13 : 0), 0,
+                    13, 12,
+                    52, 12);
         }
 
         public Component getNarrateText() {
-            
+            // ★ 改用 safeName，杜绝 ______
             return Component.literal(safeName(song));
         }
 
@@ -162,6 +174,9 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
                 }
                 return true;
             }
+
+            // MIDI 导入场景下 songListWidget 可能为 null，必须防御
+            if (songListWidget == null) return false;
 
             if (songListWidget.getSelected() == this && lastClickedAt != -1L && Util.now() - lastClickedAt <= 350) {
                 Main.SONG_PLAYER.start(this.song);

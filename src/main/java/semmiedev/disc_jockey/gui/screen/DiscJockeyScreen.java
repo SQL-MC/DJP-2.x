@@ -1,7 +1,6 @@
 package semmiedev.disc_jockey.gui.screen;
 
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
-import me.shedaniel.autoconfig.AutoConfigClient;
 import java.nio.file.StandardCopyOption;   
 import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;            
@@ -159,7 +158,7 @@ public class DiscJockeyScreen extends Screen {
             minecraft.execute(() -> awaitSongReload());
             return;
         }
-        rebuildSongList();
+        markSongsDirty();   // 走 tick() 的重建分支：带搜索过滤 + 收藏置顶 + 绑定 songListWidget
     }
 
     
@@ -302,11 +301,21 @@ public class DiscJockeyScreen extends Screen {
         }
 
         playButton = Button.builder(PLAY, b -> {
-            if (Main.SONG_PLAYER.running) Main.SONG_PLAYER.stop();
-            else {
-                SongListWidget.SongEntry e = songListWidget.getSelected();
-                if (e != null) Main.SONG_PLAYER.start(e.song);
+            if (Main.SONG_PLAYER.running) { Main.SONG_PLAYER.stop(); return; }
+            SongListWidget.SongEntry e = songListWidget.getSelected();
+            if (e == null || e.song == null) {
+                minecraft.gui.chatListener().handleSystemMessage(
+                        Component.translatable(Main.MOD_ID + ".screen.please_select_song"), false);
+                return;
             }
+            // 创造模式无法放置/敲击音符盒，直接提示而不是静默失败
+            if (minecraft.gameMode != null
+                    && minecraft.gameMode.getPlayerMode() == net.minecraft.world.level.GameType.CREATIVE) {
+                minecraft.gui.chatListener().handleSystemMessage(
+                        Component.literal("§c[DiscJockey] 创造模式无法播放，请切换到生存模式"), false);
+                return;
+            }
+            Main.SONG_PLAYER.start(e.song);
         }).bounds((width / 4 * 3) - 160, height - 61, 100, 20).build();
         addRenderableWidget(playButton);
 
@@ -491,7 +500,7 @@ public class DiscJockeyScreen extends Screen {
         
         configButton = Button.builder(CONFIG, b ->
                 Main.setScreenCompatStatic(minecraft,
-                        AutoConfigClient.getConfigScreen(semmiedev.disc_jockey.Config.class, this).get())
+                        Main.openConfigScreen(this))
         ).pos(10, height - 30).size(100, 20).build();
         addRenderableWidget(configButton);
         refreshSongsButton = Button.builder(
@@ -503,6 +512,7 @@ public class DiscJockeyScreen extends Screen {
                         return;
                     }
                     SongLoader.loadSongs();
+                    markSongsDirty();   // 触发 tick() 重建列表，否则界面仍显示旧列表
                     minecraft.gui.chatListener().handleSystemMessage(
                             Component.translatable(Main.MOD_ID + ".screen.refresh_songs.done"), false);
                 })
@@ -901,17 +911,10 @@ public class DiscJockeyScreen extends Screen {
         return (aa << 24) | (r << 16) | (g << 8) | bb;
     }
 
-    public boolean mouseButtonPressed(double mouseX, double mouseY, int button) {
-        if (button == 1) {
-            SongListWidget.SongEntry entry = songListWidget.getSelected();
-            if (entry != null) {
-                Screen detail = new SongDetailScreen(entry.song);
-                Main.setScreenCompatStatic(minecraft, detail);
-                return true;
-            }
-        }
-        return false;
-    }
+    /* ❌ 已删除 mouseButtonPressed(double, double, int)
+       原因：26.3 下该处理器会对每一次点击都触发，导致点「播放 / 预览 / 检测音符盒」
+             都被拦截并弹出 SongDetailScreen，按钮自身逻辑根本没执行（问题 2/3/4 根因）。
+       右键查看详情待探测到 26.3 真实按键常量后再装回，见同目录 修改说明.txt。 */
 
     @Override
     public void onFilesDrop(List<Path> paths) {

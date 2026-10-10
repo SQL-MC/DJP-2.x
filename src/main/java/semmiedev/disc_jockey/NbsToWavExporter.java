@@ -12,9 +12,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class NbsToWavExporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/NbsToWavExporter");
+
 
     
     private static final int SAMPLE_RATE = 44100;   
@@ -79,7 +83,7 @@ public class NbsToWavExporter {
             if (out.getParentFile() != null && !out.getParentFile().exists()) out.getParentFile().mkdirs();
             writeWav(out, pcm, SAMPLE_RATE);
 
-            System.out.println("[WAV Export] notes=" + events.size()
+            LOGGER.info("[WAV Export] notes=" + events.size()
                     + " duration=" + String.format("%.1f", totalSec) + "s"
                     + " -> " + out.getAbsolutePath());
         } catch (Exception e) {

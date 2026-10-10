@@ -1,61 +1,76 @@
 package semmiedev.disc_jockey;
 
-import net.minecraft.world.item.Item;        // Item, Item.Properties
-import net.minecraft.core.Registry;           // Registry.register
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.Holder;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
-import me.shedaniel.autoconfig.AutoConfig;
-import me.shedaniel.autoconfig.ConfigHolder;
-import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
+import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.logging.LogUtils;
+
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.loading.FMLPaths;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+import org.slf4j.Logger;
+
+import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumVisualizer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.resources.Identifier;         
-import com.mojang.blaze3d.platform.InputConstants;          
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
-import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-public class Main implements ClientModInitializer {
+@Mod(Main.MOD_ID)
+public class Main {
     public static final String MOD_ID = "disc_jockey";
     public static final Component NAME = Component.literal("Disc Jockey");
 
-    public static final Logger LOGGER = LogManager.getLogger("Disc Jockey");
-    public static final ArrayList<ClientTickEvents.StartLevelTick> TICK_LISTENERS = new ArrayList<>();
+    public static final Logger LOGGER = LogUtils.getLogger();
 
-    
+    /** NeoForge 26.3 无 Fabric 的 ClientTickEvents，改为自定义 tick 接口 */
+    public interface TickListener {
+        void onStartTick(net.minecraft.client.multiplayer.ClientLevel level);
+    }
+    public static final List<TickListener> TICK_LISTENERS = new ArrayList<>();
+
     public static final String VERSION;
 
     static {
@@ -70,772 +85,417 @@ public class Main implements ClientModInitializer {
         VERSION = v;
     }
 
-
     public static final Previewer PREVIEWER = new Previewer();
     public static final SongPlayer SONG_PLAYER = new SongPlayer();
     public static final SpectrumVisualizer SPECTRUM = new SpectrumVisualizer();
-    static { LyricsPlayer.register(); }   
-    
-    
+    static { LyricsPlayer.register(); }
 
-    // ✅ 独立频谱缓冲器实例（和PREVIEWER/SONG_PLAYER同级，不破坏原有逻辑）
     public static final SpectrumDataSmoother SMOOTHER = new SpectrumDataSmoother();
 
     public static File songsFolder;
-    
-    public static semmiedev.disc_jockey.Config config;
-    
-    public static ConfigHolder<semmiedev.disc_jockey.Config> configHolder;
 
-    
+    public static semmiedev.disc_jockey.Config config;
+
+    /** 兼容层：保留 getConfig() / save()，内部委托 ModConfigSpec */
+    public static final ConfigHolder<semmiedev.disc_jockey.Config> configHolder =
+            new ConfigHolder<>(() -> config, () -> semmiedev.disc_jockey.Config.SPEC.save());
+
+    public static final class ConfigHolder<T> {
+        private final Supplier<T> getter;
+        private final Runnable saver;
+        public ConfigHolder(Supplier<T> getter, Runnable saver) {
+            this.getter = getter; this.saver = saver;
+        }
+        public T getConfig() { return getter.get(); }
+        public void save() { saver.run(); }
+    }
+
     private static boolean sentWelcome = false;
 
-    
-    private KeyMapping muteKey;
-    private KeyMapping loopKey;
-    
+    private static KeyMapping openScreenKeyBind;
+    private static KeyMapping muteKey;
+    private static KeyMapping loopKey;
+    private static KeyMapping transposeDownKey;
+    private static KeyMapping transposeUpKey;
+    private static KeyMapping djKey;
+    private static KeyMapping pianoKey;
 
-    // ========== ✅ 升降调快捷键（[ 降 / ] 升） ==========
-    private KeyMapping transposeDownKey;
-    private KeyMapping transposeUpKey;
-    
-
-    
-    private KeyMapping djKey;      
-    private KeyMapping pianoKey;   
-    
-
-    // ========== ✅ DJP021500：预览播放速度（/discjockey speed 共享，问题3） ==========
-    //   默认 1.0；由 /discjockey speed 同时设置，Previewer.tickAndPlay 步进乘此值。
-    //   Smoother/Visualizer 不动，仅 Previewer 步进乘此值。
     public static float PREVIEW_SPEED = 1.0F;
-    
+
     private static boolean mutedByDJ = false;
 
+    /** 26.3 移除了 Minecraft.screen 字段，改为自追踪当前界面 */
+    private static Screen lastScreen = null;
 
-    
-    private static void muteGameMusic() {}
-    private static void restoreGameMusic() {}
+    private static double savedMusicVolume = -1D;
 
-    // ========== ✅ DJP020002：跨帧安全开界面队列（根治 /discjockey 偶发打不开） ==========
-    
-    
-    
-    private static final ConcurrentLinkedQueue<Screen> pendingScreens = new ConcurrentLinkedQueue<>();
-
-    
-    public static void openScreenOnNextTick(Screen screen) {
-        if (screen != null) {
-            pendingScreens.offer(screen);
+    private static void muteGameMusic() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+        try {
+            var opt = mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC);
+            if (opt == null) return;
+            if (savedMusicVolume < 0D) savedMusicVolume = (Double) opt.get();
+            opt.set(0.0D);
+        } catch (Throwable t) {
+            LOGGER.warn("muteGameMusic failed: {}", t.getMessage());
         }
     }
-    public static final Item JUKEBOX_PROJECTOR = Registry.register(
-        BuiltInRegistries.ITEM,
-        Identifier.fromNamespaceAndPath(MOD_ID, "jukebox_projector"),
-        new JukeboxProjectorItem(new Item.Properties().stacksTo(16).setId(
-                ResourceKey.create(Registries.ITEM,
-                        Identifier.fromNamespaceAndPath(MOD_ID, "jukebox_projector")))));
-    static {
-    // 注册完立刻把引用塞给物品类，保证单实例
-        JukeboxProjectorItem.INSTANCE = (JukeboxProjectorItem) JUKEBOX_PROJECTOR;
-    }                  
 
-    @Override
-    public void onInitializeClient() {
-        DiscJockeyCreativeTab.register();
-        configHolder = AutoConfig.register(semmiedev.disc_jockey.Config.class, JanksonConfigSerializer::new);
-        config = configHolder.getConfig();
+    // ✅ 修复1：原此处有一行裸语句 NeoForge.EVENT_BUS.addListener(this::onScreenInit);
+    //    类体中不能直接放执行语句 → 编译必挂。已删除，注册挪进构造器。
 
-        if (config.configVersion < 1) {
-            config = new semmiedev.disc_jockey.Config();
-            config.configVersion = 1;
-            configHolder.save();
+    /**
+     * 主菜单 / 暂停界面入口（唯一来源）。
+     * 原 ensureMenuButton 的 "♪" 按钮已删除，避免与此处重复。
+     */
+    private void onScreenInit(net.neoforged.neoforge.client.event.ScreenEvent.Init.Post event) {
+        Screen scr = event.getScreen();
+        boolean isTitle = scr instanceof net.minecraft.client.gui.screens.TitleScreen;
+        boolean isPause = scr instanceof net.minecraft.client.gui.screens.PauseScreen;
+        if (!isTitle && !isPause) return;
+
+        event.addListener(Button.builder(Component.literal("🎵 Disc Jockey"),
+                b -> Main.setScreenCompatStatic(net.minecraft.client.Minecraft.getInstance(),
+                        new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null)))
+                .pos(10, 10).size(100, 20).build());
+    }
+
+    private static void restoreGameMusic() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || savedMusicVolume < 0D) return;
+        try {
+            var opt = mc.options.getSoundSourceOptionInstance(SoundSource.MUSIC);
+            if (opt == null) return;
+            opt.set(savedMusicVolume);
+            savedMusicVolume = -1D;
+        } catch (Throwable t) {
+            LOGGER.warn("restoreGameMusic failed: {}", t.getMessage());
         }
+    }
 
-        
-        
-        //   无条件置 true 并持久化，确保主菜单/世界内频谱 HUD 始终注册渲染。
-        if (!config.spectrumAlwaysVisible) {
-            config.spectrumAlwaysVisible = true;
-            try { configHolder.save(); } catch (Throwable ignored) {}
-            LOGGER.info("[Disc Jockey] spectrumAlwaysVisible forced to true (was false in config)");
-        }
+    private static final ConcurrentLinkedQueue<Screen> pendingScreens = new ConcurrentLinkedQueue<>();
 
-        songsFolder = new File(
-                FabricLoader.getInstance().getConfigDir() + File.separator + MOD_ID + File.separator + "songs"
-        );
+    public static void openScreenOnNextTick(Screen screen) {
+        if (screen != null) pendingScreens.offer(screen);
+    }
+
+    // ==================== 注册（NeoForge DeferredRegister） ====================
+    public static final DeferredRegister.Items ITEMS =
+            DeferredRegister.createItems(MOD_ID);
+    public static final DeferredRegister<CreativeModeTab> TABS =
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, MOD_ID);
+
+    public static final Supplier<JukeboxProjectorItem> JUKEBOX_PROJECTOR_ITEM =
+            ITEMS.registerItem("jukebox_projector",
+                    props -> {
+                        JukeboxProjectorItem item =
+                                new JukeboxProjectorItem(props.stacksTo(16));
+                        JukeboxProjectorItem.INSTANCE = item;
+                        return item;
+                    });
+    public static ItemStack JUKEBOX_PROJECTOR_STACK() {
+        return new ItemStack(JUKEBOX_PROJECTOR_ITEM.get());
+    }
+    /** 兼容旧引用名（JukeboxProjectorItem 内部若用 Main.JUKEBOX_PROJECTOR） */
+    public static Item JUKEBOX_PROJECTOR() { return JUKEBOX_PROJECTOR_ITEM.get(); }
+
+    public static final Supplier<CreativeModeTab> DJ_TAB = TABS.register("dj_tab",
+            () -> CreativeModeTab.builder()
+                    .title(Component.translatable(MOD_ID, "jukebox_projector"))
+                    .icon(() -> new ItemStack(JUKEBOX_PROJECTOR_ITEM.get()))
+                    .displayItems((params, output) ->
+                            output.accept(JUKEBOX_PROJECTOR_ITEM.get()))
+                    .build());
+
+    public Main(IEventBus bus, ModContainer container) {
+        ITEMS.register(bus);
+        TABS.register(bus);
+        container.registerConfig(ModConfig.Type.CLIENT, Config.SPEC);
+        config = Config.INSTANCE;
+
+        songsFolder = new File(FMLPaths.CONFIGDIR.get().toFile()
+                + File.separator + MOD_ID + File.separator + "songs");
         if (!songsFolder.isDirectory()) songsFolder.mkdirs();
-
         SongLoader.loadSongs();
-        
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            LOGGER.info("[Disc Jockey] Client fully started, beginning HUD reflection setup...");
 
+        bus.addListener((FMLClientSetupEvent e) -> onClientSetup());
+        bus.addListener(this::onRegisterKeyMappings);
+
+        NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(this::onClientTick);
+        NeoForge.EVENT_BUS.addListener(this::onRenderGui);
+        NeoForge.EVENT_BUS.addListener(this::onClientChat);
+        NeoForge.EVENT_BUS.addListener(this::onScreenInit);        // ✅ 修复1：主菜单入口
+        NeoForge.EVENT_BUS.addListener(this::onClientDisconnect);  // ✅ 修复3：断线清理
+
+        LyricsChat.register();
+    }
+
+    // ==================== 按键注册 ====================
+    @SubscribeEvent
+    public void onRegisterKeyMappings(RegisterKeyMappingsEvent event) {
+        openScreenKeyBind = new KeyMapping(MOD_ID + ".key_bind.open_screen",
+                InputConstants.KEY_J, KeyMapping.Category.MISC);
+        muteKey = new KeyMapping(MOD_ID + ".key_bind.preview_mute",
+                InputConstants.KEY_M, KeyMapping.Category.MISC);
+        loopKey = new KeyMapping(MOD_ID + ".key_bind.preview_loop",
+                InputConstants.KEY_L, KeyMapping.Category.MISC);
+        transposeDownKey = new KeyMapping(MOD_ID + ".key_bind.transpose_down",
+                InputConstants.KEY_LBRACKET, KeyMapping.Category.MISC);
+        transposeUpKey = new KeyMapping(MOD_ID + ".key_bind.transpose_up",
+                InputConstants.KEY_RBRACKET, KeyMapping.Category.MISC);
+        djKey = new KeyMapping("🎵", InputConstants.KEY_B, KeyMapping.Category.MISC);
+        pianoKey = new KeyMapping("🎹", InputConstants.KEY_P, KeyMapping.Category.MISC);
+
+        event.register(openScreenKeyBind);
+        event.register(muteKey);
+        event.register(loopKey);
+        event.register(transposeDownKey);
+        event.register(transposeUpKey);
+        event.register(djKey);
+        event.register(pianoKey);
+    }
+    private void onClientSetup() {
+        LOGGER.info("[Disc Jockey] Client setup complete (NeoForge 26.3).");
+    }
+
+    private void onClientChat(ClientChatReceivedEvent e) {
+        // 歌词聊天逻辑已迁到 LyricsChat，这里留空
+    }
+
+    // ==================== 客户端 Tick ====================
+    @SubscribeEvent
+    public void onClientTick(ClientTickEvent.Post event) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null) return;
+
+        // --- 世界内 tick ---
+        if (client.level != null) {
             try {
-                
-                ClassLoader fabricClassLoader = Thread.currentThread().getContextClassLoader();
-                LOGGER.info("[Disc Jockey] ✓ Got Fabric ClassLoader: {}", fabricClassLoader);
+                if (SONG_PLAYER.running && !mutedByDJ) muteGameMusic();
 
-                
-                Class<?> hudRegistryClass = fabricClassLoader.loadClass(
-                        "net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry");
-                Class<?> hudElementClass = fabricClassLoader.loadClass(
-                        "net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement");
-                LOGGER.info("[Disc Jockey] ✓ Loaded HudElementRegistry class");
-                LOGGER.info("[Disc Jockey] ✓ Loaded HudElement class");
-
-                
-                Method samMethod = null;
-                for (Method m : hudElementClass.getDeclaredMethods()) {
-                    if (Modifier.isAbstract(m.getModifiers())) {
-                        samMethod = m;
-                        break;
-                    }
+                for (TickListener listener : new ArrayList<>(TICK_LISTENERS)) {
+                    if (listener instanceof Previewer) continue;
+                    listener.onStartTick(client.level);
                 }
-                if (samMethod == null) {
-                    for (Method m : hudElementClass.getMethods()) {
-                        if (Modifier.isAbstract(m.getModifiers())) {
-                            samMethod = m;
-                            break;
-                        }
-                    }
-                }
-                if (samMethod == null) {
-                    throw new RuntimeException(
-                            "Cannot find any abstract method on HudElement interface");
-                }
-                LOGGER.info("[Disc Jockey] ✓ HudElement SAM method: {} (paramCount={})",
-                        samMethod.getName(), samMethod.getParameterCount());
-
-                // ===== 4) 缓存 Minecraft / Gui / SpectrumRenderer 反射对象 =====
-                Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
-                Object mcInstance = mcClass.getMethod("getInstance").invoke(null);
-
-                Field guiField = mcClass.getDeclaredField("gui");
-                guiField.setAccessible(true);
-                LOGGER.info("[Disc Jockey] ✓ Cached Minecraft.gui field");
-
-                Field screenField = Class.forName("net.minecraft.client.gui.Gui")
-                        .getDeclaredField("screen");
-                screenField.setAccessible(true);
-                LOGGER.info("[Disc Jockey] ✓ Cached Gui.screen field");
-
-                Class<?> spectrumRendererClass = Class.forName(
-                        "semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager");
-                LOGGER.info("[Disc Jockey] ✓ Loaded SpectrumRendererManager class");
-
-                
-                Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
-                Constructor<?> identifierCtor =
-                        identifierClass.getDeclaredConstructor(String.class, String.class);
-                identifierCtor.setAccessible(true);
-                Object spectrumLayer = identifierCtor.newInstance(MOD_ID, "spectrum");
-                LOGGER.info("[Disc Jockey] ✓ Created Identifier: {}", spectrumLayer);
-
-                
-                Method addLast = hudRegistryClass.getMethod(
-                        "addLast", identifierClass, hudElementClass);
-                LOGGER.info("[Disc Jockey] ✓ Cached HudElementRegistry.addLast method");
-
-                
-                Object hudElement = java.lang.reflect.Proxy.newProxyInstance(
-                        fabricClassLoader,
-                        new Class<?>[]{hudElementClass},
-                        (proxy, method, args) -> {
-                            String _mname = method.getName();
-                            if (args != null && args.length == 2
-                                    && ("extractRenderState".equals(_mname)
-                                        || "extract".equals(_mname)
-                                        || "render".equals(_mname))) {
-                                Object guiGraphicsExtractor = args[0];
-
-                                try {
-                                    semmiedev.disc_jockey.Config cfg = configHolder.getConfig();
-
-                                    if (!cfg.spectrumAlwaysVisible) {
-                                        Object gui = guiField.get(mcInstance);
-                                        Object screen = screenField.get(gui);
-                                        if (screen == null || !screen.getClass().getName()
-                                                .contains("DiscJockeyScreen")) {
-                                            return null;
-                                        }
-                                    }
-                                    if (!SONG_PLAYER.running && !PREVIEWER.running) {
-                                        return null;
-                                    }
-
-                                    int width = 0, height = 0;
-                                    try {
-                                        Method gw = guiGraphicsExtractor.getClass()
-                                                .getMethod("guiWidth");
-                                        Method gh = guiGraphicsExtractor.getClass()
-                                                .getMethod("guiHeight");
-                                        width = (int) gw.invoke(guiGraphicsExtractor);
-                                        height = (int) gh.invoke(guiGraphicsExtractor);
-                                    } catch (Exception e1) {
-                                        try {
-                                            Method getWindow = mcClass.getMethod("getWindow");
-                                            Object window = getWindow.invoke(mcInstance);
-                                            Class<?> winCls = window.getClass();
-                                            try {
-                                                width = (int) winCls.getMethod("getScaledWidth")
-                                                        .invoke(window);
-                                                height = (int) winCls.getMethod("getScaledHeight")
-                                                        .invoke(window);
-                                            } catch (NoSuchMethodException e2) {
-                                                width = (int) winCls.getMethod("getGuiScaledWidth")
-                                                        .invoke(window);
-                                                height = (int) winCls.getMethod("getGuiScaledHeight")
-                                                        .invoke(window);
-                                            }
-                                        } catch (Exception e3) {
-                                            LOGGER.error("[Disc Jockey] Cannot get screen size", e3);
-                                            return null;
-                                        }
-                                    }
-
-                                    int bottomY = height - 75;
-                                    LOGGER.debug("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}",
-                                            width, height, bottomY);
-
-                                    Object manager = spectrumRendererClass.getMethod("getCurrent")
-                                            .invoke(null);
-
-                                    Method renderMethod = null;
-                                    try {
-                                        renderMethod = spectrumRendererClass.getMethod(
-                                                "render",
-                                                guiGraphicsExtractor.getClass(),
-                                                int.class, int.class,
-                                                float[].class, int.class, int.class);
-                                    } catch (NoSuchMethodException e1) {
-                                        try {
-                                            renderMethod = spectrumRendererClass.getMethod(
-                                                    "render", guiGraphicsExtractor.getClass());
-                                        } catch (NoSuchMethodException e2) {
-                                            LOGGER.error("[Disc Jockey] No render method found on SpectrumRendererManager");
-                                        }
-                                    }
-
-                                    if (renderMethod != null) {
-                                        if (renderMethod.getParameterCount() == 6) {
-                                            
-                                            renderMethod.invoke(manager,
-                                                    guiGraphicsExtractor, width, height,
-                                                    SMOOTHER.getSmoothedLevels(), 15, bottomY);
-                                        } else if (renderMethod.getParameterCount() == 1) {
-                                            renderMethod.invoke(manager, guiGraphicsExtractor);
-                                        }
-                                        LOGGER.debug("[Disc Jockey] ✅ HUD render completed");
-                                    }
-
-                                } catch (Throwable renderEx) {
-                                    LOGGER.error("[Disc Jockey] HUD render failed", renderEx);
-                                }
-                                return null;
-
-                            } else {
-                                Class<?> ret = method.getReturnType();
-                                if (ret == void.class)      return null;
-                                if (ret == int.class)        return 0;
-                                if (ret == boolean.class)     return false;
-                                if (ret == long.class)       return 0L;
-                                if (ret == double.class)     return 0.0;
-                                if (ret == float.class)      return 0.0f;
-                                return null;
-                            }
-                        }
-                );
-                LOGGER.debug("[Disc Jockey] ✓ HudElement Proxy created via Fabric ClassLoader");
-
-                addLast.invoke(null, spectrumLayer, hudElement);
-                LOGGER.debug("[Disc Jockey] ✅ 26.2 HUD registered successfully! Spectrum will now render when playing.");
-                return;
-
-            } catch (Throwable officialEx) {
-                LOGGER.info("[Disc Jockey] 26.3 HUD(legacy fallback) (HudElementRegistry) not available, falling back to legacy Proxy method", officialEx);
-            }
-        });
-
-        
-        
-        
-
-
-        
-        KeyMapping openScreenKeyBind = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        MOD_ID + ".key_bind.open_screen",
-                        InputConstants.KEY_J,
-                        KeyMapping.Category.MISC
-                )
-        );
-
-        
-        muteKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        MOD_ID + ".key_bind.preview_mute",
-                        InputConstants.KEY_M,
-                        KeyMapping.Category.MISC
-                )
-        );
-
-        
-        loopKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        MOD_ID + ".key_bind.preview_loop",
-                        InputConstants.KEY_L,
-                        KeyMapping.Category.MISC
-                )
-        );
-
-        // ========== ✅ 升降调快捷键（[ 降 / ] 升） ==========
-        transposeDownKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        MOD_ID + ".key_bind.transpose_down",
-                        InputConstants.KEY_LBRACKET, 
-                        KeyMapping.Category.MISC
-                )
-        );
-
-        transposeUpKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        MOD_ID + ".key_bind.transpose_up",
-                        InputConstants.KEY_RBRACKET, 
-                        KeyMapping.Category.MISC
-                )
-        );
-
-        
-        djKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        "🎵", 
-                        InputConstants.KEY_B, 
-                        KeyMapping.Category.MISC
-                )
-        );
-        pianoKey = KeyMappingHelper.registerKeyMapping(
-                new KeyMapping(
-                        "🎹", 
-                        InputConstants.KEY_P, 
-                        KeyMapping.Category.MISC
-                )
-        );
-        
-
-        
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
-            for (ClientTickEvents.StartLevelTick listener : TICK_LISTENERS) {
-                if (listener instanceof Previewer) continue;   
-                listener.onStartTick(client.level);
-            }
-            
-            Screen nextScreen;
-            while ((nextScreen = pendingScreens.poll()) != null) {
-                setScreenCompat(client, nextScreen);
-            }
-            
-
-            // ✅ 主菜单频谱数据更新（根治"世界外没频谱"）
-            
-            if (client.level == null) {
-                SPECTRUM.tick();
-                SMOOTHER.tick();
-            }
-            if (!sentWelcome) {
-                sentWelcome = true;
-                client.gui.chatListener().handleSystemMessage(
-                        Component.literal("§a[Disc Jockey] §fPress §eJ §fto open Music Console")
-                                .withStyle(ChatFormatting.BOLD),
-                        false
-                );
-            }
-
-            if (openScreenKeyBind.consumeClick()) {
-                if (SongLoader.loadingSongs) {
-                    client.gui.chatListener().handleSystemMessage(
-                            Component.translatable(MOD_ID + ".still_loading")
-                                    .withStyle(ChatFormatting.RED),
-                            false
-                    );
-                    SongLoader.showToast = true;
-                } else {
-                    
-                    setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
-                }
-            }
-
-            if (muteKey.consumeClick()) {
-                Previewer.previewMute = !Previewer.previewMute;
-                client.gui.chatListener().handleSystemMessage(
-                        Component.literal(
-                                "§b[Disc Jockey] §fPreview " +
-                                (Previewer.previewMute ? "§cMuted" : "§aUnmuted")
-                        ),
-                        true
-                );
-            }
-
-            if (loopKey.consumeClick()) {
-                Previewer.loopPreview = !Previewer.loopPreview;
-                client.gui.chatListener().handleSystemMessage(
-                        Component.literal(
-                                "§b[Disc Jockey] §fPreview Loop " +
-                                (Previewer.loopPreview ? "§aON" : "§cOFF")
-                        ),
-                        true
-                );
-            }
-
-            
-            boolean transposed = false;
-            int newVal = Main.SONG_PLAYER.transpose;
-
-            
-            
-            if (transposeDownKey.consumeClick()) {
-                newVal = Main.SONG_PLAYER.transpose - 1;
-                if (newVal < -24) newVal = -24;
-                transposed = true;
-            }
-            if (transposeUpKey.consumeClick()) {
-                newVal = Main.SONG_PLAYER.transpose + 1;
-                if (newVal > 24) newVal = 24;
-                transposed = true;
-            }
-
-            if (transposed) {
-                Main.SONG_PLAYER.transpose = newVal;
-                if (Main.SONG_PLAYER.song != null) {
-                    NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, newVal);
-                }
-                if (Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.running) {
-                    Main.SONG_PLAYER.tuner.reset();
-                }
-                String display = String.format("%+d", newVal);
-                if (display.equals("+0")) display = "0";
-                client.gui.chatListener().handleSystemMessage(
-                        Component.literal(
-                                "§b[Disc Jockey] §fTranspose §e" + display
-                        ),
-                        true
-                );
-            }
-            
-        });
-
-        
-        ClientTickEvents.START_LEVEL_TICK.register(world -> {
-            try {
-                if (SONG_PLAYER.running && !mutedByDJ) {
-                    muteGameMusic();
-                }
-
-                for (ClientTickEvents.StartLevelTick listener : TICK_LISTENERS) {
-                    if (listener instanceof Previewer) continue;   
-                    listener.onStartTick(world);
-                }
-
-                
-                if (Previewer.isRunning()) {
-                    Previewer.getInstance().onStartTick(world);
-                }
-
-                
+                // ★ 修复4a：Previewer 已从此块移出（主菜单也要驱动它）
                 AudioLevelCollector.update();
-                SPECTRUM.tick();
-                
-                SMOOTHER.tick();
-
             } catch (Exception e) {
                 LOGGER.error("Tick crashed, stopping safely", e);
                 SONG_PLAYER.stop();
                 PREVIEWER.stop();
                 restoreGameMusic();
             }
-        });
+        }
 
-        
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-
-            
-            Screen currentScreen = null;
+        // ★ 修复4b：Previewer 世界内外都驱动。
+        //   主菜单 client.level == null 时传 null → Previewer.playSoundSafe 走
+        //   SoundManager 分支（不依赖 level/player）→ 主菜单可预览，
+        //   并触发 Main.SPECTRUM.onNotePlayed → 频谱有数据源。
+        if (Previewer.isRunning()) {
             try {
-                Field guiField = client.getClass().getDeclaredField("gui");
-                guiField.setAccessible(true);
-                Object gui = guiField.get(client);
-                Field screenField = gui.getClass().getDeclaredField("screen");
-                screenField.setAccessible(true);
-                currentScreen = (Screen) screenField.get(gui);
-            } catch (Throwable t) {
-                currentScreen = null;
+                Previewer.getInstance().onStartTick(client.level);
+            } catch (Exception e) {
+                LOGGER.error("Previewer tick crashed", e);
+                Previewer.stop();
             }
+        }
 
-            
-            while (djKey.consumeClick()) {
-                if (currentScreen == null) {
-                    setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
-                } else if (currentScreen instanceof semmiedev.disc_jockey.gui.screen.DiscJockeyScreen) {
-                    ((semmiedev.disc_jockey.gui.screen.DiscJockeyScreen) currentScreen).onClose();
-                }
+        // ✅ 修复2：原写法包在 if (client.level == null) 内 → 世界内从不 tick
+        //          → SMOOTHER 永远返回 0 → 频谱不动。改为无条件更新。
+        SPECTRUM.tick();
+        SMOOTHER.tick();
+
+        // --- 跨帧开界面队列 ---
+        Screen nextScreen;
+        while ((nextScreen = pendingScreens.poll()) != null) {
+            setScreenCompat(client, nextScreen);
+        }
+
+        if (!sentWelcome) {
+            sentWelcome = true;
+            sendSystemMessage(client,
+                    Component.literal("§a[Disc Jockey] §fPress §eJ §fto open Music Console"), false);
+        }
+
+        if (openScreenKeyBind != null && openScreenKeyBind.consumeClick()) {
+            if (SongLoader.loadingSongs) {
+                sendSystemMessage(client, Component.translatable(MOD_ID + ".still_loading"), false);
+                SongLoader.showToast = true;
+            } else {
+                setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
             }
+        }
 
-            
-            while (pianoKey.consumeClick()) {
-                try {
-                    Class<?> pianoClass = Class.forName("semmiedev.disc_jockey.gui.screen.PianoKeyboardScreen");
-                    java.lang.reflect.Constructor<?> ctor = pianoClass.getConstructor(Screen.class);
-                    setScreenCompat(client, (Screen) ctor.newInstance(currentScreen));
-                } catch (Throwable t) {
-                    LOGGER.warn("无法打开钢琴界面：{}", t.getMessage());
-                }
+        if (muteKey != null && muteKey.consumeClick()) {
+            Previewer.previewMute = !Previewer.previewMute;
+            sendSystemMessage(client, Component.literal("§b[Disc Jockey] §fPreview "
+                    + (Previewer.previewMute ? "§cMuted" : "§aUnmuted")), true);
+        }
+
+        if (loopKey != null && loopKey.consumeClick()) {
+            Previewer.loopPreview = !Previewer.loopPreview;
+            sendSystemMessage(client, Component.literal("§b[Disc Jockey] §fPreview Loop "
+                    + (Previewer.loopPreview ? "§aON" : "§cOFF")), true);
+        }
+
+        boolean transposed = false;
+        int newVal = Main.SONG_PLAYER.transpose;
+        if (transposeDownKey != null && transposeDownKey.consumeClick()) {
+            newVal = Main.SONG_PLAYER.transpose - 1;
+            if (newVal < -24) newVal = -24;
+            transposed = true;
+        }
+        if (transposeUpKey != null && transposeUpKey.consumeClick()) {
+            newVal = Main.SONG_PLAYER.transpose + 1;
+            if (newVal > 24) newVal = 24;
+            transposed = true;
+        }
+        if (transposed) {
+            Main.SONG_PLAYER.transpose = newVal;
+            if (Main.SONG_PLAYER.song != null) {
+                NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, newVal);
             }
-
-            
-            if (currentScreen != null) {
-                String cn = currentScreen.getClass().getName();
-                if (cn.endsWith(".TitleScreen") || cn.endsWith(".PauseScreen")) {
-                    ensureMenuButton(currentScreen);
-                }
+            if (Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.running) {
+                Main.SONG_PLAYER.tuner.reset();
             }
-        });
+            String display = String.format(java.util.Locale.ROOT, "%+d", newVal);
+            if (display.equals("+0")) display = "0";
+            sendSystemMessage(client, Component.literal("§b[Disc Jockey] §fTranspose §e" + display), true);
+        }
 
-        
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        // --- B / P 快捷键开界面 ---
+        Screen currentScreen = getCurrentScreen(client);
+        while (djKey != null && djKey.consumeClick()) {
+            if (currentScreen == null) {
+                setScreenCompat(client, new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null));
+            } else if (currentScreen instanceof semmiedev.disc_jockey.gui.screen.DiscJockeyScreen) {
+                ((semmiedev.disc_jockey.gui.screen.DiscJockeyScreen) currentScreen).onClose();
+            }
+        }
+        while (pianoKey != null && pianoKey.consumeClick()) {
             try {
-                Object mc = Minecraft.getInstance();
-                if (mc == null) return;
-
-                Object screen = getCurrentScreen(mc);
-                if (screen == null) return;
-
-                if (!configHolder.getConfig().spectrumAlwaysVisible) {
-                    if (!screen.getClass().getName().contains("DiscJockeyScreen")) {
-                        return;
-                    }
-                    if (!SONG_PLAYER.running && !PREVIEWER.running) {
-                        return;
-                    }
-                }
-
-                
-                renderSpectrumStandalone(mc);
-
+                Class<?> pianoClass = Class.forName("semmiedev.disc_jockey.gui.screen.PianoKeyboardScreen");
+                java.lang.reflect.Constructor<?> ctor = pianoClass.getConstructor(Screen.class);
+                setScreenCompat(client, (Screen) ctor.newInstance(currentScreen));
             } catch (Throwable t) {
-                LOGGER.error("[Disc Jockey] End client tick draw failed", t);
+                LOGGER.warn("无法打开钢琴界面：{}", t.getMessage());
             }
-        });
+        }
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                DiscjockeyCommand.register(dispatcher)
-        );
-
-        ClientLoginConnectionEvents.DISCONNECT.register((handler, client) -> {
-            PREVIEWER.stop();
-            SONG_PLAYER.stop();
-            restoreGameMusic();
-        });
-
-        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            restoreGameMusic();
-        });
+        // ★ 修复6：删除 ensureMenuButton(currentScreen) 调用块。
+        //          它与 onScreenInit 的按钮重复，且依赖 lastScreen 追踪不可靠。
     }
 
-    
-    private static Screen getCurrentScreen(Object mc) {
+    // ==================== HUD：RenderGuiEvent.Post（替代 60 行 Proxy 反射） ====================
+    @SubscribeEvent
+    public void onRenderGui(RenderGuiEvent.Post event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+
+        Screen screen = getCurrentScreen(mc);
+        boolean inDjScreen = screen != null
+                && screen.getClass().getName().contains("DiscJockeyScreen");
+
+        // ★ 修复5a：原逻辑主菜单 screen==null 会被第一道守卫直接 return。
+        //          改为：始终显示开关打开时 或 处于 DJ 界面内 才画。
+        if (!config.spectrumAlwaysVisible && !inDjScreen) return;
+
+        // ★ 修复5b：只在世界内要求"正在播放"；主菜单交给数据源自己决定
+        if (mc.level != null && !SONG_PLAYER.running && !Previewer.isRunning()) return;
+
+        GuiGraphicsExtractor graphics = event.getGuiGraphics();
+        int width = graphics.guiWidth();
+        int height = graphics.guiHeight();
+        int bottomY = height - 75;
+
+        SpectrumRendererManager.render(graphics, width, height,
+                SMOOTHER.getSmoothedLevels(), 15, bottomY);
+    }
+
+    // ==================== 命令 ====================
+    // 客户端命令：事件在 mod 总线上，源类型为 SharedSuggestionProvider
+    public void onRegisterCommands(RegisterClientCommandsEvent event) {
+        DiscjockeyCommand.register(event.getDispatcher());
+    }
+
+    /** 打开配置界面（替代 Fabric 的 AutoConfigClient.getConfigScreen）。 */
+    public static Screen openConfigScreen(Screen parent) {
+        return new ConfigScreen(parent);
+    }
+
+    // ==================== 断线 / 退出 ====================
+    @SubscribeEvent
+    public void onClientDisconnect(ClientPlayerNetworkEvent.LoggingOut event) {
+        PREVIEWER.stop();
+        SONG_PLAYER.stop();
+        restoreGameMusic();
+    }
+
+    // ==================== 辅助方法（26.3 全部直接调用，去掉反射） ====================
+
+    private static Screen getCurrentScreen(Minecraft mc) {
+        return lastScreen;
+    }
+
+    private static int getScreenHeight(Minecraft mc) {
         try {
-            Field guiField = mc.getClass().getDeclaredField("gui");
-            guiField.setAccessible(true);
-            Object gui = guiField.get(mc);
-            Field screenField = gui.getClass().getDeclaredField("screen");
-            screenField.setAccessible(true);
-            return (Screen) screenField.get(gui);
-        } catch (Throwable t) {
-            return null;
+            return mc.getWindow().getGuiScaledHeight();
+        } catch (Throwable ignored) {
+            return 480;
         }
     }
 
-    
-    private static void ensureMenuButton(Screen screen) {
+    private static void renderSpectrumStandalone(GuiGraphicsExtractor graphics) {
         try {
-            
-            for (Object c : screen.children()) {
-                if (c instanceof Button) {
-                    Button b = (Button) c;
-                    if ("♪".equals(b.getMessage().getString())) {
-                        return;
-                    }
-                }
-            }
-
-            Minecraft mc = Minecraft.getInstance();
-            int h = getScreenHeight(mc);
-
-            Button djBtn = Button.builder(Component.literal("♪"), btn -> {
-                try {
-                    java.lang.reflect.Constructor<?> ctor =
-                            semmiedev.disc_jockey.gui.screen.DiscJockeyScreen.class.getConstructor(Screen.class);
-                    Screen dj = (Screen) ctor.newInstance(screen);
-                    setScreenCompat(mc, dj);
-                } catch (Throwable t) {
-                    LOGGER.warn("打开 DiscJockey 失败：{}", t.getMessage());
-                }
-            }).bounds(5, h - 25, 20, 20).tooltip(
-                    Tooltip.create(
-                            Component.translatable("disc_jockey.screen.open_discjockey")
-                    )
-            ).build();
-
-            
-            Method m = Screen.class.getDeclaredMethod("addRenderableWidget",
-                    net.minecraft.client.gui.components.events.GuiEventListener.class);
-            m.setAccessible(true);
-            m.invoke(screen, djBtn);
-
-            LOGGER.info("[DJ] ♪ button ensured on {}", screen.getClass().getSimpleName());
-        } catch (Throwable t) {
-            LOGGER.warn("Menu button ensure failed: {}", t.getMessage());
-        }
-    }
-
-    
-    private static int getScreenHeight(Object mc) {
-        try {
-            Method getWindow = mc.getClass().getMethod("getWindow");
-            Object window = getWindow.invoke(mc);
-            Class<?> winCls = window.getClass();
-            for (String mn : new String[]{"getScaledHeight", "getGuiScaledHeight"}) {
-                try { return (int) winCls.getMethod(mn).invoke(window); } catch (Throwable ignored) {}
-            }
-            for (String fn : new String[]{"scaledHeight", "height"}) {
-                try {
-                    Field f = winCls.getDeclaredField(fn);
-                    f.setAccessible(true);
-                    return f.getInt(window);
-                } catch (Throwable ignored) {}
-            }
-        } catch (Throwable ignored) {}
-        return 480; 
-    }
-
-    
-    private static void renderSpectrumStandalone(Object mc) {
-        try {
-            int w = 0, h = 0;
-            Method getWindow = mc.getClass().getMethod("getWindow");
-            Object window = getWindow.invoke(mc);
-            Class<?> winCls = window.getClass();
-            for (String mn : new String[]{"getScaledWidth", "getGuiScaledWidth"}) {
-                try { w = (int) winCls.getMethod(mn).invoke(window); break; } catch (Throwable ignored) {}
-            }
-            for (String mn : new String[]{"getScaledHeight", "getGuiScaledHeight"}) {
-                try { h = (int) winCls.getMethod(mn).invoke(window); break; } catch (Throwable ignored) {}
-            }
+            int w = graphics.guiWidth();
+            int h = graphics.guiHeight();
             if (w <= 0 || h <= 0) return;
-
-            Class<?> guiGraphicsExtractorClass =
-                Class.forName("net.minecraft.client.gui.GuiGraphicsExtractor");
-            Constructor<?> ctor =
-                guiGraphicsExtractorClass.getDeclaredConstructor(int.class, int.class);
-            ctor.setAccessible(true);
-            Object guiGraphics = ctor.newInstance(w, h);
-
-            Class<?> spectrumRendererClass =
-                Class.forName("semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager");
-            Object manager = spectrumRendererClass.getMethod("getCurrent").invoke(null);
-
-            Method renderMethod = spectrumRendererClass.getMethod(
-                "render",
-                guiGraphicsExtractorClass,
-                int.class,
-                int.class,
-                float[].class,
-                int.class,
-                int.class
-            );
-
-            renderMethod.invoke(manager, guiGraphics, w, h, SMOOTHER.getSmoothedLevels(), 15, h - 55);
+            SpectrumRendererManager.render(graphics, w, h, SMOOTHER.getSmoothedLevels(), 15, h - 55);
         } catch (Throwable ignored) {}
     }
 
-    
-    private static void setScreenCompat(Object mc, Screen screen) {
-        try {
-            mc.getClass().getMethod("setScreen", Screen.class).invoke(mc, screen);
-        } catch (Throwable t1) {
-            try {
-                Object gui = mc.getClass().getDeclaredField("gui").get(mc);
-                gui.getClass().getMethod("setScreen", Screen.class).invoke(gui, screen);
-            } catch (Throwable t2) {
-                try {
-                    mc.getClass().getMethod("setScreenAndShow", Screen.class).invoke(mc, screen);
-                } catch (Throwable t3) {
-                    LOGGER.warn("setScreen 全部失败：{}", t3.getMessage());
-                }
-            }
-        }
+    private static void setScreenCompat(Minecraft mc, Screen screen) {
+        if (mc == null) return;
+        lastScreen = screen;
+        mc.setScreenAndShow(screen);
     }
 
-    
     public static void setScreenCompatStatic(Object mc, Screen screen) {
-        
-        //   外接屏/虚拟桌面环境下，若命令在 non-render 线程调用 setScreen，
-        //   会触发 fabric-screen-api "screen not correctly initialised"。
-        
         Minecraft client = Minecraft.getInstance();
         if (client == null) return;
-        client.execute(() -> setScreenCompat(mc, screen));
+        client.execute(() -> setScreenCompat(client, screen));
     }
 
-    
+    /** 26.3：Gui.getChat() 已不存在，统一走 LocalPlayer.sendSystemMessage */
+    private static void sendSystemMessage(Minecraft mc, Component msg, boolean overlay) {
+        if (mc == null) return;
+        if (mc.player != null) {
+            mc.player.sendSystemMessage(msg);
+        } else {
+            LOGGER.info("[DJ] {}", msg.getString());
+        }
+    }
+
     public static void playSafeOnMainMenu(int noteId, float volume) {
         try {
             Minecraft mc = Minecraft.getInstance();
-            
             playNoteViaSoundManager(mc, noteId, volume);
         } catch (Throwable t) {
             LOGGER.warn("Main menu play failed (noteId={}): {}", noteId, t.getMessage());
         }
     }
 
-    
     private static void playNoteViaSoundManager(Minecraft mc, int noteId, float volume) {
         try {
-            
             float pitch = 0.5f + (noteId / 87.0f) * 1.5f;
             pitch = Math.max(0.5f, Math.min(2.0f, pitch));
             volume = Math.max(0.0f, Math.min(1.0f, volume));
 
-            Object sm = mc.getClass().getMethod("getSoundManager").invoke(mc);
-
-            
-            Class<?> locClass = Class.forName("net.minecraft.resources.ResourceLocation");
-            Constructor<?> locCtor = locClass.getDeclaredConstructor(String.class, String.class);
-            locCtor.setAccessible(true);
-            Object loc = locCtor.newInstance("minecraft", "block.note_block.harp");
-
-            Class<?> builtInClass = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
-            Object soundEventReg = builtInClass.getField("SOUND_EVENT").get(null);
-            Method getOpt = soundEventReg.getClass().getMethod("get", locClass);
-            Object soundEventHolder = getOpt.invoke(soundEventReg, loc);
-
-            if (soundEventHolder == null) {
-                LOGGER.warn("SoundEvent note_block.harp not found in registry");
-                return;
-            }
-
-            
-            Class<?> simpleSoundClass = Class.forName("net.minecraft.client.resources.sounds.SimpleSoundInstance");
-            Method forUI = simpleSoundClass.getMethod("forUI",
-                    soundEventHolder.getClass(),  
-                    float.class);
-            Object instance = forUI.invoke(null, soundEventHolder, pitch);
-
-            
-            sm.getClass().getMethod("play",
-                    Class.forName("net.minecraft.client.resources.sounds.SoundInstance"))
-                    .invoke(sm, instance);
-
+            SoundEvent se = SoundEvents.NOTE_BLOCK_HARP.value();
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(
+                    se, pitch, volume));
         } catch (Throwable t) {
             LOGGER.warn("playNoteViaSoundManager failed (noteId={}): {}", noteId, t.getMessage());
         }
