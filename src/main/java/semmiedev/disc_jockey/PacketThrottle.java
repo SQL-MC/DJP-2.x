@@ -4,7 +4,7 @@ import net.minecraft.client.Minecraft;
 
 public class PacketThrottle {
     
-    private static final int MAX_PACKETS_PER_TICK = 400;   
+    private static final int MAX_PACKETS_PER_TICK = 1000;   
     private static int packetsThisTick = 0;
     private static long lastTick = 0;
 

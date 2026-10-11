@@ -1,5 +1,5 @@
 package semmiedev.disc_jockey;
-
+/*NeoForge 26.3 */
 import semmiedev.disc_jockey.LyricsPlayer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -22,7 +22,9 @@ public class Previewer implements Main.TickListener {
     public static boolean previewMute = false;
     public static boolean loopPreview = false;
     public static boolean running = false;
-    public static boolean continuousPreview = true; 
+    public static boolean continuousPreview = true;
+    /** autoplay 总开关（/discjockey autoplay 写入）。false = 播完当前这首就停，不切下一首 */
+        public static boolean autoPlay = true; 
 
     private int i;
     private float tick;
@@ -73,6 +75,10 @@ public class Previewer implements Main.TickListener {
 
     
     private Song getNextSong() {
+        if (!autoPlay) {
+            LOGGER.info("[DJ] getNextSong: autoPlay=false, stop after current song");
+            return null;
+        }
         if (SongLoader.SONGS.isEmpty()) {
             LOGGER.warn("[DJ] getNextSong: SONGS list is empty!");
             return null;
