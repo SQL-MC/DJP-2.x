@@ -1,5 +1,5 @@
 package semmiedev.disc_jockey;
-
+/* Fabric 26.3 */
 import semmiedev.disc_jockey.LyricsPlayer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -23,7 +23,9 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
     public static boolean previewMute = false;
     public static boolean loopPreview = false;
     public static boolean running = false;
-    public static boolean continuousPreview = true; 
+    public static boolean continuousPreview = true;
+    /** autoplay 总开关（/discjockey autoplay 写入）。false = 播完当前这首就停，不切下一首 */
+        public static boolean autoPlay = true; 
 
     private int i;
     private float tick;
@@ -80,6 +82,10 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
 
     
     private Song getNextSong() {
+        if (!autoPlay) {
+            LOGGER.info("[DJ] getNextSong: autoPlay=false, stop after current song");
+            return null;
+        }
         if (SongLoader.SONGS.isEmpty()) {
             LOGGER.warn("[DJ] getNextSong: SONGS list is empty!");
             return null;

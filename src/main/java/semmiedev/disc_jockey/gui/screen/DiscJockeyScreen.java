@@ -7,6 +7,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;            
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import java.lang.reflect.Method;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.components.Button;
@@ -553,7 +554,19 @@ public class DiscJockeyScreen extends Screen {
                 }
         ).pos(115, height - 30).size(100, 20).build();
         addRenderableWidget(exportMidiButton);
-
+        Button editButton = Button.builder(
+                Component.literal("✏ 编辑"),
+                btn -> {
+                    SongListWidget.SongEntry e = songListWidget.getSelected();
+                    if (e == null || e.song == null) {
+                        showMsg("§c[DiscJockey] 请先选中一首歌");
+                        return;
+                    }
+                    Minecraft.getInstance().setScreenAndShow(
+                            new NoteBlockEditScreen(DiscJockeyScreen.this, e.song));
+                }
+        ).pos(10, 5).size(60, 20).build();   // ← 左上角，位置不变
+        addRenderableWidget(editButton);
 
         Button downloadNbsButton = Button.builder(
                 Component.translatable(Main.MOD_ID + ".button.download_nbs"),
@@ -970,5 +983,32 @@ public class DiscJockeyScreen extends Screen {
     
     public void markSongsDirty() {
         this.shouldFilter = true;
+    }
+    /** 26.3 已移除 Gui.getChat() 与 player.displayClientMessage()，改全反射（Fabric / NeoForge 通用） */
+    private static void showMsg(String text) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+        Component c = Component.literal(text);
+        try {
+            Object gui = mc.gui;
+            if (gui != null) {
+                for (Method m : gui.getClass().getMethods()) {
+                    if (m.getParameterCount() == 0 && m.getName().equals("chatListener")) {
+                        Object cl = m.invoke(gui);
+                        if (cl == null) break;
+                        for (Method hm : cl.getClass().getMethods()) {
+                            if (hm.getName().equals("handleSystemMessage")
+                                    && hm.getParameterCount() == 2
+                                    && hm.getParameterTypes()[0].isAssignableFrom(Component.class)) {
+                                hm.invoke(cl, c, false);
+                                return;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        Main.LOGGER.info("[DJ] {}", text);
     }
 }

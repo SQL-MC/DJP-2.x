@@ -451,12 +451,15 @@ public class DiscjockeyCommand {
                         
                         .then(literal("autoplay")
                                 .executes(ctx -> {
-                                    Main.SONG_PLAYER.autoPlay = !Main.SONG_PLAYER.autoPlay;
-                                    if (Main.SONG_PLAYER.autoPlay) {
+                                    boolean v = !Main.SONG_PLAYER.autoPlay;
+                                    Main.SONG_PLAYER.autoPlay = v;
+                                    // ★ 同步给预览器：预览与正式播放共用同一个 autoplay 开关
+                                    Previewer.autoPlay = v;
+                                    if (v) {
                                         Main.SONG_PLAYER.loopSong = false;
                                     }
                                     ctx.getSource().sendFeedback(
-                                            Main.SONG_PLAYER.autoPlay
+                                            v
                                                     ? Component.translatable("disc_jockey.autoplay.on")
                                                     : Component.translatable("disc_jockey.autoplay.off")
                                     );
