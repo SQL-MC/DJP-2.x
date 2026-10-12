@@ -613,14 +613,14 @@ public class DiscJockeyScreen extends Screen {
         ).pos(115, height - 55).size(100, 20).build();
         addRenderableWidget(exportWavButton);
         Button editButton = Button.builder(
-                Component.literal("✏ 编辑"),
+                Component.translatable("disc_jockey.screen.edit"),
                 btn -> {
                     SongListWidget.SongEntry e = songListWidget.getSelected();
                     if (e == null || e.song == null) {
-                        showMsg("§c[DiscJockey] 请先选中一首歌");
+                        showMsg("§c" + Component.translatable("disc_jockey.editor.select_first").getString());
                         return;
                     }
-                    Minecraft.getInstance().setScreenAndShow(
+                    Main.setScreenCompatStatic(minecraft,
                             new NoteBlockEditScreen(DiscJockeyScreen.this, e.song));
                 }
         ).pos(10, 5).size(60, 20).build();   // ← 左上角，位置不变
