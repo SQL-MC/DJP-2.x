@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Kumoa",
+  "disc_jockey.editor.dup": "Monista",
+  "disc_jockey.editor.paste": "Liitä",
+  "disc_jockey.editor.copy": "Kopioi",
+  "disc_jockey.editor.cut": "Leikkaa",
+  "disc_jockey.editor.del": "Poista",
+  "disc_jockey.editor.sel_all": "Valitse kaikki",
+
   "creativeTab.disc_jockey": "Levyvälilehti",
   "disc_jockey.autoplay.off": "🔁 Automaattinen toisto pois käytöstä",
   "disc_jockey.autoplay.on": "🔁 Automaattinen toisto käynnistetty",

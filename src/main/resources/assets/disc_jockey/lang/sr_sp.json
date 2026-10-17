@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Поништи",
+  "disc_jockey.editor.dup": "Удвоји",
+  "disc_jockey.editor.paste": "Налепи",
+  "disc_jockey.editor.copy": "Копирај",
+  "disc_jockey.editor.cut": "Исеци",
+  "disc_jockey.editor.del": "Избриши",
+  "disc_jockey.editor.sel_all": "Изабери све",
+
   "creativeTab.disc_jockey": "Kartica ploča",
   "disc_jockey.autoplay.off": "🔁 Аутоматско пуштање искључено",
   "disc_jockey.autoplay.on": "🔁 Аутоматско пуштање укључено",

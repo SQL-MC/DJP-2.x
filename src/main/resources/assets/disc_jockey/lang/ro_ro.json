@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Anulează",
+  "disc_jockey.editor.dup": "Dublează",
+  "disc_jockey.editor.paste": "Lipește",
+  "disc_jockey.editor.copy": "Copiază",
+  "disc_jockey.editor.cut": "Taie",
+  "disc_jockey.editor.del": "Șterge",
+  "disc_jockey.editor.sel_all": "Selectează tot",
+
   "creativeTab.disc_jockey": "Filă Disc",
   "disc_jockey.autoplay.off": "🔁 Redare automată dezactivată",
   "disc_jockey.autoplay.on": "🔁 Redare automată activată",

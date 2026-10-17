@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Rückgängig",
+  "disc_jockey.editor.dup": "Duplizieren",
+  "disc_jockey.editor.paste": "Einfügen",
+  "disc_jockey.editor.copy": "Kopieren",
+  "disc_jockey.editor.cut": "Ausschneiden",
+  "disc_jockey.editor.del": "Löschen",
+  "disc_jockey.editor.sel_all": "Alle auswählen",
+
   "creativeTab.disc_jockey": "Plattenspieler-Tab",
   "disc_jockey.autoplay.off": "🔁 Auto-Play deaktiviert",
   "disc_jockey.autoplay.on": "🔁 Auto-Play aktiviert",

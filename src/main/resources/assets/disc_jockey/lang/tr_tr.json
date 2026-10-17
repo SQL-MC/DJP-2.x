@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Geri al",
+  "disc_jockey.editor.dup": "Çoğalt",
+  "disc_jockey.editor.paste": "Yapıştır",
+  "disc_jockey.editor.copy": "Kopyala",
+  "disc_jockey.editor.cut": "Kes",
+  "disc_jockey.editor.del": "Sil",
+  "disc_jockey.editor.sel_all": "Tümünü seç",
+
   "creativeTab.disc_jockey": "Plak Sekmesi",
   "disc_jockey.autoplay.off": "🔁 Otomatik oynatma devre dışı",
   "disc_jockey.autoplay.on": "🔁 Otomatik oynatma etkin",

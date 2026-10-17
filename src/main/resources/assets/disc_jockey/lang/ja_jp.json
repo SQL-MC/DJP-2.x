@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "元に戻す",
+  "disc_jockey.editor.dup": "複製",
+  "disc_jockey.editor.paste": "貼り付け",
+  "disc_jockey.editor.copy": "コピー",
+  "disc_jockey.editor.cut": "切り取り",
+  "disc_jockey.editor.del": "削除",
+  "disc_jockey.editor.sel_all": "全選択",
+
   "creativeTab.disc_jockey": "レコードタブ",
   "disc_jockey.autoplay.off": "🔁 自動再生を無効にしました",
   "disc_jockey.autoplay.on": "🔁 自動再生を有効にしました",

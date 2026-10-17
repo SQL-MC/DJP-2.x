@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "पूर्ववत",
+  "disc_jockey.editor.dup": "डुप्लिकेट",
+  "disc_jockey.editor.paste": "पेस्ट",
+  "disc_jockey.editor.copy": "कॉपी",
+  "disc_jockey.editor.cut": "काटें",
+  "disc_jockey.editor.del": "हटाएँ",
+  "disc_jockey.editor.sel_all": "सब चुनें",
+
   "creativeTab.disc_jockey": "डिस्क टैब",
   "disc_jockey.autoplay.off": "🔁 ऑटो-प्ले बंद",
   "disc_jockey.autoplay.on": "🔁 ऑटो-प्ले चालू",

@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "পূর্বাবস্থা",
+  "disc_jockey.editor.dup": "প্রতিলিপি",
+  "disc_jockey.editor.paste": "পেস্ট",
+  "disc_jockey.editor.copy": "অনুলিপি",
+  "disc_jockey.editor.cut": "কাটুন",
+  "disc_jockey.editor.del": "মুছুন",
+  "disc_jockey.editor.sel_all": "সব নির্বাচন",
+
   "creativeTab.disc_jockey": "ডিস্ক প্রজেক্টর",
   "disc_jockey.autoplay.off": "🔁 স্বয়ংক্রিয় প্লে-ব্যাক বন্ধ",
   "disc_jockey.autoplay.on": "🔁 স্বয়ংক্রিয় প্লে-ব্যাক চালু",

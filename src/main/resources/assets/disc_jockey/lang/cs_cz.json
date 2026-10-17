@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Zpět",
+  "disc_jockey.editor.dup": "Duplikovat",
+  "disc_jockey.editor.paste": "Vložit",
+  "disc_jockey.editor.copy": "Kopírovat",
+  "disc_jockey.editor.cut": "Vyjmout",
+  "disc_jockey.editor.del": "Smazat",
+  "disc_jockey.editor.sel_all": "Vybrat vše",
+
   "creativeTab.disc_jockey": "Projektor desek",
   "disc_jockey.autoplay.off": "🔁 Automatické přehrávání vypnuto",
   "disc_jockey.autoplay.on": "🔁 Automatické přehrávání zapnuto",

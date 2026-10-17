@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Undo",
+  "disc_jockey.editor.dup": "Duplicate",
+  "disc_jockey.editor.paste": "Paste",
+  "disc_jockey.editor.copy": "Copy",
+  "disc_jockey.editor.cut": "Cut",
+  "disc_jockey.editor.del": "Delete",
+  "disc_jockey.editor.sel_all": "Select All",
+
   "creativeTab.disc_jockey": "Disc Jockey Tab",
   "disc_jockey.autoplay.off": "🔁 Auto-play disabled",
   "disc_jockey.autoplay.on": "🔁 Auto-play enabled",

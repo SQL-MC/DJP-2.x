@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Скасувати",
+  "disc_jockey.editor.dup": "Дублювати",
+  "disc_jockey.editor.paste": "Вставити",
+  "disc_jockey.editor.copy": "Копіювати",
+  "disc_jockey.editor.cut": "Вирізати",
+  "disc_jockey.editor.del": "Видалити",
+  "disc_jockey.editor.sel_all": "Виділити все",
+
   "creativeTab.disc_jockey": "Вкладка платівок",
   "disc_jockey.autoplay.off": "🔁 Автопрогравання вимкнено",
   "disc_jockey.autoplay.on": "🔁 Автопрогравання увімкнено",

@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Cofnij",
+  "disc_jockey.editor.dup": "Powiel",
+  "disc_jockey.editor.paste": "Wklej",
+  "disc_jockey.editor.copy": "Kopiuj",
+  "disc_jockey.editor.cut": "Wytnij",
+  "disc_jockey.editor.del": "Usuń",
+  "disc_jockey.editor.sel_all": "Zaznacz wszystko",
+
   "creativeTab.disc_jockey": "Karta płyt",
   "disc_jockey.autoplay.off": "🔁 Autoodtwarzanie wyłączone",
   "disc_jockey.autoplay.on": "🔁 Autoodtwarzanie włączone",

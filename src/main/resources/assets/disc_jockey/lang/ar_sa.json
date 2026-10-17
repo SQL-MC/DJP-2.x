@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "تراجع",
+  "disc_jockey.editor.dup": "تكرار",
+  "disc_jockey.editor.paste": "لصق",
+  "disc_jockey.editor.copy": "نسخ",
+  "disc_jockey.editor.cut": "قص",
+  "disc_jockey.editor.del": "حذف",
+  "disc_jockey.editor.sel_all": "تحديد الكل",
+
   "creativeTab.disc_jockey": "جهاز عرض الأسطوانات",
   "disc_jockey.autoplay.off": "🔁 تشغيل تلقائي معطّل",
   "disc_jockey.autoplay.on": "🔁 تشغيل تلقائي مُفعّل",
