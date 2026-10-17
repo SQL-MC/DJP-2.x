@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Fortryd",
+  "disc_jockey.editor.dup": "Dubler",
+  "disc_jockey.editor.paste": "Indsæt",
+  "disc_jockey.editor.copy": "Kopier",
+  "disc_jockey.editor.cut": "Klip",
+  "disc_jockey.editor.del": "Slet",
+  "disc_jockey.editor.sel_all": "Vælg alt",
+
   "creativeTab.disc_jockey": "Pladespiller-projektor",
   "disc_jockey.autoplay.off": "🔁 Automatisk afspilning deaktiveret",
   "disc_jockey.autoplay.on": "🔁 Automatisk afspilning aktiveret",

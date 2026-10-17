@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Αναίρεση",
+  "disc_jockey.editor.dup": "Διπλότυπο",
+  "disc_jockey.editor.paste": "Επικόλληση",
+  "disc_jockey.editor.copy": "Αντιγραφή",
+  "disc_jockey.editor.cut": "Αποκοπή",
+  "disc_jockey.editor.del": "Διαγραφή",
+  "disc_jockey.editor.sel_all": "Επιλογή όλων",
+
   "creativeTab.disc_jockey": "Καρτέλα Δίσκου",
   "disc_jockey.autoplay.off": "🔁 Αυτόματη αναπαραγωγή απενεργοποιημένη",
   "disc_jockey.autoplay.on": "🔁 Αυτόματη αναπαραγωγή ενεργοποιημένη",

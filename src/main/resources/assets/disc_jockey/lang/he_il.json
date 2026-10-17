@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "ביטול",
+  "disc_jockey.editor.dup": "שכפל",
+  "disc_jockey.editor.paste": "הדבק",
+  "disc_jockey.editor.copy": "העתק",
+  "disc_jockey.editor.cut": "גזור",
+  "disc_jockey.editor.del": "מחק",
+  "disc_jockey.editor.sel_all": "בחר הכל",
+
   "creativeTab.disc_jockey": "כרטיסיית תקליטים",
   "disc_jockey.autoplay.off": "🔁 ניגון אוטומטי מבוטל",
   "disc_jockey.autoplay.on": "🔁 ניגון אוטומטי מופעל",

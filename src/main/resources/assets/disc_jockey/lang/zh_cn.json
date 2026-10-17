@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "撤销",
+  "disc_jockey.editor.dup": "重份",
+  "disc_jockey.editor.paste": "粘贴",
+  "disc_jockey.editor.copy": "复制",
+  "disc_jockey.editor.cut": "剪切",
+  "disc_jockey.editor.del": "删除",
+  "disc_jockey.editor.sel_all": "全选",
+
   "creativeTab.disc_jockey": "唱片机投影仪",
   "disc_jockey.autoplay.off": "🔁 自动切歌 已关闭",
   "disc_jockey.autoplay.on": "🔁 自动切歌 已开启",

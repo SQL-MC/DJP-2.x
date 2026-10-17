@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Atšaukti",
+  "disc_jockey.editor.dup": "Dublikuoti",
+  "disc_jockey.editor.paste": "Įdėti",
+  "disc_jockey.editor.copy": "Kopijuoti",
+  "disc_jockey.editor.cut": "Iškirpti",
+  "disc_jockey.editor.del": "Ištrinti",
+  "disc_jockey.editor.sel_all": "Pasirinkti viską",
+
   "creativeTab.disc_jockey": "Disko kortelė",
   "disc_jockey.autoplay.off": "🔁 Automatinis grojimas išjungtas",
   "disc_jockey.autoplay.on": "🔁 Automatinis grojimas įjungtas",

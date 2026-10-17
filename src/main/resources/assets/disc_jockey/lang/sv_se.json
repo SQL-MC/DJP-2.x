@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Ångra",
+  "disc_jockey.editor.dup": "Dubblera",
+  "disc_jockey.editor.paste": "Klistra in",
+  "disc_jockey.editor.copy": "Kopiera",
+  "disc_jockey.editor.cut": "Klipp ut",
+  "disc_jockey.editor.del": "Ta bort",
+  "disc_jockey.editor.sel_all": "Markera allt",
+
   "creativeTab.disc_jockey": "Skivflik",
   "disc_jockey.autoplay.off": "🔁 Automatisk uppspelning inaktiverad",
   "disc_jockey.autoplay.on": "🔁 Automatisk uppspelning aktiverad",

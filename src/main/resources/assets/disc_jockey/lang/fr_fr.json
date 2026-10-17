@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Annuler",
+  "disc_jockey.editor.dup": "Dupliquer",
+  "disc_jockey.editor.paste": "Coller",
+  "disc_jockey.editor.copy": "Copier",
+  "disc_jockey.editor.cut": "Couper",
+  "disc_jockey.editor.del": "Supprimer",
+  "disc_jockey.editor.sel_all": "Tout sélectionner",
+
   "creativeTab.disc_jockey": "Onglet Disque",
   "disc_jockey.autoplay.off": "🔁 Lecture automatique désactivée",
   "disc_jockey.autoplay.on": "🔁 Lecture automatique activée",

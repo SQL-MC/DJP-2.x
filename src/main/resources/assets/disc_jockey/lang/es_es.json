@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Deshacer",
+  "disc_jockey.editor.dup": "Duplicar",
+  "disc_jockey.editor.paste": "Pegar",
+  "disc_jockey.editor.copy": "Copiar",
+  "disc_jockey.editor.cut": "Cortar",
+  "disc_jockey.editor.del": "Eliminar",
+  "disc_jockey.editor.sel_all": "Seleccionar todo",
+
   "creativeTab.disc_jockey": "Pestaña de disco",
   "disc_jockey.autoplay.off": "🔁 Reproducción automática desactivada",
   "disc_jockey.autoplay.on": "🔁 Reproducción automática activada",

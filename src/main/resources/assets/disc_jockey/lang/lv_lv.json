@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Atsaukt",
+  "disc_jockey.editor.dup": "Dublēt",
+  "disc_jockey.editor.paste": "Ielīmēt",
+  "disc_jockey.editor.copy": "Kopēt",
+  "disc_jockey.editor.cut": "Izgriezt",
+  "disc_jockey.editor.del": "Dzēst",
+  "disc_jockey.editor.sel_all": "Atlasīt visu",
+
   "creativeTab.disc_jockey": "Disku cilne",
   "disc_jockey.autoplay.off": "🔁 Automātiskā atskaņošana izslēgta",
   "disc_jockey.autoplay.on": "🔁 Automātiskā atskaņošana ieslēgta",

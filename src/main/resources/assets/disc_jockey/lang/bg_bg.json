@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Отмени",
+  "disc_jockey.editor.dup": "Дублирай",
+  "disc_jockey.editor.paste": "Постави",
+  "disc_jockey.editor.copy": "Копирай",
+  "disc_jockey.editor.cut": "Изрежи",
+  "disc_jockey.editor.del": "Изтрий",
+  "disc_jockey.editor.sel_all": "Избери всичко",
+
   "creativeTab.disc_jockey": "Проектор за плочи",
   "disc_jockey.autoplay.off": "🔁 Автоматично възпроизвеждане изключено",
   "disc_jockey.autoplay.on": "🔁 Автоматично възпроизвеждане включено",

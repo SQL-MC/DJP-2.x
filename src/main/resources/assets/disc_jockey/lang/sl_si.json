@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Razveljavi",
+  "disc_jockey.editor.dup": "Podvoji",
+  "disc_jockey.editor.paste": "Prilepi",
+  "disc_jockey.editor.copy": "Kopiraj",
+  "disc_jockey.editor.cut": "Izreži",
+  "disc_jockey.editor.del": "Izbriši",
+  "disc_jockey.editor.sel_all": "Izberi vse",
+
   "creativeTab.disc_jockey": "Zavihek plošč",
   "disc_jockey.autoplay.off": "🔁 Samodejno predvajanje izključeno",
   "disc_jockey.autoplay.on": "🔁 Samodejno predvajanje vključeno",

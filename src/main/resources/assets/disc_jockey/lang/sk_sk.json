@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Späť",
+  "disc_jockey.editor.dup": "Duplikovať",
+  "disc_jockey.editor.paste": "Vložiť",
+  "disc_jockey.editor.copy": "Kopírovať",
+  "disc_jockey.editor.cut": "Vystrihnúť",
+  "disc_jockey.editor.del": "Odstrániť",
+  "disc_jockey.editor.sel_all": "Vybrať všetko",
+
   "creativeTab.disc_jockey": "Karta platní",
   "disc_jockey.autoplay.off": "🔁 Automatické prehrávanie vypnuté",
   "disc_jockey.autoplay.on": "🔁 Automatické prehrávanie zapnuté",

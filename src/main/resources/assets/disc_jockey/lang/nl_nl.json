@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Ongedaan maken",
+  "disc_jockey.editor.dup": "Dupliceren",
+  "disc_jockey.editor.paste": "Plakken",
+  "disc_jockey.editor.copy": "Kopiëren",
+  "disc_jockey.editor.cut": "Knippen",
+  "disc_jockey.editor.del": "Verwijderen",
+  "disc_jockey.editor.sel_all": "Alles selecteren",
+
   "creativeTab.disc_jockey": "Platentab",
   "disc_jockey.autoplay.off": "🔁 Automatisch afspelen uitgeschakeld",
   "disc_jockey.autoplay.on": "🔁 Automatisch afspelen ingeschakeld",

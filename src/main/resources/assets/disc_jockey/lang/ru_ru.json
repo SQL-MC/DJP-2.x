@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Отменить",
+  "disc_jockey.editor.dup": "Дублировать",
+  "disc_jockey.editor.paste": "Вставить",
+  "disc_jockey.editor.copy": "Копировать",
+  "disc_jockey.editor.cut": "Вырезать",
+  "disc_jockey.editor.del": "Удалить",
+  "disc_jockey.editor.sel_all": "Выделить всё",
+
   "creativeTab.disc_jockey": "Вкладка «Пластинки»",
   "disc_jockey.autoplay.off": "🔁 Автопроигрывание отключено",
   "disc_jockey.autoplay.on": "🔁 Автопроигрывание включено",

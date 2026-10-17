@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "실행 취소",
+  "disc_jockey.editor.dup": "복제",
+  "disc_jockey.editor.paste": "붙여넣기",
+  "disc_jockey.editor.copy": "복사",
+  "disc_jockey.editor.cut": "잘라내기",
+  "disc_jockey.editor.del": "삭제",
+  "disc_jockey.editor.sel_all": "전체 선택",
+
   "creativeTab.disc_jockey": "레코드 탭",
   "disc_jockey.autoplay.off": "🔁 자동 재생을 비활성화했습니다",
   "disc_jockey.autoplay.on": "🔁 자동 재생을 활성화했습니다",

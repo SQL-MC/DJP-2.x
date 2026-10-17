@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Hoàn tác",
+  "disc_jockey.editor.dup": "Nhân đôi",
+  "disc_jockey.editor.paste": "Dán",
+  "disc_jockey.editor.copy": "Sao chép",
+  "disc_jockey.editor.cut": "Cắt",
+  "disc_jockey.editor.del": "Xóa",
+  "disc_jockey.editor.sel_all": "Chọn tất cả",
+
   "creativeTab.disc_jockey": "Thẻ đĩa",
   "disc_jockey.autoplay.off": "🔁 Tự động phát tắt",
   "disc_jockey.autoplay.on": "🔁 Tự động phát bật",

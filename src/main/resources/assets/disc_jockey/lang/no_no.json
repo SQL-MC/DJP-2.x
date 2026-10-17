@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Angre",
+  "disc_jockey.editor.dup": "Dupliser",
+  "disc_jockey.editor.paste": "Lim inn",
+  "disc_jockey.editor.copy": "Kopier",
+  "disc_jockey.editor.cut": "Klipp",
+  "disc_jockey.editor.del": "Slett",
+  "disc_jockey.editor.sel_all": "Velg alt",
+
   "creativeTab.disc_jockey": "Platefane",
   "disc_jockey.autoplay.off": "🔁 Automatisk avspilling deaktivert",
   "disc_jockey.autoplay.on": "🔁 Automatisk avspilling aktivert",

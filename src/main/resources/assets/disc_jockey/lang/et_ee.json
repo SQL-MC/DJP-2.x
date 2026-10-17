@@ -1,4 +1,12 @@
 {
+  "disc_jockey.editor.undo": "Ennista",
+  "disc_jockey.editor.dup": "Paljunda",
+  "disc_jockey.editor.paste": "Kleebi",
+  "disc_jockey.editor.copy": "Kopeeri",
+  "disc_jockey.editor.cut": "Lõika",
+  "disc_jockey.editor.del": "Kustuta",
+  "disc_jockey.editor.sel_all": "Vali kõik",
+
   "creativeTab.disc_jockey": "Plaadikaart",
   "disc_jockey.autoplay.off": "🔁 Automaatne taasesitus väljas",
   "disc_jockey.autoplay.on": "🔁 Automaatne taasesitus sees",
