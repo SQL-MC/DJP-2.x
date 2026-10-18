@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Транслює пісню всім через playsound (потрібні права адміна)",
+  "disc_jockey.screen.lyrics.offset": "Зсув тексту",
+  "disc_jockey.screen.global_play": "Глобально",
+  "disc_jockey.screen.global_play.stop": "Стоп",
+  "disc_jockey.screen.transpose": "Транспонування",
+  "disc_jockey.screen.speed": "Швидкість",
+
   "disc_jockey.editor.undo": "Скасувати",
   "disc_jockey.editor.dup": "Дублювати",
   "disc_jockey.editor.paste": "Вставити",

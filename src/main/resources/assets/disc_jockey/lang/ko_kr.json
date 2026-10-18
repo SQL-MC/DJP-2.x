@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "playsound로 모두에게 곡을 방송 (관리자 권한 필요)",
+  "disc_jockey.screen.lyrics.offset": "가사 오프셋",
+  "disc_jockey.screen.global_play": "전체",
+  "disc_jockey.screen.global_play.stop": "정지",
+  "disc_jockey.screen.transpose": "변조",
+  "disc_jockey.screen.speed": "속도",
+
   "disc_jockey.editor.undo": "실행 취소",
   "disc_jockey.editor.dup": "복제",
   "disc_jockey.editor.paste": "붙여넣기",

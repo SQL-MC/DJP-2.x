@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "用管理員權限的 playsound 向全服廣播目前歌曲",
+  "disc_jockey.screen.lyrics.offset": "歌詞偏移",
+  "disc_jockey.screen.global_play": "全域播放",
+  "disc_jockey.screen.global_play.stop": "停止廣播",
+  "disc_jockey.screen.transpose": "變調",
+  "disc_jockey.screen.speed": "速度",
+
   "disc_jockey.editor.undo": "復原",
   "disc_jockey.editor.dup": "重份",
   "disc_jockey.editor.paste": "貼上",

@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Sender sangen til alle via playsound (kræver admin)",
+  "disc_jockey.screen.lyrics.offset": "Tekstforskydning",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Stop",
+  "disc_jockey.screen.transpose": "Transponering",
+  "disc_jockey.screen.speed": "Hastighed",
+
   "disc_jockey.editor.undo": "Fortryd",
   "disc_jockey.editor.dup": "Dubler",
   "disc_jockey.editor.paste": "Indsæt",

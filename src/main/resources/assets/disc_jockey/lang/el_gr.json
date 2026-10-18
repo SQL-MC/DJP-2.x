@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Εκπέμπει το τραγούδι σε όλους μέσω playsound (απαιτεί admin)",
+  "disc_jockey.screen.lyrics.offset": "Μετατόπιση στίχων",
+  "disc_jockey.screen.global_play": "Παγκόσμια",
+  "disc_jockey.screen.global_play.stop": "Διακοπή",
+  "disc_jockey.screen.transpose": "Μεταφορά τονικότητας",
+  "disc_jockey.screen.speed": "Ταχύτητα",
+
   "disc_jockey.editor.undo": "Αναίρεση",
   "disc_jockey.editor.dup": "Διπλότυπο",
   "disc_jockey.editor.paste": "Επικόλληση",

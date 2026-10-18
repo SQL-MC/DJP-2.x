@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Saadab laulu kõigile playsound-iga (nõuab admini õigusi)",
+  "disc_jockey.screen.lyrics.offset": "Sõnade nihe",
+  "disc_jockey.screen.global_play": "Globaalne",
+  "disc_jockey.screen.global_play.stop": "Peata",
+  "disc_jockey.screen.transpose": "Transponeerimine",
+  "disc_jockey.screen.speed": "Kiirus",
+
   "disc_jockey.editor.undo": "Ennista",
   "disc_jockey.editor.dup": "Paljunda",
   "disc_jockey.editor.paste": "Kleebi",

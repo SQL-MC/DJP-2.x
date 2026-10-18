@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "playsound द्वारा सभी को गाना प्रसारित करें (एडमिन आवश्यक)",
+  "disc_jockey.screen.lyrics.offset": "बोल ऑफसेट",
+  "disc_jockey.screen.global_play": "वैश्विक",
+  "disc_jockey.screen.global_play.stop": "रोकें",
+  "disc_jockey.screen.transpose": "स्वर परिवर्तन",
+  "disc_jockey.screen.speed": "गति",
+
   "disc_jockey.editor.undo": "पूर्ववत",
   "disc_jockey.editor.dup": "डुप्लिकेट",
   "disc_jockey.editor.paste": "पेस्ट",

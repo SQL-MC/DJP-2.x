@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Излъчва текущата песен към всички чрез playsound (изисква админ права)",
+  "disc_jockey.screen.lyrics.offset": "Отместване на текста",
+  "disc_jockey.screen.global_play": "Глобално",
+  "disc_jockey.screen.global_play.stop": "Стоп",
+  "disc_jockey.screen.transpose": "Транспониране",
+  "disc_jockey.screen.speed": "Скорост",
+
   "disc_jockey.editor.undo": "Отмени",
   "disc_jockey.editor.dup": "Дублирай",
   "disc_jockey.editor.paste": "Постави",

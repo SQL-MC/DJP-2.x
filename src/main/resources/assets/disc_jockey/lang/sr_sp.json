@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Емитује песму свима преко playsound (потребне админ дозволе)",
+  "disc_jockey.screen.lyrics.offset": "Помак текста",
+  "disc_jockey.screen.global_play": "Глобално",
+  "disc_jockey.screen.global_play.stop": "Заустави",
+  "disc_jockey.screen.transpose": "Транспоновање",
+  "disc_jockey.screen.speed": "Брзина",
+
   "disc_jockey.editor.undo": "Поништи",
   "disc_jockey.editor.dup": "Удвоји",
   "disc_jockey.editor.paste": "Налепи",

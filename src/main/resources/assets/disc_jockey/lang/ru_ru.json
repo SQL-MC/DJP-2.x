@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Транслирует песню всем через playsound (нужны права админа)",
+  "disc_jockey.screen.lyrics.offset": "Сдвиг текста",
+  "disc_jockey.screen.global_play": "Глобально",
+  "disc_jockey.screen.global_play.stop": "Стоп",
+  "disc_jockey.screen.transpose": "Транспонирование",
+  "disc_jockey.screen.speed": "Скорость",
+
   "disc_jockey.editor.undo": "Отменить",
   "disc_jockey.editor.dup": "Дублировать",
   "disc_jockey.editor.paste": "Вставить",

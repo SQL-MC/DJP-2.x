@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Sänder låten till alla via playsound (kräver admin)",
+  "disc_jockey.screen.lyrics.offset": "Textförskjutning",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Stopp",
+  "disc_jockey.screen.transpose": "Transponering",
+  "disc_jockey.screen.speed": "Hastighet",
+
   "disc_jockey.editor.undo": "Ångra",
   "disc_jockey.editor.dup": "Dubblera",
   "disc_jockey.editor.paste": "Klistra in",

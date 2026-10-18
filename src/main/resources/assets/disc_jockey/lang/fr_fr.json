@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Diffuse le morceau à tous via playsound (nécessite admin)",
+  "disc_jockey.screen.lyrics.offset": "Décalage des paroles",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Arrêter",
+  "disc_jockey.screen.transpose": "Transposition",
+  "disc_jockey.screen.speed": "Vitesse",
+
   "disc_jockey.editor.undo": "Annuler",
   "disc_jockey.editor.dup": "Dupliquer",
   "disc_jockey.editor.paste": "Coller",

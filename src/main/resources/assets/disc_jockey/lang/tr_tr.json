@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Şarkıyı playsound ile herkese yayınlar (admin gerektirir)",
+  "disc_jockey.screen.lyrics.offset": "Şarkı sözü kaydırma",
+  "disc_jockey.screen.global_play": "Genel",
+  "disc_jockey.screen.global_play.stop": "Durdur",
+  "disc_jockey.screen.transpose": "Transpoze",
+  "disc_jockey.screen.speed": "Hız",
+
   "disc_jockey.editor.undo": "Geri al",
   "disc_jockey.editor.dup": "Çoğalt",
   "disc_jockey.editor.paste": "Yapıştır",

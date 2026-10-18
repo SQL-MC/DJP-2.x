@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Emet la cançó a tothom amb playsound (cal permís d'admin)",
+  "disc_jockey.screen.lyrics.offset": "Desplaçament de la lletra",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Atura",
+  "disc_jockey.screen.transpose": "Transport",
+  "disc_jockey.screen.speed": "Velocitat",
+
   "disc_jockey.editor.undo": "Desfés",
   "disc_jockey.editor.dup": "Duplica",
   "disc_jockey.editor.paste": "Enganxa",

@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Pārraida dziesmu visiem caur playsound (nepieciešamas admin tiesības)",
+  "disc_jockey.screen.lyrics.offset": "Vārdu nobīde",
+  "disc_jockey.screen.global_play": "Globāls",
+  "disc_jockey.screen.global_play.stop": "Apturēt",
+  "disc_jockey.screen.transpose": "Transponēšana",
+  "disc_jockey.screen.speed": "Ātrums",
+
   "disc_jockey.editor.undo": "Atsaukt",
   "disc_jockey.editor.dup": "Dublēt",
   "disc_jockey.editor.paste": "Ielīmēt",

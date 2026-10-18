@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "playsound で全員に曲を放送（管理者権限が必要）",
+  "disc_jockey.screen.lyrics.offset": "歌詞オフセット",
+  "disc_jockey.screen.global_play": "全局",
+  "disc_jockey.screen.global_play.stop": "停止",
+  "disc_jockey.screen.transpose": "変調",
+  "disc_jockey.screen.speed": "速度",
+
   "disc_jockey.editor.undo": "元に戻す",
   "disc_jockey.editor.dup": "複製",
   "disc_jockey.editor.paste": "貼り付け",

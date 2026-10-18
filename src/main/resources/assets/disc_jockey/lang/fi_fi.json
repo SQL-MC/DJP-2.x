@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Lähettää kappaleen kaikille playsoundilla (vaatii admin-oikeudet)",
+  "disc_jockey.screen.lyrics.offset": "Sanoituksen siirto",
+  "disc_jockey.screen.global_play": "Globaali",
+  "disc_jockey.screen.global_play.stop": "Pysäytä",
+  "disc_jockey.screen.transpose": "Transponointi",
+  "disc_jockey.screen.speed": "Nopeus",
+
   "disc_jockey.editor.undo": "Kumoa",
   "disc_jockey.editor.dup": "Monista",
   "disc_jockey.editor.paste": "Liitä",

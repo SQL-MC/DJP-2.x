@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "משדר את השיר לכולם דרך playsound (דורש הרשאות אדמין)",
+  "disc_jockey.screen.lyrics.offset": "היסט מילים",
+  "disc_jockey.screen.global_play": "גלובלי",
+  "disc_jockey.screen.global_play.stop": "עצור",
+  "disc_jockey.screen.transpose": "שינוי סולם",
+  "disc_jockey.screen.speed": "מהירות",
+
   "disc_jockey.editor.undo": "ביטול",
   "disc_jockey.editor.dup": "שכפל",
   "disc_jockey.editor.paste": "הדבק",

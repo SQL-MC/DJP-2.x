@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Sendet das Lied per playsound an alle (benötigt Admin-Rechte)",
+  "disc_jockey.screen.lyrics.offset": "Textversatz",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Stopp",
+  "disc_jockey.screen.transpose": "Transponierung",
+  "disc_jockey.screen.speed": "Geschwindigkeit",
+
   "disc_jockey.editor.undo": "Rückgängig",
   "disc_jockey.editor.dup": "Duplizieren",
   "disc_jockey.editor.paste": "Einfügen",
