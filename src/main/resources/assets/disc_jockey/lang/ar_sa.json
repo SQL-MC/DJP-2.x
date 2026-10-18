@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "يبث الأغنية الحالية لجميع اللاعبين عبر playsound (يحتاج صلاحيات أدمن)",
+  "disc_jockey.screen.lyrics.offset": "إزاحة الكلمات",
+  "disc_jockey.screen.global_play": "بث عام",
+  "disc_jockey.screen.global_play.stop": "إيقاف البث",
+  "disc_jockey.screen.transpose": "تغيير النغمة",
+  "disc_jockey.screen.speed": "السرعة",
+
   "disc_jockey.editor.undo": "تراجع",
   "disc_jockey.editor.dup": "تكرار",
   "disc_jockey.editor.paste": "لصق",

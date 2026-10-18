@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Phát bài hát cho tất cả qua playsound (cần quyền admin)",
+  "disc_jockey.screen.lyrics.offset": "Độ lệch lời",
+  "disc_jockey.screen.global_play": "Toàn cầu",
+  "disc_jockey.screen.global_play.stop": "Dừng",
+  "disc_jockey.screen.transpose": "Chuyển cung",
+  "disc_jockey.screen.speed": "Tốc độ",
+
   "disc_jockey.editor.undo": "Hoàn tác",
   "disc_jockey.editor.dup": "Nhân đôi",
   "disc_jockey.editor.paste": "Dán",

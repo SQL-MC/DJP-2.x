@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Az összes játékosnak közvetíti a dalt playsounddal (admin jog szükséges)",
+  "disc_jockey.screen.lyrics.offset": "Szövegeltolás",
+  "disc_jockey.screen.global_play": "Globális",
+  "disc_jockey.screen.global_play.stop": "Leállítás",
+  "disc_jockey.screen.transpose": "Transzponálás",
+  "disc_jockey.screen.speed": "Sebesség",
+
   "disc_jockey.editor.undo": "Visszavonás",
   "disc_jockey.editor.dup": "Kettőzés",
   "disc_jockey.editor.paste": "Beillesztés",

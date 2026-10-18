@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Transliuoja dainą visiems per playsound (reikia admin teisių)",
+  "disc_jockey.screen.lyrics.offset": "Žodžių poslinkis",
+  "disc_jockey.screen.global_play": "Globalus",
+  "disc_jockey.screen.global_play.stop": "Stabdyti",
+  "disc_jockey.screen.transpose": "Transponavimas",
+  "disc_jockey.screen.speed": "Greitis",
+
   "disc_jockey.editor.undo": "Atšaukti",
   "disc_jockey.editor.dup": "Dublikuoti",
   "disc_jockey.editor.paste": "Įdėti",

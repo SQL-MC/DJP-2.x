@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Vyšle pieseň všetkým cez playsound (vyžaduje admin práva)",
+  "disc_jockey.screen.lyrics.offset": "Posun textu",
+  "disc_jockey.screen.global_play": "Globálne",
+  "disc_jockey.screen.global_play.stop": "Zastaviť",
+  "disc_jockey.screen.transpose": "Transpozícia",
+  "disc_jockey.screen.speed": "Rýchlosť",
+
   "disc_jockey.editor.undo": "Späť",
   "disc_jockey.editor.dup": "Duplikovať",
   "disc_jockey.editor.paste": "Vložiť",

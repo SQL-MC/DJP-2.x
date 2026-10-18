@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "playsound দিয়ে সবার কাছে গান সম্প্রচার (অ্যাডমিন প্রয়োজন)",
+  "disc_jockey.screen.lyrics.offset": "গানের কথা অফসেট",
+  "disc_jockey.screen.global_play": "বৈশ্বিক",
+  "disc_jockey.screen.global_play.stop": "বন্ধ",
+  "disc_jockey.screen.transpose": "স্বর পরিবর্তন",
+  "disc_jockey.screen.speed": "গতি",
+
   "disc_jockey.editor.undo": "পূর্বাবস্থা",
   "disc_jockey.editor.dup": "প্রতিলিপি",
   "disc_jockey.editor.paste": "পেস্ট",

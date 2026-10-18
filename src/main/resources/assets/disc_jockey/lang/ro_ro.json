@@ -1,4 +1,11 @@
 {
+  "disc_jockey.screen.global_play.tooltip": "Difuzează melodia tuturor prin playsound (necesită admin)",
+  "disc_jockey.screen.lyrics.offset": "Decalaj versuri",
+  "disc_jockey.screen.global_play": "Global",
+  "disc_jockey.screen.global_play.stop": "Oprire",
+  "disc_jockey.screen.transpose": "Transpunere",
+  "disc_jockey.screen.speed": "Viteză",
+
   "disc_jockey.editor.undo": "Anulează",
   "disc_jockey.editor.dup": "Dublează",
   "disc_jockey.editor.paste": "Lipește",
