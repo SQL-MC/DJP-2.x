@@ -18,7 +18,6 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.NoteBlock;
@@ -212,10 +211,23 @@ public class PianoKeyboardScreen extends Screen {
         this.parent = parent;
     }
 
+    /** 26.4 移除了 Mth.clamp 的 float 重载（NoSuchMethodError），改用纯 JDK 实现，不依赖任何 MC API */
+    private static float clampF(float v, float lo, float hi) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    }
+
+    private static int clampI(int v, int lo, int hi) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    }
+
     
     private void setShift(int s) {
         int old = shift;
-        shift = Mth.clamp(s, INTERNAL_MIN, INTERNAL_MAX);
+        shift = clampI(s, INTERNAL_MIN, INTERNAL_MAX);
         if (old != shift) {
             System.out.println("[DJ] shift " + old + " -> " + shift + " (display +" + getDisp() + ")");
         }
@@ -426,7 +438,7 @@ public class PianoKeyboardScreen extends Screen {
             int midiNote = id + 60;
             int useCount = midiNote - 54;
             if (useCount >= 0 && useCount <= 24) {
-                float pitch = Mth.clamp((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
+                float pitch = clampF((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
                 if (inWorld) {
                     m.level.playSound(m.player, m.player.blockPosition(),
                         SoundEvents.NOTE_BLOCK_HARP.value(), SoundSource.RECORDS, 2.0f, pitch);
@@ -450,7 +462,7 @@ public class PianoKeyboardScreen extends Screen {
         if (id < NOTE_ID_A0 || id > NOTE_ID_C8) return;
         Minecraft m = Minecraft.getInstance();
         if (m == null) return;
-        vol = Mth.clamp(vol, 0.15f, 1.0f);
+        vol = clampF(vol, 0.15f, 1.0f);
         boolean inWorld = m.level != null && m.player != null;
 
         if (inWorld && isPianoAPIAvail() && apiPlay != null) {
@@ -475,7 +487,7 @@ public class PianoKeyboardScreen extends Screen {
             int midiNote = id + 60;
             int useCount = midiNote - 54;
             if (useCount >= 0 && useCount <= 24) {
-                float pitch = Mth.clamp((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
+                float pitch = clampF((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
                 if (inWorld) {
                     m.level.playSound(m.player, m.player.blockPosition(),
                             SoundEvents.NOTE_BLOCK_HARP.value(),
@@ -900,13 +912,16 @@ public class PianoKeyboardScreen extends Screen {
         history.add(new Note(id, ((id - NOTE_ID_A_MIN) * rw) / RW_SPAN, 180));
     }
 
-    public void extractBackground(GuiGraphicsExtractor c, int mx, int my, float d) {
-        try { super.extractBackground(c, mx, my, d); } catch (Exception e) {}
+    public void extractBackground(GuiGraphicsExtractor c) {
+        try { super.extractBackground(c); } catch (Exception e) {}
     }
 
-    public void extractRenderState(GuiGraphicsExtractor c, int mx, int my, float d) {
+    public void extractRenderState(GuiGraphicsExtractor c) {
         try {
-            super.extractRenderState(c, mx, my, d);
+            int mx = c.mouseX();
+            int my = c.mouseY();
+            float d = c.partialTicks();
+            super.extractRenderState(c);
 
             c.text(font, Component.literal("[Disc Jockey] Piano \u2014 PianoLib 88-key (A0~C8)"),
                 width/2 - font.width(Component.literal("[Disc Jockey] Piano \u2014 PianoLib 88-key (A0~C8)"))/2, 20, 0xFFFFFFFF, false);
@@ -955,7 +970,7 @@ public class PianoKeyboardScreen extends Screen {
             int bx = KX + r.lx + 1 - origin;
             if (bx < KX || bx > KX + rw) continue;
             int by = RY + 2 + (r.age * 3) % (rh - 4);
-            float fade = Mth.clamp(1f - (float)r.age / HIST_MAX, 0.1f, 1f);
+            float fade = clampF(1f - (float)r.age / HIST_MAX, 0.1f, 1f);
             c.fill(bx, by, bx + Math.max(2, rw/40), by+2, color(r.id, (int)(fade * r.iv)));
         }
 
@@ -1149,7 +1164,7 @@ public class PianoKeyboardScreen extends Screen {
 
     
     private int color(int id, int a) {
-        a = Mth.clamp(a, 30, 255);
+        a = clampI(a, 30, 255);
         float t = (float)(id - NOTE_ID_A_MIN) / RW_SPAN;
         int r, g, b;
         if (t < 0.33f) { r=255; g=(int)(100+155*t/0.33f); b=50; }

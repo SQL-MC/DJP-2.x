@@ -33,11 +33,25 @@ public class SongLoader {
                 File[] files = Main.songsFolder.listFiles();
                 if (files != null) {
                     for (File file : files) {
+                        // 只解析 .nbs：目录里同时放着 .lrc 歌词、.mid 等文件，
+                        // 不加过滤会把它们当成 NBS 读取，必然 EOFException 刷屏
+                        if (!file.isFile()) continue;
+                        String lowerName = file.getName().toLowerCase();
+                        if (!lowerName.endsWith(".nbs")) {
+                            Main.LOGGER.debug("[DJ] 跳过非 NBS 文件: {}", file.getName());
+                            continue;
+                        }
+                        if (file.length() == 0) {
+                            Main.LOGGER.warn("[DJ] 跳过空文件（0 字节，请重新导出）: {}", file.getName());
+                            continue;
+                        }
+
                         Song song = null;
                         try {
                             song = loadSong(file);
                         } catch (Exception exception) {
-                            Main.LOGGER.error("Unable to read or parse song {}", file.getName(), exception);
+                            Main.LOGGER.warn("[DJ] 无法解析 {} ({} 字节，文件已损坏或不完整，请用 Note Block Studio 重新导出): {}",
+                                    file.getName(), file.length(), String.valueOf(exception));
                         }
                         if (song != null) SONGS.add(song);
                     }

@@ -11,7 +11,6 @@ import java.lang.reflect.Method;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.components.Tooltip;
@@ -200,16 +199,16 @@ public class DiscJockeyScreen extends Screen {
 
     private StringWidget songTitle;
     private StringWidget songState;
-    private CycleButton<Boolean> playPauseButton;
+    private CycleBtn<Boolean> playPauseButton;
     private Button stopButton;
     private SongTimeSliderWidget timeBar;
     private Button configButton;
 
     
-    private CycleButton<SpectrumRendererManager.Style> spectrumStyleButton;
+    private CycleBtn<SpectrumRendererManager.Style> spectrumStyleButton;
 
-    private CycleButton<Boolean> lyricsToggleButton;      
-    private CycleButton<Boolean> lyricsOutputButton;      // 公屏/私聊
+    private CycleBtn<Boolean> lyricsToggleButton;      
+    private CycleBtn<Boolean> lyricsOutputButton;      // 公屏/私聊
     private Button lyricsOffsetMinusButton;                
     private net.minecraft.client.gui.components.EditBox lyricsOffsetEditBox; 
     private Button lyricsOffsetPlusButton;                 
@@ -218,6 +217,9 @@ public class DiscJockeyScreen extends Screen {
     private static final Float[] SPEED_VALUES = { 0.5F, 0.75F, 1.0F, 1.25F, 1.5F };
     
     private static final Integer[] TRANSPOSE_VALUES = { -12, -6, -3, 0, 3, 6, 12 };
+
+    /** 配置界面：true = 跳过 Cloth Config，直接用内置界面（26.4 排障用） */
+    private static final boolean FORCE_FALLBACK_CONFIG_SCREEN = false;
 
     // ---- 全局播放（playsound 广播）----
     /** 每 tick 最多发送的音效命令数，避免服务器命令洪水 */
@@ -252,9 +254,9 @@ public class DiscJockeyScreen extends Screen {
     /** 频谱柱数（与 Main.SMOOTHER 输出一致） */
     private static final int SPECTRUM_BINS = 16;
 
-    private CycleButton<Float> speedButton;
+    private CycleBtn<Float> speedButton;
     private Button refreshSongsButton;
-    private CycleButton<Integer> transposeButton;
+    private CycleBtn<Integer> transposeButton;
 
     // ---- 全局播放（static：退出菜单后广播继续，重新打开界面仍可停止）----
     private Button globalPlayButton;
@@ -497,25 +499,20 @@ public class DiscJockeyScreen extends Screen {
         timeBar = new SongTimeSliderWidget(10, 32 + 20 + 20, width / 2 - 20, 30);
         addRenderableWidget(timeBar);
 
-        playPauseButton = CycleButton.<Boolean>builder(
-                v -> Component.literal(v ? "⏸" : "▶"),
-                Main.SONG_PLAYER.running
-        )
-                .displayOnlyValue()
-                .withValues(true, false)
-                .create(
-                        (width / 4) - 25,
-                        32 + 20 + 20 + 30 + 5,
-                        20,
-                        20,
-                        Component.empty(),
-                        (b, v) -> {
-                            if (v && Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.didSongReachEnd)
-                                Main.SONG_PLAYER.start(Main.SONG_PLAYER.song);
-                            else Main.SONG_PLAYER.running = v;
-                        }
-                );
-        addRenderableWidget(playPauseButton);
+        try {
+            playPauseButton = new CycleBtn<Boolean>(
+                    (width / 4) - 25, 32 + 20 + 20 + 30 + 5, 20, 20,
+                    new Boolean[]{true, false}, Main.SONG_PLAYER.running,
+                    v -> Component.literal(v ? "⏸" : "▶"),
+                    (cb, v) -> {
+                        if (v && Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.didSongReachEnd)
+                            Main.SONG_PLAYER.start(Main.SONG_PLAYER.song);
+                        else Main.SONG_PLAYER.running = v;
+                    });
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (playPauseButton != null) addRenderableWidget(playPauseButton.button());
 
         stopButton = Button.builder(Component.literal("⏹"), b -> Main.SONG_PLAYER.stop())
                 .pos((width / 4) + 5, 32 + 20 + 20 + 30 + 5)
@@ -527,32 +524,38 @@ public class DiscJockeyScreen extends Screen {
         int ly = height - 79;
 
         
-        lyricsToggleButton = CycleButton.onOffBuilder(Main.config.lyricsChatOutput)
-                .withValues(true, false)
-                .create(lx, ly, 72, 18,
-                        Component.translatable(Main.MOD_ID + ".screen.lyrics"),
-                        (btn, value) -> {
-                            Main.config.lyricsChatOutput = value;
-                            saveConfig();
-                        });
-        lyricsToggleButton.setTooltip(Tooltip.create(
-                Component.translatable(Main.MOD_ID + ".screen.lyrics.tooltip")));
-        addRenderableWidget(lyricsToggleButton);
+        try {
+            lyricsToggleButton = new CycleBtn<Boolean>(
+                    lx, ly, 72, 18,
+                    new Boolean[]{true, false}, Main.config.lyricsChatOutput,
+                    v -> Component.translatable(Main.MOD_ID + ".screen.lyrics")
+                            .append(Component.literal(v ? " ✓" : " ✗")),
+                    (cb, v) -> {
+                        Main.config.lyricsChatOutput = v;
+                        saveConfig();
+                    });
+            lyricsToggleButton.setTooltip(Tooltip.create(
+                    Component.translatable(Main.MOD_ID + ".screen.lyrics.tooltip")));
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (lyricsToggleButton != null) addRenderableWidget(lyricsToggleButton.button());
 
         // 公屏 / 私聊（通用 builder 绕过 booleanBuilder 重载歧义）
-        lyricsOutputButton = CycleButton.<Boolean>builder(
-                        value -> value
-                                ? Component.translatable(Main.MOD_ID + ".screen.lyrics.public")
-                                : Component.translatable(Main.MOD_ID + ".screen.lyrics.private"),
-                        Main.config.lyricsOutputToPublic)
-                .withValues(true, false)
-                .create(lx + 76, ly, 60, 18,
-                        Component.translatable(Main.MOD_ID + ".screen.lyrics.output"),
-                        (btn, value) -> {
-                            Main.config.lyricsOutputToPublic = value;
-                            saveConfig();
-                        });
-        addRenderableWidget(lyricsOutputButton);
+        try {
+            lyricsOutputButton = new CycleBtn<Boolean>(
+                    lx + 76, ly, 60, 18,
+                    new Boolean[]{true, false}, Main.config.lyricsOutputToPublic,
+                    v -> v ? Component.translatable(Main.MOD_ID + ".screen.lyrics.public")
+                           : Component.translatable(Main.MOD_ID + ".screen.lyrics.private"),
+                    (cb, v) -> {
+                        Main.config.lyricsOutputToPublic = v;
+                        saveConfig();
+                    });
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (lyricsOutputButton != null) addRenderableWidget(lyricsOutputButton.button());
 
         
         lyricsOffsetMinusButton = Button.builder(
@@ -676,7 +679,7 @@ public class DiscJockeyScreen extends Screen {
                         return;
                     }
                     final Song song = entry.song;
-                    btn.active = false;   
+                    setBoolField(btn, "active", false);   
                     new Thread(() -> {
                         try {
                             NbsToWavExporter.exportSong(song);   // → config/disc_jockey/wav/<名>.wav
@@ -695,7 +698,7 @@ public class DiscJockeyScreen extends Screen {
                                     )
                             );
                         } finally {
-                            minecraft.execute(() -> btn.active = true);  
+                            minecraft.execute(() -> setBoolField(btn, "active", true));  
                         }
                     }, "DJ-WAV-Export").start();
                 }
@@ -709,25 +712,21 @@ public class DiscJockeyScreen extends Screen {
                         showMsg("§c" + Component.translatable("disc_jockey.editor.select_first").getString());
                         return;
                     }
-                    Main.setScreenCompatStatic(minecraft,
-                            new NoteBlockEditScreen(DiscJockeyScreen.this, e.song));
+                    openScreenSafe(new NoteBlockEditScreen(DiscJockeyScreen.this, e.song));
                 }
         ).pos(10, 5).size(60, 20).build();   // ← 左上角，位置不变
         addRenderableWidget(editButton);
         
-        CycleButton.Builder<SpectrumRendererManager.Style> styleBuilder =
-                CycleButton.<SpectrumRendererManager.Style>builder(
-                        s -> Component.literal(s.displayName),
-                        SpectrumRendererManager.getCurrentStyle()
-                );
-        this.spectrumStyleButton = styleBuilder
-                .withValues(SpectrumRendererManager.Style.values())
-                .create(
-                        220, height - 30, 100, 20,
-                        Component.translatable(Main.MOD_ID + ".screen.spectrum_style"),
-                        (btn, st) -> SpectrumRendererManager.setStyle(st)
-                );
-        addRenderableWidget(this.spectrumStyleButton);
+        try {
+            this.spectrumStyleButton = new CycleBtn<SpectrumRendererManager.Style>(
+                    220, height - 30, 100, 20,
+                    SpectrumRendererManager.Style.values(), SpectrumRendererManager.getCurrentStyle(),
+                    s -> Component.literal(s.displayName),
+                    (cb, st) -> SpectrumRendererManager.setStyle(st));
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (this.spectrumStyleButton != null) addRenderableWidget(this.spectrumStyleButton.button());
 
         // ★ 全局播放：管理员权限 playsound 广播给全服（位于变调按钮左侧）
         globalPlayButton = Button.builder(
@@ -740,52 +739,47 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(globalPlayButton);
 
         
-        this.transposeButton = CycleButton.<Integer>builder(
-                v -> Component.literal("🎵 " + (v == 0 ? "0" : String.format("%+d", v))),
-                Main.SONG_PLAYER.transpose
-        )
-                .displayOnlyValue()
-                .withValues(TRANSPOSE_VALUES)
-                .create(
-                        width - 330, 5, 100, 20,
-                        Component.translatable(Main.MOD_ID + ".screen.transpose"),
-                        (btn, val) -> {
-                            try {
-                                // ✅ 与命令 /discjockey transpose 完全对齐（L384-392）
-                                Main.SONG_PLAYER.transpose = val;
-                                if (Main.SONG_PLAYER.song != null) {
-                                    NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, val);
-                                }
-                                if (Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.running) {
-                                    Main.SONG_PLAYER.tuner.reset();
-                                }
-                            } catch (Throwable t) {
-                                Main.LOGGER.error("Failed to set transpose", t);
+        try {
+            this.transposeButton = new CycleBtn<Integer>(
+                    width - 330, 5, 100, 20,
+                    TRANSPOSE_VALUES, Main.SONG_PLAYER.transpose,
+                    v -> Component.literal("🎵 " + (v == 0 ? "0" : String.format("%+d", v))),
+                    (cb, val) -> {
+                        try {
+                            Main.SONG_PLAYER.transpose = val;
+                            if (Main.SONG_PLAYER.song != null) {
+                                NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, val);
                             }
+                            if (Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.running) {
+                                Main.SONG_PLAYER.tuner.reset();
+                            }
+                        } catch (Throwable t) {
+                            Main.LOGGER.error("Failed to set transpose", t);
                         }
-                );
-        addRenderableWidget(this.transposeButton);
+                    });
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (this.transposeButton != null) addRenderableWidget(this.transposeButton.button());
 
         
-        this.speedButton = CycleButton.<Float>builder(
-                v -> Component.literal("⚡ " + (v == 1.0F ? "1.0x" : String.format("%sx", v))),
-                getCurrentSpeed()
-        )
-                .displayOnlyValue()
-                .withValues(SPEED_VALUES)
-                .create(
-                        width - 220, 5, 100, 20,
-                        Component.translatable(Main.MOD_ID + ".screen.speed"),
-                        (btn, v) -> {
-                            try {
-                                Main.PREVIEW_SPEED = v;
-                                Main.SONG_PLAYER.speed = v;
-                            } catch (Throwable t) {
-                                Main.LOGGER.error("Failed to set playback speed", t);
-                            }
+        try {
+            this.speedButton = new CycleBtn<Float>(
+                    width - 220, 5, 100, 20,
+                    SPEED_VALUES, getCurrentSpeed(),
+                    v -> Component.literal("⚡ " + (v == 1.0F ? "1.0x" : String.format("%sx", v))),
+                    (cb, v) -> {
+                        try {
+                            Main.PREVIEW_SPEED = v;
+                            Main.SONG_PLAYER.speed = v;
+                        } catch (Throwable t) {
+                            Main.LOGGER.error("Failed to set playback speed", t);
                         }
-                );
-        addRenderableWidget(this.speedButton);
+                    });
+        } catch (Throwable t) {
+            Main.LOGGER.warn("[Disc Jockey] 控件创建失败（26.4 API 变更）: {}", String.valueOf(t));
+        }
+        if (this.speedButton != null) addRenderableWidget(this.speedButton.button());
 
         
         Button pianoButton = Button.builder(
@@ -793,7 +787,7 @@ public class DiscJockeyScreen extends Screen {
                 btn -> {
                     try {
                         PianoKeyboardScreen piano = new PianoKeyboardScreen(this);
-                        Main.setScreenCompatStatic(minecraft, piano);
+                        openScreenSafe(piano);
                     } catch (Throwable t) {
                         Main.LOGGER.error("Failed to open Piano Keyboard screen", t);
                     }
@@ -807,7 +801,7 @@ public class DiscJockeyScreen extends Screen {
                 btn -> {
                     try {
                         Screen midi = new MidiFileSelectScreen(this);
-                        Main.setScreenCompatStatic(minecraft, midi);
+                        openScreenSafe(midi);
                     } catch (Throwable t) {
                         Main.LOGGER.error("Failed to open MIDI selector screen", t);
                         minecraft.gui.chatListener().handleSystemMessage(
@@ -837,8 +831,8 @@ public class DiscJockeyScreen extends Screen {
                         .withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC),
                 this.font
         );
-        midiPathHint.active = false;
-        midiPathHint.visible = true;
+        setBoolField(midiPathHint, "active", false);
+        setBoolField(midiPathHint, "visible", true);
         midiPathHint.setTooltip(Tooltip.create(Component.literal(fullPath)));
         addRenderableWidget(midiPathHint);
     }
@@ -891,7 +885,11 @@ public class DiscJockeyScreen extends Screen {
 
                     Object r = m.invoke(null, args);
                     net.minecraft.client.gui.screens.Screen s = unwrapScreen(r);
-                    if (s != null) { openScreenSafe(s); return true; }
+                    if (s != null) {
+                        Main.LOGGER.info("[DJ] 配置界面：AutoConfigClient 命中 {}", m.getName());
+                        openScreenSafe(s);
+                        return true;
+                    }
                 } catch (Throwable ignored) {}
             }
         } catch (Throwable ignored) {}
@@ -941,6 +939,13 @@ public class DiscJockeyScreen extends Screen {
     private void openConfigScreenCompat() {
         Class<?> screenCls = net.minecraft.client.gui.screens.Screen.class;
 
+        // -1) 排障开关：Cloth Config 在 26.4 上失效时改 true，直接用内置界面
+        if (FORCE_FALLBACK_CONFIG_SCREEN) {
+            Main.LOGGER.info("[DJ] 配置界面：强制使用内置界面（FORCE_FALLBACK_CONFIG_SCREEN=true）");
+            dispatchScreen(new FallbackConfigScreen(this));
+            return;
+        }
+
         // 0) Fabric 原版入口：AutoConfigClient（原文件 import 的就是它）
         if (tryAutoConfigClient(screenCls)) return;
 
@@ -955,6 +960,7 @@ public class DiscJockeyScreen extends Screen {
                     autoConfig.getMethod("getConfigScreen", Class.class, screenCls);
             Object r = gcs.invoke(null, cfgCls, this);
             if (r instanceof net.minecraft.client.gui.screens.Screen s) {
+                Main.LOGGER.info("[DJ] 配置界面：AutoConfig.getConfigScreen 命中");
                 openScreenSafe(s);
                 return;
             }
@@ -1007,15 +1013,110 @@ public class DiscJockeyScreen extends Screen {
             } catch (Throwable ignored) {}
         }
 
-        showMsg("§c[DiscJockey] 当前平台未提供配置界面入口");
+        // 6) 最后兜底：内置配置界面（不用 Cloth Config，26.4 也能开）
+        Main.LOGGER.warn("[DJ] 配置界面：Cloth Config 入口不可用，改用内置配置界面");
+        dispatchScreen(new FallbackConfigScreen(this));
     }
 
     /**
+     * 通用界面派发（★ 不依赖任何具体方法名，26.3 / 26.4 通吃）。
+     *
+     * 26.3 → Minecraft.setScreen(Screen) 存在，直接命中。
+     * 26.4 → 该方法被改名/改签名（日志证据：setScreen 全部失败：null），
+     *        这里通过遍历 Minecraft 的公开方法自动找出新的派发入口，
+     *        因此无论 Mojang 改成什么名字都能命中，不会再出现"全部失败"。
+     *
+     * 策略：先按语义优先级试已知名字，再兜底试任何"单参 + 能接受 Screen"的方法。
+     * 全程 try-catch，单个候选失败不影响后续尝试。
+     */
+    private static boolean dispatchScreenGeneric(Object mc, Object screen) {
+        if (mc == null || screen == null) return false;
+        Class<?> screenCls = screen.getClass();
+
+        // 诊断：始终打印一次候选派发方法，便于定位 26.4 的真实入口名
+        if (dispatchDiagnostic.get() == null) {
+            String d = dumpScreenDispatchCandidates(mc);
+            dispatchDiagnostic.set(d == null ? "" : d);
+            Main.LOGGER.info("[Disc Jockey] 界面派发候选方法：{}", dispatchDiagnostic.get());
+        }
+
+        // ① 语义优先：已知/可能的派发方法名（含 26.4 可能的 rename）
+        String[] preferred = {
+                "setScreenAndShow", "openScreen", "setScreen", "showScreen",
+                "displayScreen", "setGui", "openGui", "setCurrentScreen",
+                "setScreenWithCallback", "pushScreen", "openScreenOnNextTick"
+        };
+        for (String want : preferred) {
+            for (java.lang.reflect.Method m : mc.getClass().getMethods()) {
+                if (!m.getName().equals(want)) continue;
+                if (m.getParameterCount() != 1) continue;
+                if (!m.getParameterTypes()[0].isAssignableFrom(screenCls)) continue;
+                try {
+                    m.setAccessible(true);
+                    m.invoke(mc, screen);
+                    return true;
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        // ② 兜底：不再盲试"任何单参方法"（曾命中只写字段不 init 的方法，导致控件为 null 崩溃）。
+        //    改为直接写 screen 字段并手动补 init，保证控件一定被构建。
+        return forceSetScreenField(mc, screen);
+    }
+
+    /** 只打印一次，避免刷屏 */
+    private static final java.util.concurrent.atomic.AtomicReference<String> dispatchDiagnostic =
+            new java.util.concurrent.atomic.AtomicReference<String>();
+
+    /**
+     * 直接写 screen 字段 + 手动构建控件（最后兜底）。
+     * 必须补 init/rebuildWidgets，否则控件为 null，tick() 会 NPE。
+     */
+    private static boolean forceSetScreenField(Object mc, Object screen) {
+        Class<?> sc = net.minecraft.client.gui.screens.Screen.class;
+        Class<?> c = mc.getClass();
+        while (c != null) {
+            try {
+                java.lang.reflect.Field f = c.getDeclaredField("screen");
+                if (sc.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    f.set(mc, screen);
+                    try {
+                        java.lang.reflect.Method rw = screen.getClass().getMethod("rebuildWidgets");
+                        rw.setAccessible(true);
+                        rw.invoke(screen);
+                    } catch (Throwable ignored) {
+                        try {
+                            java.lang.reflect.Method ini = sc.getDeclaredMethod("init");
+                            ini.setAccessible(true);
+                            ini.invoke(screen);
+                        } catch (Throwable ignored2) {}
+                    }
+                    return true;
+                }
+            } catch (Throwable ignored) {}
+            c = c.getSuperclass();
+        }
+        return false;
+    }
+
+
+    /**
      * 安全开界面：优先走 Main.openScreenOnNextTick（跨帧队列，根治偶发打不开），
-     * 该方法不存在时回退 setScreenCompatStatic。
+     * 再走泛化派发（自动适配 26.3/26.4），最后回退 Main.setScreenCompatStatic。
      */
     private void openScreenSafe(net.minecraft.client.gui.screens.Screen s) {
+        dispatchScreen(s);
+    }
+
+    /**
+     * 静态界面派发（供内部类 / 静态上下文使用）。
+     * 顺序：跨帧队列 → 泛化派发（自动适配 26.3/26.4）→ setScreenCompatStatic 回退。
+     */
+    private static void dispatchScreen(net.minecraft.client.gui.screens.Screen s) {
         if (s == null) return;
+
+        // 1) 跨帧队列（最稳，且能治偶发打不开）
         try {
             java.lang.reflect.Method m =
                     Main.class.getMethod("openScreenOnNextTick",
@@ -1023,7 +1124,337 @@ public class DiscJockeyScreen extends Screen {
             m.invoke(null, s);
             return;
         } catch (Throwable ignored) {}
-        Main.setScreenCompatStatic(minecraft, s);
+
+        // 2) 泛化派发：26.3 命中 setScreen，26.4 自动找新名字
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && dispatchScreenGeneric(mc, s)) return;
+
+        // 3) 最后回退（26.3 一定能成，26.4 可能失败）
+        try {
+            Main.setScreenCompatStatic(mc, s);
+        } catch (Throwable ignored) {}
+    }
+
+    // ==================== 内置配置界面（不依赖 Cloth Config） ====================
+
+    /**
+     * 兜底配置界面 —— 纯原版控件 + 反射遍历 Config 字段自动生成。
+     *
+     * 为什么需要它：日志里的 Cloth Config 是 26.3.159，为 MC 26.3 构建。
+     * 26.4 改了 Screen / 渲染 API，Cloth Config 自身的界面创建会失败
+     * （我们自己代码就因同类问题连崩了 INWORLD_MENU_LIST_BACKGROUND、
+     * RenderPipelines.GUI_TEXTURED、AbstractWidget.visible 等多处）。
+     * 这个界面只用 Button + 反射，不碰任何第三方配置库，26.4 上一定能开。
+     */
+    public static final class FallbackConfigScreen extends Screen {
+
+        private final Screen parent;
+        private final Object cfg;
+        private final java.util.List<java.lang.reflect.Field> fields = new java.util.ArrayList<java.lang.reflect.Field>();
+        private final java.util.List<Button> rows = new java.util.ArrayList<Button>();
+        private int scroll = 0;
+        private Button doneButton;
+
+        FallbackConfigScreen(Screen parent) {
+            super(configTitle());
+            this.parent = parent;
+            Object c = null;
+            try {
+                c = Main.config;
+            } catch (Throwable ignored) {
+                c = null;
+            }
+            if (c == null) {
+                try {
+                    java.lang.reflect.Field hf = Main.class.getDeclaredField("configHolder");
+                    hf.setAccessible(true);
+                    Object holder = hf.get(null);
+                    c = holder.getClass().getMethod("getConfig").invoke(holder);
+                } catch (Throwable ignored) {
+                    c = null;
+                }
+            }
+            this.cfg = c;
+        }
+
+        @Override
+        protected void init() {
+            fields.clear();
+            rows.clear();
+            if (cfg != null) {
+                for (java.lang.reflect.Field f : cfg.getClass().getDeclaredFields()) {
+                    int mod = f.getModifiers();
+                    if (java.lang.reflect.Modifier.isStatic(mod)) continue;
+                    if (java.lang.reflect.Modifier.isFinal(mod)) continue;
+                    if (java.lang.reflect.Modifier.isTransient(mod)) continue;
+                    Class<?> t = f.getType();
+                    boolean ok = (t == boolean.class || t == Boolean.class
+                            || t == int.class || t == Integer.class
+                            || t == long.class || t == Long.class
+                            || t == float.class || t == Float.class
+                            || t == double.class || t == Double.class
+                            || t == String.class || t.isEnum());
+                    if (!ok) continue;
+                    if (isExcludedField(f)) continue;
+                    try {
+                        f.setAccessible(true);
+                        fields.add(f);
+                    } catch (Throwable ignored) {}
+                }
+            }
+
+            int w = Math.min(320, Math.max(120, width - 40));
+            int x = (width - w) / 2;
+            for (int i = 0; i < fields.size(); i++) {
+                final int idx = i;
+                Button.Builder bb = Button.builder(Component.literal(""), btn -> cycleField(idx))
+                        .pos(x, 0).size(w, 20);
+                Tooltip tt = fieldTooltip(fields.get(i));
+                if (tt != null) bb.tooltip(tt);
+                Button b = bb.build();
+                rows.add(b);
+                addRenderableWidget(b);
+            }
+            doneButton = Button.builder(Component.translatable("gui.done"), btn -> goBack())
+                    .pos(x, 0).size(w, 20).build();
+            addRenderableWidget(doneButton);
+            layout();
+        }
+
+        /** 布局 + 刷新按钮文字（滚动 / 改值后都要调） */
+        private void layout() {
+            int w = Math.min(320, Math.max(120, width - 40));
+            int x = (width - w) / 2;
+            int top = 40;
+            for (int i = 0; i < rows.size(); i++) {
+                int y = top + i * 22 - scroll;
+                Button b = rows.get(i);
+                b.setPosition(x, y);
+                b.setMessage(rowLabel(i));
+                setBoolField(b, "visible", (y > 26 && y < height - 36));
+            }
+            if (doneButton != null) doneButton.setPosition(x, height - 28);
+        }
+
+        private Component rowLabel(int i) {
+            java.lang.reflect.Field f = fields.get(i);
+            Object v = null;
+            try {
+                v = f.get(cfg);
+            } catch (Throwable ignored) {}
+            String val;
+            if (v instanceof Boolean) {
+                val = boolLabel(((Boolean) v).booleanValue());
+            } else if (v instanceof Enum) {
+                val = enumLabel(f, (Enum<?>) v);
+            } else {
+                val = String.valueOf(v);
+            }
+            return Component.empty()
+                    .append(fieldName(f))
+                    .append(Component.literal(" : "))
+                    .append(Component.literal(val));
+        }
+
+        // ---------------- 本地化（按 Cloth Config 的键名规范） ----------------
+
+        /** 该翻译键是否真的存在（缺失时 getString() 会原样返回键名） */
+        private static boolean hasKey(String key) {
+            if (key == null || key.isEmpty()) return false;
+            try {
+                String s = Component.translatable(key).getString();
+                return s != null && !s.isEmpty() && !s.equals(key);
+            } catch (Throwable ignored) {
+                return false;
+            }
+        }
+
+        /** 翻译键存在则返回可翻译组件，否则回退字面量 */
+        private static Component tr(String key, String fallback) {
+            if (hasKey(key)) return Component.translatable(key);
+            return Component.literal(fallback);
+        }
+
+        /** 配置界面标题 */
+        private static Component configTitle() {
+            String[] ks = {
+                    "text.autoconfig." + Main.MOD_ID + ".title",
+                    "disc_jockey.screen.config"
+            };
+            for (String k : ks) {
+                if (hasKey(k)) return Component.translatable(k);
+            }
+            return Component.literal("Disc Jockey Config");
+        }
+
+        /** 字段显示名：优先 text.autoconfig.<modid>.option.<字段名> */
+        private static Component fieldName(java.lang.reflect.Field f) {
+            String n = f.getName();
+            String[] ps = {
+                    "text.autoconfig." + Main.MOD_ID + ".option.",
+                    "disc_jockey.config."
+            };
+            for (String p : ps) {
+                String k = p + n;
+                if (hasKey(k)) return Component.translatable(k);
+            }
+            return Component.literal(n);
+        }
+
+        /** 布尔值显示名：cloth-config 键 → 原版 gui.yes/gui.no → 字面量 */
+        private static String boolLabel(boolean v) {
+            String[] ks = {
+                    "text.cloth-config." + (v ? "true" : "false"),
+                    v ? "gui.yes" : "gui.no"
+            };
+            for (String k : ks) {
+                if (hasKey(k)) return Component.translatable(k).getString();
+            }
+            return v ? "true" : "false";
+        }
+
+        /** 枚举值显示名：优先 text.autoconfig.<modid>.option.<字段>.<常量名>，回退 enum 的 toString() */
+        private static String enumLabel(java.lang.reflect.Field f, Enum<?> e) {
+            String n = f.getName();
+            String[] ps = {
+                    "text.autoconfig." + Main.MOD_ID + ".option.",
+                    "disc_jockey.config."
+            };
+            for (String p : ps) {
+                String k = p + n + "." + e.name();
+                if (hasKey(k)) return Component.translatable(k).getString();
+            }
+            return String.valueOf(e);
+        }
+
+        /** 悬浮说明：支持 @Tooltip 单行 与 @Tooltip[0..n] 多行 */
+        private static Tooltip fieldTooltip(java.lang.reflect.Field f) {
+            String n = f.getName();
+            String[] ps = {
+                    "text.autoconfig." + Main.MOD_ID + ".option.",
+                    "disc_jockey.config."
+            };
+            for (String p : ps) {
+                String single = p + n + ".@Tooltip";
+                if (hasKey(single)) {
+                    return Tooltip.create(Component.translatable(single));
+                }
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < 16; i++) {
+                    String k = p + n + ".@Tooltip[" + i + "]";
+                    if (!hasKey(k)) break;
+                    if (sb.length() > 0) sb.append('\n');
+                    sb.append(Component.translatable(k).getString());
+                }
+                if (sb.length() > 0) {
+                    return Tooltip.create(Component.literal(sb.toString()));
+                }
+            }
+            return null;
+        }
+
+        /** 非用户可选项：跳过（含 @ConfigEntry.Gui.Excluded 标注的） */
+        private static boolean isExcludedField(java.lang.reflect.Field f) {
+            String n = f.getName();
+            if ("configVersion".equals(n) || "favorites".equals(n) || "modrinthProjectId".equals(n)) return true;
+            try {
+                for (java.lang.annotation.Annotation a : f.getAnnotations()) {
+                    String cn = a.annotationType().getName();
+                    if (cn != null && cn.endsWith("Gui$Excluded")) return true;
+                }
+            } catch (Throwable ignored) {}
+            return false;
+        }
+
+        /** 点击一行：boolean 取反 / 数字循环候选 / enum 轮转 */
+        private void cycleField(int idx) {
+            if (cfg == null || idx < 0 || idx >= fields.size()) return;
+            java.lang.reflect.Field f = fields.get(idx);
+            try {
+                Class<?> t = f.getType();
+                Object cur = f.get(cfg);
+                if (t == boolean.class || t == Boolean.class) {
+                    f.set(cfg, Boolean.valueOf(!(cur != null && ((Boolean) cur).booleanValue())));
+                } else if (t == String.class) {
+                    showMsg("§7" + tr("disc_jockey.config.manual_edit",
+                            "文本字段请手动编辑 config/disc_jockey.json").getString());
+                    return;
+                } else if (t.isEnum()) {
+                    Object[] cs = t.getEnumConstants();
+                    int ci = 0;
+                    for (int k = 0; k < cs.length; k++) {
+                        if (cs[k] == cur) { ci = k; break; }
+                    }
+                    f.set(cfg, cs[(ci + 1) % cs.length]);
+                } else if (t == int.class || t == Integer.class || t == long.class || t == Long.class) {
+                    int[] cand = new int[]{0, 1, 2, 3, 4, 5, 8, 10, 12, 16, 20, 24, 32, 48, 64, 100};
+                    long cv = (cur instanceof Number) ? ((Number) cur).longValue() : 0L;
+                    long nx = pickNextInt(cand, cv);
+                    if (t == int.class || t == Integer.class) f.set(cfg, Integer.valueOf((int) nx));
+                    else f.set(cfg, Long.valueOf(nx));
+                } else {
+                    double[] cand = new double[]{0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4, 5, 10};
+                    double cv = (cur instanceof Number) ? ((Number) cur).doubleValue() : 0D;
+                    double nx = pickNextDouble(cand, cv);
+                    if (t == float.class || t == Float.class) f.set(cfg, Float.valueOf((float) nx));
+                    else f.set(cfg, Double.valueOf(nx));
+                }
+            } catch (Throwable t2) {
+                Main.LOGGER.warn("[DJ] 配置字段修改失败: {}", String.valueOf(t2));
+            }
+            layout();
+        }
+
+        private static long pickNextInt(int[] cand, long cv) {
+            for (int k = 0; k < cand.length; k++) {
+                if (cand[k] == cv) return cand[(k + 1) % cand.length];
+            }
+            return cand[0];
+        }
+
+        private static double pickNextDouble(double[] cand, double cv) {
+            for (int k = 0; k < cand.length; k++) {
+                if (Math.abs(cand[k] - cv) < 1e-6D) return cand[(k + 1) % cand.length];
+            }
+            return cand[0];
+        }
+
+        private void goBack() {
+            try {
+                Main.configHolder.save();
+            } catch (Throwable ignored) {}
+            if (parent != null) dispatchScreen(parent);
+        }
+
+        @Override
+        public void onClose() {
+            try {
+                Main.configHolder.save();
+            } catch (Throwable ignored) {}
+            super.onClose();
+        }
+
+        // 滚轮：两个签名都提供，不加 @Override，命中哪个算哪个（26.3/26.4 通吃）
+        public boolean mouseScrolled(double mx, double my, double dx, double dy) {
+            applyScroll(dy);
+            return true;
+        }
+
+        public boolean mouseScrolled(double mx, double my, double delta) {
+            applyScroll(delta);
+            return true;
+        }
+
+        private void applyScroll(double delta) {
+            int max = Math.max(0, fields.size() * 22 - (height - 80));
+            scroll = (int) Math.max(0, Math.min(max, scroll + delta * 22));
+            layout();
+        }
+
+        @Override
+        public void tick() {
+            layout();
+        }
     }
 
     // ==================== 全局播放（playsound 广播） ====================
@@ -1782,11 +2213,11 @@ public class DiscJockeyScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        super.extractBackground(context, mouseX, mouseY, delta);
+    public void extractBackground(GuiGraphicsExtractor context) {
+        super.extractBackground(context);
         BlitCompat.blit(
                 context,
-                AbstractSelectionList.INWORLD_MENU_LIST_BACKGROUND,
+                resolveListBackground(),
                 5,
                 32,
                 width / 2,
@@ -1799,8 +2230,8 @@ public class DiscJockeyScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        super.extractRenderState(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor context) {
+        super.extractRenderState(context);
 
         context.text(font, DROP_HINT, width / 2, 5, 0xFFFFFF);
         context.text(font, SELECT_SONG, (width / 4 * 3), 20, 0xFFFFFF);
@@ -1838,9 +2269,189 @@ public class DiscJockeyScreen extends Screen {
         }
     }
 
-    @Override
+
+    // ==================== 26.4 兼容：自建循环按钮（彻底摆脱 CycleButton） ====================
+
+    /**
+     * 26.4 删掉了 CycleButton$OnValueChange：只要用 CycleButton.builder(...)，
+     * lambda 的方法描述符里就写死了这个接口名，类加载即 NoClassDefFoundError，反射救不了。
+     * 所以这里用原生 Button 自己实现循环，不触碰 CycleButton 的任何 API。
+     */
+    public static final class CycleBtn<T> {
+        private final Button button;
+        private final T[] values;
+        private final java.util.function.Function<T, Component> msg;
+        private final java.util.function.BiConsumer<CycleBtn<T>, T> onChange;
+        private int index;
+
+        CycleBtn(int x, int y, int w, int h, T[] values, T initial,
+                 java.util.function.Function<T, Component> msg,
+                 java.util.function.BiConsumer<CycleBtn<T>, T> onChange) {
+            this.values = values;
+            this.msg = msg;
+            this.onChange = onChange;
+            this.index = indexOf(initial);
+            this.button = Button.builder(msg.apply(values[index]), b -> {
+                CycleBtn.this.index = (CycleBtn.this.index + 1) % values.length;
+                syncMessage();
+                if (CycleBtn.this.onChange != null) {
+                    CycleBtn.this.onChange.accept(CycleBtn.this, values[CycleBtn.this.index]);
+                }
+            }).pos(x, y).size(w, h).build();
+        }
+
+        private int indexOf(T v) {
+            for (int i = 0; i < values.length; i++) {
+                if (java.util.Objects.equals(values[i], v)) return i;
+            }
+            return 0;
+        }
+
+        public T getValue() { return values[index]; }
+
+        public void setValue(T v) {
+            int ni = indexOf(v);
+            if (ni != index) { index = ni; }
+            syncMessage();
+        }
+
+        public Button button() { return button; }
+
+        public void setTooltip(Tooltip t) {
+            try { button.setTooltip(t); } catch (Throwable ignored) {}
+        }
+
+        private void syncMessage() {
+            try { button.setMessage(msg.apply(values[index])); } catch (Throwable ignored) {}
+        }
+    }
+
+    /**
+     * 26.4 把 AbstractWidget 的 visible / active 改成了 protected，直接赋值会 IllegalAccessError。
+     * 走反射赋值（两个类都在 unnamed module，setAccessible 可用）。
+     */
+    private static void setBoolField(Object widget, String field, boolean value) {
+        if (widget == null) return;
+        try {
+            Class<?> c = widget.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(field);
+                    f.setAccessible(true);
+                    f.setBoolean(widget, value);
+                    return;
+                } catch (NoSuchFieldException e) {
+                    c = c.getSuperclass();
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /** 关键控件是否就绪 */
+    private boolean widgetsReady() {
+        return playPauseButton != null && songState != null
+                && timeBar != null && songTitle != null;
+    }
+
+    /**
+     * 兜底构建控件：26.4 下 screen 字段可能被直接写入而未触发 init()，
+     * 导致 tick() 访问空控件崩溃。这里补一次 rebuildWidgets/init。
+     */
+    private void ensureWidgetsBuilt() {
+        try {
+            try {
+                java.lang.reflect.Method m = getClass().getMethod("rebuildWidgets");
+                m.setAccessible(true);
+                m.invoke(this);
+            } catch (Throwable ignored) {
+                java.lang.reflect.Method m2 =
+                        net.minecraft.client.gui.screens.Screen.class.getDeclaredMethod("init");
+                m2.setAccessible(true);
+                m2.invoke(this);
+            }
+        } catch (Throwable t) {
+            Throwable root = (t instanceof java.lang.reflect.InvocationTargetException
+                    && t.getCause() != null) ? t.getCause() : t;
+            Main.LOGGER.warn("[Disc Jockey] 控件自愈失败: {}", String.valueOf(root));
+        }
+    }
+
+    /**
+     * 解析列表背景纹理。
+     * 26.4 移除了 AbstractSelectionList.INWORLD_MENU_LIST_BACKGROUND 字段，
+     * 编译期直接引用会在【运行时】抛 NoSuchFieldError 并崩溃（即使能编译过）。
+     * 因此改为反射解析 + 按资源路径兜底，全部失败返回 null（背景不画，功能不受影响）。
+     */
+    private static volatile Object listBackgroundCache = null;
+    private static volatile boolean listBackgroundResolved = false;
+
+    private static net.minecraft.resources.Identifier resolveListBackground() {
+        if (listBackgroundResolved) {
+            return (net.minecraft.resources.Identifier) listBackgroundCache;
+        }
+        Object found = null;
+
+        // ① 反射读 AbstractSelectionList 的静态字段（26.3 及更早）
+        for (String fn : new String[]{"INWORLD_MENU_LIST_BACKGROUND", "MENU_LIST_BACKGROUND"}) {
+            try {
+                java.lang.reflect.Field f = AbstractSelectionList.class.getDeclaredField(fn);
+                f.setAccessible(true);
+                Object v = f.get(null);
+                if (v != null) { found = v; break; }
+            } catch (Throwable ignored) {}
+        }
+
+        // ② 字段被移除时，按 MC 原版资源路径自行构造 Identifier
+        if (found == null) {
+            for (String path : new String[]{
+                    "textures/gui/inworld_menu_list_background.png",
+                    "textures/gui/menu_list_background.png"}) {
+                try {
+                    java.lang.reflect.Method m = net.minecraft.resources.Identifier.class
+                            .getMethod("fromNamespaceAndPath", String.class, String.class);
+                    Object v = m.invoke(null, "minecraft", path);
+                    if (v != null) { found = v; break; }
+                } catch (Throwable ignored) {}
+                try {
+                    java.lang.reflect.Method m = net.minecraft.resources.Identifier.class
+                            .getMethod("withDefaultNamespace", String.class);
+                    Object v = m.invoke(null, path);
+                    if (v != null) { found = v; break; }
+                } catch (Throwable ignored) {}
+            }
+        }
+
+        listBackgroundCache = found;
+        listBackgroundResolved = true;
+        if (found == null) {
+            Main.LOGGER.warn("[Disc Jockey] 列表背景纹理解析失败，跳过背景绘制（不影响其它功能）");
+        }
+        return (net.minecraft.resources.Identifier) found;
+    }
+
+    /** 诊断用：列出 Minecraft 上所有"单参且能接受 Screen"的公开方法，便于定位 26.4 的真实入口 */
+    private static String dumpScreenDispatchCandidates(Object mc) {
+        if (mc == null) return "mc=null";
+        StringBuilder sb = new StringBuilder();
+        Class<?> sc = net.minecraft.client.gui.screens.Screen.class;
+        for (java.lang.reflect.Method m : mc.getClass().getMethods()) {
+            if (m.getParameterCount() != 1) continue;
+            Class<?> p = m.getParameterTypes()[0];
+            if (p.isPrimitive() || !p.isAssignableFrom(sc)) continue;
+            sb.append("\n  ").append(m.getReturnType().getSimpleName())
+              .append(" ").append(m.getName()).append("(")
+              .append(p.getSimpleName()).append(")");
+        }
+        return sb.length() == 0 ? "(无候选)" : sb.toString();
+    }
+
     public void tick() {
         super.tick();
+        // ★ 防御：派发异常时 init() 可能没跑完（26.4 实测），先自愈；仍缺失则跳过本帧，绝不 NPE
+        if (!widgetsReady()) {
+            ensureWidgetsBuilt();
+            if (!widgetsReady()) return;
+        }
         refreshOffsetDisplay();
         songState.setMessage(getPlaybackStateText());
         timeBar.update();
@@ -1971,7 +2582,7 @@ public class DiscJockeyScreen extends Screen {
         if (str.length() > 300) str = str.substring(0, 300) + "...";
 
         
-        Main.setScreenCompatStatic(minecraft, new ConfirmScreen(
+        openScreenSafe(new ConfirmScreen(
                 confirmed -> {
                     if (confirmed) {
                         paths.forEach(p -> {
@@ -1994,7 +2605,7 @@ public class DiscJockeyScreen extends Screen {
                         });
                         SongLoader.sort();
                     }
-                    Main.setScreenCompatStatic(minecraft, this);
+                    openScreenSafe(this);
                 },
                 Component.translatable(Main.MOD_ID + ".screen.drop_confirm"),
                 Component.literal(str)
@@ -2015,7 +2626,7 @@ public class DiscJockeyScreen extends Screen {
         }
         new Thread(() -> Main.configHolder.save()).start();
         if (parent != null) {
-            Main.setScreenCompatStatic(Minecraft.getInstance(), parent);
+            openScreenSafe(parent);
         } else {
             super.onClose();
         }

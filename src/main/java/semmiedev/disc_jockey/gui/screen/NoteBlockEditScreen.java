@@ -1150,17 +1150,19 @@ public class NoteBlockEditScreen extends Screen {
         Main.LOGGER.info("[Editor] {}", c.getString());
     }
 
-    public static void showMsg(String text) { showMsg(Component.literal(text)); }
-
     @Override
-    public void extractRenderState(GuiGraphicsExtractor c, int mx, int my, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor c) {
+        int mx = c.mouseX();
+        int my = c.mouseY();
+        float delta = c.partialTicks();
+
         mouseX = mx;
         mouseY = my;
 
         // ★ 框选拖拽时，靠近边缘自动滚动（必须在计算 hover / drag 之前）
         autoScrollEdge(mx, my);
 
-        super.extractRenderState(c, mx, my, delta);
+        super.extractRenderState(c);
 
         int ch = cellH(), cw = cellW();
         int rows = visibleRows(), ticks = visibleTicks();

@@ -172,11 +172,9 @@ public class Main implements ClientModInitializer {
             LOGGER.info("[Disc Jockey] Client fully started, beginning HUD reflection setup...");
 
             try {
-                
                 ClassLoader fabricClassLoader = Thread.currentThread().getContextClassLoader();
                 LOGGER.info("[Disc Jockey] ✓ Got Fabric ClassLoader: {}", fabricClassLoader);
 
-                
                 Class<?> hudRegistryClass = fabricClassLoader.loadClass(
                         "net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry");
                 Class<?> hudElementClass = fabricClassLoader.loadClass(
@@ -184,7 +182,6 @@ public class Main implements ClientModInitializer {
                 LOGGER.info("[Disc Jockey] ✓ Loaded HudElementRegistry class");
                 LOGGER.info("[Disc Jockey] ✓ Loaded HudElement class");
 
-                
                 Method samMethod = null;
                 for (Method m : hudElementClass.getDeclaredMethods()) {
                     if (Modifier.isAbstract(m.getModifiers())) {
@@ -206,6 +203,9 @@ public class Main implements ClientModInitializer {
                 }
                 LOGGER.info("[Disc Jockey] ✓ HudElement SAM method: {} (paramCount={})",
                         samMethod.getName(), samMethod.getParameterCount());
+                // 26.4-s5 起 fabric-rendering-v1 跨到 29.x，SAM 名字/参数个数都可能变。
+                // 这里只记录名字用于日志，命中判定不再依赖 "参数个数 == 2"。
+                final String samName = samMethod.getName();
 
                 // ===== 4) 缓存 Minecraft / Gui / SpectrumRenderer 反射对象 =====
                 Class<?> mcClass = Class.forName("net.minecraft.client.Minecraft");
@@ -224,7 +224,6 @@ public class Main implements ClientModInitializer {
                         "semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager");
                 LOGGER.info("[Disc Jockey] ✓ Loaded SpectrumRendererManager class");
 
-                
                 Class<?> identifierClass = Class.forName("net.minecraft.resources.Identifier");
                 Constructor<?> identifierCtor =
                         identifierClass.getDeclaredConstructor(String.class, String.class);
@@ -232,128 +231,39 @@ public class Main implements ClientModInitializer {
                 Object spectrumLayer = identifierCtor.newInstance(MOD_ID, "spectrum");
                 LOGGER.info("[Disc Jockey] ✓ Created Identifier: {}", spectrumLayer);
 
-                
                 Method addLast = hudRegistryClass.getMethod(
                         "addLast", identifierClass, hudElementClass);
                 LOGGER.info("[Disc Jockey] ✓ Cached HudElementRegistry.addLast method");
 
-                
+                // 回调命中判定：方法名像渲染回调 + 实参里能找到图形上下文。
+                // 不写死参数个数，26.4 把 SAM 改成 1/2/3 参都能命中。
                 Object hudElement = java.lang.reflect.Proxy.newProxyInstance(
                         fabricClassLoader,
                         new Class<?>[]{hudElementClass},
                         (proxy, method, args) -> {
                             String _mname = method.getName();
-                            if (args != null && args.length == 2
-                                    && ("extractRenderState".equals(_mname)
-                                        || "extract".equals(_mname)
-                                        || "render".equals(_mname))) {
-                                Object guiGraphicsExtractor = args[0];
+                            Object ctx = findRenderContext(args);
 
+                            if (ctx != null && (_mname.equals(samName) || isRenderCallbackName(_mname))) {
                                 try {
-                                    semmiedev.disc_jockey.Config cfg = configHolder.getConfig();
-
-                                    if (!cfg.spectrumAlwaysVisible) {
-                                        Object gui = guiField.get(mcInstance);
-                                        Object screen = screenField.get(gui);
-                                        if (screen == null || !screen.getClass().getName()
-                                                .contains("DiscJockeyScreen")) {
-                                            return null;
-                                        }
-                                    }
-                                    if (!SONG_PLAYER.running && !PREVIEWER.running) {
-                                        return null;
-                                    }
-
-                                    int width = 0, height = 0;
-                                    try {
-                                        Method gw = guiGraphicsExtractor.getClass()
-                                                .getMethod("guiWidth");
-                                        Method gh = guiGraphicsExtractor.getClass()
-                                                .getMethod("guiHeight");
-                                        width = (int) gw.invoke(guiGraphicsExtractor);
-                                        height = (int) gh.invoke(guiGraphicsExtractor);
-                                    } catch (Exception e1) {
-                                        try {
-                                            Method getWindow = mcClass.getMethod("getWindow");
-                                            Object window = getWindow.invoke(mcInstance);
-                                            Class<?> winCls = window.getClass();
-                                            try {
-                                                width = (int) winCls.getMethod("getScaledWidth")
-                                                        .invoke(window);
-                                                height = (int) winCls.getMethod("getScaledHeight")
-                                                        .invoke(window);
-                                            } catch (NoSuchMethodException e2) {
-                                                width = (int) winCls.getMethod("getGuiScaledWidth")
-                                                        .invoke(window);
-                                                height = (int) winCls.getMethod("getGuiScaledHeight")
-                                                        .invoke(window);
-                                            }
-                                        } catch (Exception e3) {
-                                            LOGGER.error("[Disc Jockey] Cannot get screen size", e3);
-                                            return null;
-                                        }
-                                    }
-
-                                    int bottomY = height - 75;
-                                    LOGGER.debug("[Disc Jockey] HUD rendering: width={}, height={}, bottomY={}",
-                                            width, height, bottomY);
-
-                                    Object manager = spectrumRendererClass.getMethod("getCurrent")
-                                            .invoke(null);
-
-                                    Method renderMethod = null;
-                                    try {
-                                        renderMethod = spectrumRendererClass.getMethod(
-                                                "render",
-                                                guiGraphicsExtractor.getClass(),
-                                                int.class, int.class,
-                                                float[].class, int.class, int.class);
-                                    } catch (NoSuchMethodException e1) {
-                                        try {
-                                            renderMethod = spectrumRendererClass.getMethod(
-                                                    "render", guiGraphicsExtractor.getClass());
-                                        } catch (NoSuchMethodException e2) {
-                                            LOGGER.error("[Disc Jockey] No render method found on SpectrumRendererManager");
-                                        }
-                                    }
-
-                                    if (renderMethod != null) {
-                                        if (renderMethod.getParameterCount() == 6) {
-                                            
-                                            renderMethod.invoke(manager,
-                                                    guiGraphicsExtractor, width, height,
-                                                    SMOOTHER.getSmoothedLevels(), 15, bottomY);
-                                        } else if (renderMethod.getParameterCount() == 1) {
-                                            renderMethod.invoke(manager, guiGraphicsExtractor);
-                                        }
-                                        LOGGER.debug("[Disc Jockey] ✅ HUD render completed");
-                                    }
-
+                                    renderSpectrumHud(ctx, mcInstance, mcClass, guiField, screenField,
+                                            spectrumRendererClass);
                                 } catch (Throwable renderEx) {
                                     LOGGER.error("[Disc Jockey] HUD render failed", renderEx);
                                 }
                                 return null;
-
-                            } else {
-                                Class<?> ret = method.getReturnType();
-                                if (ret == void.class)      return null;
-                                if (ret == int.class)        return 0;
-                                if (ret == boolean.class)     return false;
-                                if (ret == long.class)       return 0L;
-                                if (ret == double.class)     return 0.0;
-                                if (ret == float.class)      return 0.0f;
-                                return null;
                             }
+                            return defaultValue(method.getReturnType());
                         }
                 );
                 LOGGER.debug("[Disc Jockey] ✓ HudElement Proxy created via Fabric ClassLoader");
 
                 addLast.invoke(null, spectrumLayer, hudElement);
-                LOGGER.debug("[Disc Jockey] ✅ 26.2 HUD registered successfully! Spectrum will now render when playing.");
+                LOGGER.info("[Disc Jockey] ✅ HUD registered successfully! SAM={}", samName);
                 return;
 
             } catch (Throwable officialEx) {
-                LOGGER.info("[Disc Jockey] 26.3 HUD(legacy fallback) (HudElementRegistry) not available, falling back to legacy Proxy method", officialEx);
+                LOGGER.info("[Disc Jockey] HUD(HudElementRegistry) setup failed", officialEx);
             }
         });
 
@@ -838,6 +748,229 @@ public class Main implements ClientModInitializer {
 
         } catch (Throwable t) {
             LOGGER.warn("playNoteViaSoundManager failed (noteId={}): {}", noteId, t.getMessage());
+        }
+    }
+
+    // ==================================================================
+    //  频谱 HUD 辅助（26.4-s5 / fabric-rendering-v1 29.x 适配）
+    //  设计原则：不写死 SAM 参数个数、不写死方法名、不写死 render 签名
+    // ==================================================================
+
+    /** 方法名是否像"渲染回调"。排除 Object 自带方法，其余含 render/extract/draw/hud 的都算。 */
+    private static boolean isRenderCallbackName(String n) {
+        if (n == null || n.isEmpty()) return false;
+        if ("toString".equals(n) || "hashCode".equals(n) || "equals".equals(n)) return false;
+        if ("clone".equals(n) || "finalize".equals(n) || "notify".equals(n) || "notifyAll".equals(n)) return false;
+        String l = n.toLowerCase();
+        return l.contains("render") || l.contains("extract") || l.contains("draw") || l.contains("hud");
+    }
+
+    /** 从回调实参里找出图形上下文对象（类型名含 GuiGraphics / DrawContext）。 */
+    private static Object findRenderContext(Object[] args) {
+        if (args == null || args.length == 0) return null;
+        for (Object a : args) {
+            if (a == null) continue;
+            String cn = a.getClass().getName();
+            if (cn.contains("GuiGraphics") || cn.contains("DrawContext")) return a;
+        }
+        // 兜底：第一个"不像标量"的对象参数
+        for (Object a : args) {
+            if (a == null) continue;
+            if (a instanceof Number || a instanceof Boolean || a instanceof Character
+                    || a instanceof String || a instanceof Enum) continue;
+            return a;
+        }
+        return null;
+    }
+
+    /** 代理回调未命中时的默认返回值。 */
+    private static Object defaultValue(Class<?> ret) {
+        if (ret == null || ret == void.class) return null;
+        if (!ret.isPrimitive()) return null;
+        if (ret == boolean.class) return false;
+        if (ret == int.class) return 0;
+        if (ret == long.class) return 0L;
+        if (ret == float.class) return 0.0f;
+        if (ret == double.class) return 0.0;
+        if (ret == short.class) return (short) 0;
+        if (ret == byte.class) return (byte) 0;
+        if (ret == char.class) return (char) 0;
+        return null;
+    }
+
+    private static volatile boolean hudDiagDone = false;
+    private static volatile boolean hudHitLogged = false;
+
+    /** 实际绘制频谱。全程反射，任何一环拿不到就降级，绝不抛到调用方导致崩溃。 */
+    private static void renderSpectrumHud(Object ctx, Object mc, Class<?> mcClass,
+                                          Field guiField, Field screenField, Class<?> specCls) {
+        // ---- 1) 开关 ----
+        try {
+            semmiedev.disc_jockey.Config cfg = configHolder.getConfig();
+            if (cfg != null && !cfg.spectrumAlwaysVisible) {
+                Object gui = guiField.get(mc);
+                Object screen = screenField.get(gui);
+                if (screen == null || !screen.getClass().getName().contains("DiscJockeyScreen")) return;
+            }
+        } catch (Throwable ignored) { /* 读不到就当作始终显示 */ }
+
+        // ---- 2) 是否在播放 ----
+        if (!SONG_PLAYER.running && !PREVIEWER.running) return;
+
+        StringBuilder diag = new StringBuilder();
+
+        // ---- 3) 尺寸探测（三级兜底，不再直接 return null）----
+        int[] size = probeSize(ctx, mc, mcClass);
+        int width = size[0], height = size[1];
+        diag.append("size=").append(width).append('x').append(height);
+        if (width <= 0 || height <= 0) { width = 427; height = 240; }
+
+        int bottomY = height - 75;
+
+        // ---- 4) 取 manager（多候选）----
+        Object manager = null;
+        for (String mn : new String[]{"getCurrent", "get", "instance", "getCurrentRenderer"}) {
+            try {
+                Method m = specCls.getMethod(mn);
+                if (!Modifier.isStatic(m.getModifiers())) continue;
+                manager = m.invoke(null);
+                if (manager != null) break;
+            } catch (Throwable ignored) {}
+        }
+
+        // ---- 5) render 宽松匹配（可赋值，不用精确类型）----
+        Method renderMethod = null;
+        Object[] renderArgs = null;
+        if (manager != null) {
+            for (Method m : specCls.getMethods()) {
+                if (!"render".equals(m.getName())) continue;
+                Class<?>[] ps = m.getParameterTypes();
+                if (ps.length == 0) continue;
+                if (!ps[0].isAssignableFrom(ctx.getClass())) continue;
+                if (ps.length == 6) {
+                    renderMethod = m;
+                    renderArgs = new Object[]{ctx, width, height, SMOOTHER.getSmoothedLevels(), 15, bottomY};
+                    break;
+                } else if (ps.length == 1) {
+                    renderMethod = m;
+                    renderArgs = new Object[]{ctx};
+                    break;  // 1 参优先度低，但先记下，继续找 6 参
+                } else if (renderMethod == null) {
+                    renderMethod = m;
+                    renderArgs = new Object[]{ctx};
+                }
+            }
+        }
+
+        if (renderMethod != null && renderArgs != null) {
+            try {
+                renderMethod.invoke(manager, renderArgs);
+                diag.append(" | render=").append(renderMethod.getParameterCount()).append("参 OK");
+                logHudHit(diag.toString());
+                return;
+            } catch (Throwable t) {
+                diag.append(" | render失败:").append(String.valueOf(t.getMessage()));
+            }
+        } else {
+            diag.append(" | 未找到render");
+        }
+
+        // ---- 6) 最后兜底：自己画柱子，保证至少看得见 ----
+        if (drawFallbackBars(ctx, width, height, bottomY)) {
+            diag.append(" | 自绘兜底OK");
+        } else {
+            diag.append(" | 自绘兜底也失败");
+        }
+        logHudHit(diag.toString());
+    }
+
+    private static void logHudHit(String info) {
+        if (!hudHitLogged) {
+            hudHitLogged = true;
+            LOGGER.info("[DJ-HUD] 回调命中: {}", info);
+        }
+    }
+
+    /** 从 ctx / Window 探测 GUI 宽高。三级兜底。 */
+    private static int[] probeSize(Object ctx, Object mc, Class<?> mcClass) {
+        // ① ctx 上的方法
+        if (ctx != null) {
+            Integer w = null, h = null;
+            for (String[] pair : new String[][]{{"guiWidth", "guiHeight"},
+                                                {"getGuiWidth", "getGuiHeight"},
+                                                {"width", "height"}}) {
+                try {
+                    Method mw = ctx.getClass().getMethod(pair[0]);
+                    Method mh = ctx.getClass().getMethod(pair[1]);
+                    w = (Integer) mw.invoke(ctx);
+                    h = (Integer) mh.invoke(ctx);
+                    if (w != null && h != null && w > 0 && h > 0) return new int[]{w, h};
+                } catch (Throwable ignored) {}
+            }
+            // ② ctx 上的字段
+            for (String[] pair : new String[][]{{"guiWidth", "guiHeight"}, {"width", "height"}}) {
+                try {
+                    Field fw = ctx.getClass().getDeclaredField(pair[0]);
+                    Field fh = ctx.getClass().getDeclaredField(pair[1]);
+                    fw.setAccessible(true); fh.setAccessible(true);
+                    int fwv = fw.getInt(ctx), fhv = fh.getInt(ctx);
+                    if (fwv > 0 && fhv > 0) return new int[]{fwv, fhv};
+                } catch (Throwable ignored) {}
+            }
+        }
+        // ③ Window
+        try {
+            Object window = mcClass.getMethod("getWindow").invoke(mc);
+            if (window != null) {
+                Class<?> wc = window.getClass();
+                for (String[] pair : new String[][]{{"getGuiScaledWidth", "getGuiScaledHeight"},
+                                                    {"getScaledWidth", "getScaledHeight"}}) {
+                    try {
+                        int w = (int) wc.getMethod(pair[0]).invoke(window);
+                        int h = (int) wc.getMethod(pair[1]).invoke(window);
+                        if (w > 0 && h > 0) return new int[]{w, h};
+                    } catch (Throwable ignored) {}
+                }
+            }
+        } catch (Throwable ignored) {}
+        return new int[]{0, 0};
+    }
+
+    /** 找不到 SpectrumRendererManager.render 时的自绘兜底：用 fill 画柱状条。 */
+    private static boolean drawFallbackBars(Object ctx, int width, int height, int bottomY) {
+        if (ctx == null) return false;
+        Method fill = null;
+        for (Method m : ctx.getClass().getMethods()) {
+            if (!"fill".equals(m.getName())) continue;
+            Class<?>[] ps = m.getParameterTypes();
+            if (ps.length == 5 && ps[0] == int.class && ps[1] == int.class
+                    && ps[2] == int.class && ps[3] == int.class && ps[4] == int.class) {
+                fill = m; break;
+            }
+        }
+        if (fill == null) return false;
+
+        float[] levels = null;
+        try { levels = SMOOTHER.getSmoothedLevels(); } catch (Throwable ignored) {}
+        if (levels == null || levels.length == 0) return false;
+
+        try {
+            int bars = Math.min(levels.length, 64);
+            int barW = Math.max(2, (width - 30) / Math.max(1, bars));
+            int baseY = bottomY + 60;
+            for (int i = 0; i < bars; i++) {
+                float lv = levels[i];
+                if (lv < 0f) lv = 0f; if (lv > 1f) lv = 1f;
+                int bh = (int) (lv * 55);
+                if (bh <= 0) continue;
+                int x0 = 15 + i * barW;
+                int t = (int) (255 * ((float) i / bars));
+                int col = (0xAA << 24) | ((255 - t) << 16) | (t << 8) | 0x40;
+                fill.invoke(ctx, x0, baseY - bh, x0 + barW - 1, baseY, col);
+            }
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 }

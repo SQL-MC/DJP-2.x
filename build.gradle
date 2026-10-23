@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom' version '1.18.2'
+    id 'net.fabricmc.fabric-loom' version '1.18.4'
     id 'maven-publish'
 }
 
@@ -84,4 +84,7 @@ publishing {
     repositories {
 
     }
+}
+afterEvaluate {
+    tasks.findByName("validateAccessWidener")?.enabled = false
 }
