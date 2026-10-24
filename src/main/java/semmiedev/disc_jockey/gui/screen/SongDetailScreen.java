@@ -8,62 +8,86 @@ import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.Song;
 
 public class SongDetailScreen extends Screen {
+    private final Screen parent;
     private final Song song;
 
-    public SongDetailScreen(Song song) {
+    private static final int PANEL_W      = 340;
+    private static final int PANEL_H      = 196;
+    private static final int PANEL_COLOR  = 0xF0101010;
+    private static final int ACCENT_COLOR = 0xFF55FFAA;
+
+    private static final int TITLE_COLOR  = 0xFFFFFFFF;
+    private static final int LABEL_COLOR  = 0xFFAAAAAA;
+    private static final int VALUE_COLOR  = 0xFFDDDDDD;
+    private static final int LABEL_W      = 72;
+
+    private String titleText = "", authorText = "", originalText = "";
+    private String descText = "", lengthText = "", notesText = "";
+
+    public SongDetailScreen(Song song) { this(null, song); }
+    public SongDetailScreen(Screen parent, Song song) {
         super(Component.literal("Song Details"));
+        this.parent = parent;
         this.song = song;
     }
 
     @Override
     protected void init() {
-        int centerX = width / 2;
-        int startY = height / 2 - 80;
+        String dn = (song.displayName != null) ? song.displayName : "(unknown)";
+        titleText = "♪ " + dn;
+        authorText   = (song.author != null) ? song.author : "Unknown";
+        originalText = (song.originalAuthor != null) ? song.originalAuthor : "Unknown";
+        String d = (song.description != null) ? song.description : "None";
+        if (d.length() > 58) d = d.substring(0, 58) + "...";
+        descText = d;
+        double sec = 0d;
+        try { sec = song.getLengthInSeconds(); } catch (Throwable ignored) {}
+        lengthText = String.format("%.1f s", sec);
+        notesText = String.valueOf((song.notes != null) ? song.notes.length : 0);
 
-        String displayName = (song.displayName != null) ? song.displayName : "(unknown)";
-        String author = (song.author != null) ? song.author : "Unknown";
-        String originalAuthor = (song.originalAuthor != null) ? song.originalAuthor : "Unknown";
-        String desc = (song.description != null) ? song.description : "None";
-        if (desc.length() > 120) desc = desc.substring(0, 120) + "...";
-
-        addRenderableWidget(Button.builder(Component.literal("♪ " + displayName), b -> {})
-                .bounds(centerX - 150, startY, 300, 20).build());
-
-        addRenderableWidget(Button.builder(Component.literal("Author: " + author), b -> {})
-                .bounds(centerX - 150, startY + 25, 300, 20).build());
-
-        addRenderableWidget(Button.builder(Component.literal("Original: " + originalAuthor), b -> {})
-                .bounds(centerX - 150, startY + 50, 300, 20).build());
-
-        addRenderableWidget(Button.builder(Component.literal("Desc: " + desc), b -> {})
-                .bounds(centerX - 150, startY + 75, 300, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.literal("Length: " + String.format("%.1f s", song.getLengthInSeconds())), b -> {})
-                .bounds(centerX - 150, startY + 100, 300, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.literal("Notes: " + song.notes.length), b -> {})
-                .bounds(centerX - 150, startY + 125, 300, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.literal("Back"), b -> {
-                    // 26.4 下 Gui.setScreen 存在失效记录（日志：setScreen 全部失败：null），
-                    // 优先走 Main 的兼容派发；全部失败也要保证能退出，绝不卡死在详情页。
-                    try {
-                        Main.setScreenCompatStatic(minecraft, null);
-                        return;
-                    } catch (Throwable ignored) {}
-                    try {
-                        minecraft.gui.setScreen(null);
-                    } catch (Throwable ignored) {}
-                }
-        ).bounds(centerX - 50, startY + 160, 100, 20).build());
+        int px = (width - PANEL_W) / 2;
+        int py = (height - PANEL_H) / 2;
+        addRenderableWidget(Button.builder(Component.literal("Back"), b -> goBack())
+                .bounds(px + (PANEL_W - 100) / 2, py + PANEL_H - 32, 100, 20).build());
     }
 
+    private void goBack() {
+        try { Main.setScreenCompatStatic(minecraft, parent); return; }
+        catch (Throwable ignored) {}
+        try { minecraft.gui.setScreen(parent); } catch (Throwable ignored) {}
+    }
+
+    /** ★ 26.4 根因：覆写 extractBackground 且不调 super，背景不再被压暗 */
+    @Override
+    public void extractBackground(GuiGraphicsExtractor context) {
+        // 不调 super → 不铺模糊暗层
+    }
+
+    /** ★ 26.4 签名是 1 参 */
     @Override
     public void extractRenderState(GuiGraphicsExtractor context) {
+        int px = (width - PANEL_W) / 2;
+        int py = (height - PANEL_H) / 2;
+
+        context.fill(px, py, px + PANEL_W, py + PANEL_H, PANEL_COLOR);
+        context.fill(px, py, px + PANEL_W, py + 2, ACCENT_COLOR);
+        context.fill(px, py, px + 2, py + PANEL_H, ACCENT_COLOR);
+        context.fill(px + PANEL_W - 2, py, px + PANEL_W, py + PANEL_H, ACCENT_COLOR);
+        context.fill(px, py + PANEL_H - 2, px + PANEL_W, py + PANEL_H, ACCENT_COLOR);
+
+        int tx = px + 14, vx = tx + LABEL_W;
+        context.text(font, Component.literal(titleText), tx, py + 14, TITLE_COLOR, false);
+        row(context, "Author: ",   authorText,   tx, vx, py + 46);
+        row(context, "Original: ", originalText, tx, vx, py + 64);
+        row(context, "Desc: ",     descText,     tx, vx, py + 82);
+        row(context, "Length: ",   lengthText,   tx, vx, py + 100);
+        row(context, "Notes: ",    notesText,    tx, vx, py + 118);
+
         super.extractRenderState(context);
-        context.fill(0, 0, width, height, 0xCC000000);
+    }
+
+    private void row(GuiGraphicsExtractor context, String label, String value, int lx, int vx, int y) {
+        context.text(font, Component.literal(label), lx, y, LABEL_COLOR, false);
+        context.text(font, Component.literal(value), vx, y, VALUE_COLOR, false);
     }
 }

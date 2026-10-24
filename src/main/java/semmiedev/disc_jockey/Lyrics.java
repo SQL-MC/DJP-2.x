@@ -116,17 +116,15 @@ public final class Lyrics {
     public long offsetMillis() {
         return offsetMillis;
     }
-    
-    
-
     public void setOffsetMillis(long value) throws IOException {
-        long delta = value - this.offsetMillis;
         long previous = this.offsetMillis;
-        this.offsetMillis += delta;
+        this.offsetMillis = value;
+        rebuild();
         try {
             write();
         } catch (IOException e) {
             this.offsetMillis = previous;
+            rebuild();
             throw e;
         }
     }

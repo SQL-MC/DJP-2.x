@@ -2568,10 +2568,63 @@ public class DiscJockeyScreen extends Screen {
         return (aa << 24) | (r << 16) | (g << 8) | bb;
     }
 
-    /* ❌ 已删除 mouseButtonPressed(double, double, int)
-       原因：26.3 下该处理器会对每一次点击都触发，导致点「播放 / 预览 / 检测音符盒」
-             都被拦截并弹出 SongDetailScreen，按钮自身逻辑根本没执行（问题 2/3/4 根因）。
-       右键查看详情待探测到 26.3 真实按键常量后再装回，见同目录 修改说明.txt。 */
+    // ==================== 右键打开歌曲详情 ====================
+    //
+    // 26.4 真实签名（javap 实测，与 26.3 一致）：
+    //   GuiEventListener.mouseClicked(MouseButtonEvent, boolean)  ← default 方法
+    //   MouseButtonEvent.isRightMouse() / x() / y()
+    //
+    // 当年那个 bug 的处理器叫 mouseButtonPressed(double,double,int)，
+    // 该名字在 26.3 / 26.4 都不存在 → 它从来不是覆写，只是个被别处调用的
+    // 普通方法，加上没有按键判断，才表现为「点啥都弹详情」。
+    // 现在按真实签名重写，并加三重约束。
+
+    /** 鼠标是否落在歌曲列表矩形内（坐标与 init() 里的构造保持一致） */
+    private boolean overSongList(double mx, double my) {
+        if (songListWidget == null) return false;
+        int lx = width / 2;
+        int ly = 32;
+        int lw = width / 2 - 10;
+        int lh = height - 64 - 32;
+        return mx >= lx && mx < lx + lw && my >= ly && my < ly + lh;
+    }
+
+    /** 取鼠标下方的条目；版本不支持时回退到当前选中项 */
+    private SongListWidget.SongEntry entryAt(double mx, double my) {
+        if (songListWidget == null) return null;
+        for (String mn : new String[]{"getEntryAtPosition", "getEntryAt", "getHoveredEntry"}) {
+            try {
+                java.lang.reflect.Method m =
+                        songListWidget.getClass().getMethod(mn, double.class, double.class);
+                Object v = m.invoke(songListWidget, mx, my);
+                if (v instanceof SongListWidget.SongEntry e) return e;
+            } catch (Throwable ignored) {}
+        }
+        for (String mn : new String[]{"getEntryAtPosition", "getEntryAt"}) {
+            try {
+                java.lang.reflect.Method m =
+                        songListWidget.getClass().getMethod(mn, int.class, int.class);
+                Object v = m.invoke(songListWidget, (int) mx, (int) my);
+                if (v instanceof SongListWidget.SongEntry e) return e;
+            } catch (Throwable ignored) {}
+        }
+        return songListWidget.getSelected();
+    }
+
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubled) {
+        // 三重约束：只响应右键 → 只拦列表矩形 → 其余一律交回 super。
+        // 这样「播放 / 预览 / 检测音符盒 / 搜索框」等按钮完全不受影响，
+        // 不会再复现当年「点啥都弹详情」的 bug。
+        if (event.isRightMouse() && overSongList(event.x(), event.y())) {
+            SongListWidget.SongEntry e = entryAt(event.x(), event.y());
+            if (e != null && e.song != null) {
+                openScreenSafe(new SongDetailScreen(this, e.song));
+                return true;
+            }
+        }
+        return super.mouseClicked(event, doubled);
+    }
 
     @Override
     public void onFilesDrop(List<Path> paths) {
