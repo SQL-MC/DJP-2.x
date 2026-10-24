@@ -1953,10 +1953,101 @@ public class DiscJockeyScreen extends Screen {
         return (aa << 24) | (r << 16) | (g << 8) | bb;
     }
 
-    /* ❌ 已删除 mouseButtonPressed(double, double, int)
-       原因：26.3 下该处理器会对每一次点击都触发，导致点「播放 / 预览 / 检测音符盒」
-             都被拦截并弹出 SongDetailScreen，按钮自身逻辑根本没执行（问题 2/3/4 根因）。
-       右键查看详情待探测到 26.3 真实按键常量后再装回，见同目录 修改说明.txt。 */
+    // ==================== 右键打开歌曲详情 ====================
+    //
+    // 原实现叫 mouseButtonPressed(double, double, int)，而 26.3 真实签名是
+    //   GuiEventListener.mouseClicked(MouseButtonEvent, boolean)  ← default 方法（javap 实测）
+    //   MouseButtonEvent.button() / x() / y()
+    // 那个名字在 26.3 根本不存在 → 它从来不是覆写，只是个被别处调用的普通方法，
+    // 加上没有按键判断，才表现为「点啥都弹详情」（问题 2/3/4 根因）。
+    // 现在按真实签名重写，并加三重判断：只响应右键 / 只拦列表矩形 / 其余交回 super。
+
+    /** 右键按钮值：优先读 MouseButtonInfo 的常量，读不到按 3（GLFW 右键） */
+    private static final int MOUSE_RIGHT = resolveRightButton();
+
+    private static int resolveRightButton() {
+        try {
+            Class<?> c = Class.forName("net.minecraft.client.input.MouseButtonInfo");
+            for (String fn : new String[]{"RIGHT", "MOUSE_BUTTON_RIGHT", "right", "BUTTON_RIGHT"}) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(fn);
+                    f.setAccessible(true);
+                    Object v = f.get(null);
+                    if (v instanceof Number n) return n.intValue();
+                } catch (Throwable ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        return 3;
+    }
+
+    /** 鼠标是否落在歌曲列表矩形内（坐标与 init() 里的构造保持一致） */
+    private boolean overSongList(double mx, double my) {
+        if (songListWidget == null) return false;
+        int lx = width / 2;
+        int ly = 32;
+        int lw = width / 2 - 10;
+        int lh = height - 64 - 32;
+        return mx >= lx && mx < lx + lw && my >= ly && my < ly + lh;
+    }
+
+    /** 取鼠标下方的条目；版本不支持时回退到当前选中项 */
+    private SongListWidget.SongEntry entryAt(double mx, double my) {
+        if (songListWidget == null) return null;
+        for (String mn : new String[]{"getEntryAtPosition", "getEntryAt", "getHoveredEntry"}) {
+            try {
+                java.lang.reflect.Method m =
+                        songListWidget.getClass().getMethod(mn, double.class, double.class);
+                Object v = m.invoke(songListWidget, mx, my);
+                if (v instanceof SongListWidget.SongEntry e) return e;
+            } catch (Throwable ignored) {}
+        }
+        for (String mn : new String[]{"getEntryAtPosition", "getEntryAt"}) {
+            try {
+                java.lang.reflect.Method m =
+                        songListWidget.getClass().getMethod(mn, int.class, int.class);
+                Object v = m.invoke(songListWidget, (int) mx, (int) my);
+                if (v instanceof SongListWidget.SongEntry e) return e;
+            } catch (Throwable ignored) {}
+        }
+        return songListWidget.getSelected();
+    }
+
+    /**
+     * 打开详情页（构造器签名兼容：优先双参 (Screen, Song)，回退单参 (Song)）。
+     * 用反射是为了让 26.3 / 26.4 两份 SongDetailScreen 都能直接编译通过。
+     */
+    private void openSongDetail(SongListWidget.SongEntry e) {
+        Song s = e.song;
+        if (s == null) return;
+        try {
+            java.lang.reflect.Constructor<?> ctor =
+                    SongDetailScreen.class.getConstructor(Screen.class, Song.class);
+            Object scr = ctor.newInstance(this, s);
+            Main.setScreenCompatStatic(minecraft, (Screen) scr);
+            return;
+        } catch (Throwable ignored) {}
+        try {
+            java.lang.reflect.Constructor<?> ctor =
+                    SongDetailScreen.class.getConstructor(Song.class);
+            Object scr = ctor.newInstance(s);
+            Main.setScreenCompatStatic(minecraft, (Screen) scr);
+        } catch (Throwable ignored) {}
+    }
+
+    @Override
+    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubled) {
+        // 只有「右键 + 鼠标在歌曲列表上」才处理，其余一律交回 super。
+        // 这样「播放 / 预览 / 检测音符盒 / 搜索框」等按钮完全不受影响，
+        // 不会再复现当年「点啥都弹详情」的 bug。
+        if (event.button() == MOUSE_RIGHT && overSongList(event.x(), event.y())) {
+            SongListWidget.SongEntry e = entryAt(event.x(), event.y());
+            if (e != null && e.song != null) {
+                openSongDetail(e);
+                return true;
+            }
+        }
+        return super.mouseClicked(event, doubled);
+    }
 
     @Override
     public void onFilesDrop(List<Path> paths) {

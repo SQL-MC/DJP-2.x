@@ -119,14 +119,21 @@ public final class Lyrics {
     
     
 
+    /**
+     * ★ 修复：原实现缺少 rebuild()，导致 write() 只把偏移写进了 .lrc 文件，
+     *   而内存里的 lines（LyricsPlayer 显示 / 发公屏读的就是它）没有重建，
+     *   表现为「调完偏移界面看不出效果，要重载歌曲才生效」。
+     *   现在与 shiftBy() 完全对齐：设置 → 重建 → 写盘；写失败则回滚 + 再重建。
+     */
     public void setOffsetMillis(long value) throws IOException {
-        long delta = value - this.offsetMillis;
         long previous = this.offsetMillis;
-        this.offsetMillis += delta;
+        this.offsetMillis = value;
+        rebuild();
         try {
             write();
         } catch (IOException e) {
             this.offsetMillis = previous;
+            rebuild();
             throw e;
         }
     }
