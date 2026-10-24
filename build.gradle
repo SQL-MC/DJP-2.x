@@ -1,92 +1,9 @@
 plugins {
     id 'net.fabricmc.fabric-loom' version '1.18.4'
     id 'maven-publish'
-<<<<<<< Updated upstream
-    // ✅ 7.1.39 真实存在，26.3 MDK 在用
-    id 'net.neoforged.gradle.userdev' version '7.1.39'
-=======
->>>>>>> Stashed changes
 }
 
 
-<<<<<<< Updated upstream
-version = mod_version
-group = maven_group
-
-sourceSets.main.resources {
-    srcDir('src/generated/resources')
-    exclude("**/*.bbmodel")
-    exclude("src/generated/**/.cache")
-}
-
-repositories {
-    mavenCentral()
-    maven { url = 'https://maven.neoforged.net/releases' }
-    flatDir { dirs 'libs' }
-}
-
-base {
-    archivesName = archives_base_name
-}
-
-// Mojang ships Java 25 to end users in 26.3, so mods should target Java 25.
-java.toolchain.languageVersion = JavaLanguageVersion.of(25)
-
-// 7.1.39 合法 run type：gameTestServer / clientData
-runs {
-    configureEach { run ->
-        run.systemProperty 'forge.logging.markers', 'REGISTRIES'
-        run.systemProperty 'forge.logging.console.level', 'debug'
-        run.workingDirectory = project.layout.projectDirectory.dir('run').dir(run.name)
-        run.modSource sourceSets.main
-    }
-
-    client { }
-
-    server { arguments '--nogui' }
-
-    gameTestServer {
-        systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
-    }
-
-    clientData {
-        arguments.addAll(
-            '--mod', mod_id,
-            '--all',
-            '--output', file('src/generated/resources/').absolutePath,
-            '--existing', file('src/main/resources/').absolutePath
-        )
-    }
-}
-
-
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
-dependencies {
-    // ✅ 7.x 语义：neo_version = NeoForge 版本
-    implementation "net.neoforged:neoforge:${neo_version}"
-
-    // implementation name: 'pianolib-1.0.3+DJP2.7.3'
-    // modApi "me.shedaniel.cloth:cloth-config-neoforge:26.3.1"
-}
-
-tasks.withType(ProcessResources).configureEach {
-    var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-    ]
-    inputs.properties replaceProperties
-
-    filesMatching(['META-INF/neoforge.mods.toml']) {
-        expand replaceProperties
-=======
 processResources {
     // ✅ 明确字符集（非常重要）
     filteringCharset "UTF-8"
@@ -103,7 +20,6 @@ processResources {
     // ✅ 只展开 version.txt
     filesMatching("assets/disc_jockey/version.txt") {
         expand "version": project.mod_version, "mod_version": project.mod_version
->>>>>>> Stashed changes
     }
 
     // ❌ 绝不允许裸的 expand 写在外面

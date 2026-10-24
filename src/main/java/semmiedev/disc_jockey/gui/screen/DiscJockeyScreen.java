@@ -7,6 +7,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;            
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import java.lang.reflect.Method;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSelectionList;
 import net.minecraft.client.gui.components.Button;
@@ -218,9 +219,98 @@ public class DiscJockeyScreen extends Screen {
     
     private static final Integer[] TRANSPOSE_VALUES = { -12, -6, -3, 0, 3, 6, 12 };
 
+    // ---- 全局播放（playsound 广播）----
+    /** 每 tick 最多发送的音效命令数，避免服务器命令洪水 */
+    private static final int MAX_GLOBAL_SOUNDS_PER_TICK = 6;
+    /** 广播音量（>1 放大，保证全服听清） */
+    private static final float GLOBAL_VOLUME = 2.0F;
+    /** 全局广播时临时关闭服务器命令反馈（聊天栏不再刷 playsound 回显） */
+    private static final boolean GLOBAL_MUTE_FEEDBACK = true;
+    /** 广播结束后把 send_command_feedback 恢复成什么（服务器默认 true） */
+    private static final boolean GLOBAL_FEEDBACK_RESTORE = true;
+    /** 聊天提示等级：0=完全不提示 1=仅错误 2=错误+开始/停止 3=全部 */
+    private static final int GLOBAL_CHAT_LEVEL = 0;
+    /** NBS 乐器 id → 音符盒音效，顺序与 Note.NBS_V4 一致 */
+    private static final String[] NOTE_SOUND = {
+            "minecraft:block.note_block.harp",
+            "minecraft:block.note_block.bass",
+            "minecraft:block.note_block.basedrum",
+            "minecraft:block.note_block.snare",
+            "minecraft:block.note_block.hat",
+            "minecraft:block.note_block.guitar",
+            "minecraft:block.note_block.flute",
+            "minecraft:block.note_block.bell",
+            "minecraft:block.note_block.chime",
+            "minecraft:block.note_block.xylophone",
+            "minecraft:block.note_block.iron_xylophone",
+            "minecraft:block.note_block.cow_bell",
+            "minecraft:block.note_block.didgeridoo",
+            "minecraft:block.note_block.bit",
+            "minecraft:block.note_block.banjo",
+            "minecraft:block.note_block.pling"
+    };
+    /** 频谱柱数（与 Main.SMOOTHER 输出一致） */
+    private static final int SPECTRUM_BINS = 16;
+
     private CycleButton<Float> speedButton;
     private Button refreshSongsButton;
     private CycleButton<Integer> transposeButton;
+
+    // ---- 全局播放（static：退出菜单后广播继续，重新打开界面仍可停止）----
+    private Button globalPlayButton;
+    private static volatile boolean globalFeedbackMuted = false;
+    private static volatile boolean globalPlaying = false;
+    private static Thread globalPlayThread = null;
+    /** 正在广播的歌曲名（跨界面实例保留，重新打开界面时用于提示） */
+    private static String globalPlaySongName = null;
+
+    // ==================== 全局播放频谱（自算 + 推送官方双路） ====================
+    //
+    // 为什么改成自算：官方链路依赖 onNotePlayed(...) 的真实签名与内部过滤，
+    // 反射一旦没命中就全盘静默失败（表现为 GUI 内外都不显示）。自算不依赖
+    // 任何官方方法签名，一定能显示；算完再把结果推给官方实例，驱动 HUD。
+    //
+    // GUI 内（DJ 界面）：直接读 globalLevels
+    // HUD（始终显示）：把 globalLevels 写进官方实例的 float[16] 字段
+
+    /**
+     * 单音符峰值能量，直接写进官方 previewPeaks（绕过官方常量 PEAK_ENERGY=0.5）。
+     * 官方预览是固定 0.5（经 OUTPUT_BOOST 1.14514 后最高 0.573，且每根一样高）。
+     * 这里默认 0.85 → 柱高约 0.97，比预览更饱满；嫌高改 0.6，嫌矮改 1.0。
+     */
+    private static final float  GLOBAL_PEAK_ENERGY   = 0.85F;
+    /** 力度带来的高度起伏（0=每根一样高，0.35=有明显层次）。治「生硬/太平」 */
+    private static final float  GLOBAL_VELOCITY_VAR  = 0.35F;
+    /** 每秒残余比例：官方每 tick×0.6、每秒 20 tick → 0.6^20。帧率无关 */
+    private static final double GLOBAL_DECAY_PER_SEC = Math.pow(0.6D, 20.0D);
+    /** 回落速度：1.0=与官方预览一致，0.6=更慢更拖尾，1.5=更快 */
+    private static final float  GLOBAL_FALL_SPEED    = 1.0F;
+    /** 上升柔和度（0..1）。越小柱子升起越软，越大越硬 */
+    private static final float  GLOBAL_ATTACK        = 0.45F;
+    /** 邻带泄漏：让柱子有宽度，不再是一根孤立的针 */
+    private static final float  GLOBAL_SPILL_1       = 0.28F;
+    private static final float  GLOBAL_SPILL_2       = 0.10F;
+    /** band 映射：0=官方取模（与预览一致） 1=对数频率（低音左、高音右） */
+    private static final int    GLOBAL_BAND_MODE     = 0;
+    /** 诊断：打印频谱链路是否激活（排查用，正常关掉） */
+    private static final boolean GLOBAL_SPECTRUM_DEBUG = false;
+    /** 是否把自算结果推给官方实例（驱动 HUD 的「始终显示」） */
+    private static final boolean GLOBAL_FEED_HUD     = true;
+    /** 官方实例查找失败后的重试间隔（毫秒）。不再一次性判死 */
+    private static final long   SPECTRUM_RETRY_MS    = 2000L;
+
+    private static volatile boolean globalSpectrumActive = false;
+    /** 显示值（平滑后） */
+    private static final float[] globalLevels = new float[SPECTRUM_BINS];
+    /** 目标值（音符注入，取 max，每帧随衰减回落） */
+    private static final float[] globalTarget = new float[SPECTRUM_BINS];
+    private static volatile long globalLastTickNanos = 0L;
+    /** 官方 SpectrumVisualizer 实例（来自 Main.SPECTRUM） */
+    private static volatile Object cachedSpectrum = null;
+    private static volatile long lastSpectrumLookupMs = 0L;
+    /** 驱动频谱推进的守护线程：界面关掉后 HUD 仍要动 */
+    private static Thread globalSpectrumThread = null;
+    private static final Object LEVEL_LOCK = new Object();
 
     private SongListWidget songListWidget;
     private Button playButton, previewButton;
@@ -500,8 +590,7 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(lyricsOffsetPlusButton);
         
         configButton = Button.builder(CONFIG, b ->
-                Main.setScreenCompatStatic(minecraft,
-                        Main.openConfigScreen(this))
+                openConfigScreenCompat()
         ).pos(10, height - 30).size(100, 20).build();
         addRenderableWidget(configButton);
         refreshSongsButton = Button.builder(
@@ -612,7 +701,19 @@ public class DiscJockeyScreen extends Screen {
                 }
         ).pos(115, height - 55).size(100, 20).build();
         addRenderableWidget(exportWavButton);
-
+        Button editButton = Button.builder(
+                Component.translatable("disc_jockey.screen.edit"),
+                btn -> {
+                    SongListWidget.SongEntry e = songListWidget.getSelected();
+                    if (e == null || e.song == null) {
+                        showMsg("§c" + Component.translatable("disc_jockey.editor.select_first").getString());
+                        return;
+                    }
+                    Main.setScreenCompatStatic(minecraft,
+                            new NoteBlockEditScreen(DiscJockeyScreen.this, e.song));
+                }
+        ).pos(10, 5).size(60, 20).build();   // ← 左上角，位置不变
+        addRenderableWidget(editButton);
         
         CycleButton.Builder<SpectrumRendererManager.Style> styleBuilder =
                 CycleButton.<SpectrumRendererManager.Style>builder(
@@ -627,6 +728,16 @@ public class DiscJockeyScreen extends Screen {
                         (btn, st) -> SpectrumRendererManager.setStyle(st)
                 );
         addRenderableWidget(this.spectrumStyleButton);
+
+        // ★ 全局播放：管理员权限 playsound 广播给全服（位于变调按钮左侧）
+        globalPlayButton = Button.builder(
+                Component.translatable(Main.MOD_ID + ".screen.global_play"),
+                b -> toggleGlobalPlay()
+        ).pos(width - 440, 5).size(100, 20)
+         .tooltip(Tooltip.create(
+                 Component.translatable(Main.MOD_ID + ".screen.global_play.tooltip")))
+         .build();
+        addRenderableWidget(globalPlayButton);
 
         
         this.transposeButton = CycleButton.<Integer>builder(
@@ -732,8 +843,6 @@ public class DiscJockeyScreen extends Screen {
         addRenderableWidget(midiPathHint);
     }
 
-<<<<<<< Updated upstream
-=======
     /**
      * Fabric 原版入口：me.shedaniel.autoconfig.AutoConfigClient
      * 原文件顶部 import 的就是它，重构时不能丢。
@@ -1642,7 +1751,6 @@ public class DiscJockeyScreen extends Screen {
         } catch (Throwable ignored) {}
     }
 
->>>>>>> Stashed changes
     
     private static Float getCurrentSpeed() {
         try {
@@ -1719,8 +1827,15 @@ public class DiscJockeyScreen extends Screen {
             );
         }
 
+        // 频谱由守护线程推进（tickGlobalLevels），界面开着读自算值，
+        // 界面关掉后同一份数据仍会被推给官方实例，HUD 继续显示
         renderSpectrum(context, this.width, this.height);
-        
+
+        // 广播中：在频谱上方标一行状态，退出菜单重开也能看到
+        if (globalPlaying) {
+            String tip = "§6● 全局广播中" + (globalPlaySongName != null ? ("：" + globalPlaySongName) : "");
+            context.text(font, Component.literal(tip), 12, height - 90, 0xFFFFAA00);
+        }
     }
 
     @Override
@@ -1755,9 +1870,15 @@ public class DiscJockeyScreen extends Screen {
             this.lastShownKey = null;
         }
 
-        previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
-        previewButton.setMessage(Main.PREVIEWER.running ? PREVIEW_STOP : PREVIEW);
+        // ★ 不能只看 running：全局播放会把它置 true 以打开频谱闸门，
+        //   必须同时判断 song != null，才算"真的在预览"。
+        boolean previewActive = Main.PREVIEWER.running
+                && songNoteCount(Main.PREVIEWER.getInstance().getSong()) > 0
+                && !globalPlaying;
+        previewButton.setMessage(previewActive ? PREVIEW_STOP : PREVIEW);
         playButton.setMessage(Main.SONG_PLAYER.running ? PLAY_STOP : PLAY);
+        // ★ 互斥：本地播放/预览一旦启动，全局广播自动让位
+        checkGlobalYieldToLocal();
 
 
         if (speedButton != null) {
@@ -1771,6 +1892,11 @@ public class DiscJockeyScreen extends Screen {
             if (!tv.equals(transposeButton.getValue())) {
                 transposeButton.setValue(tv);
             }
+        }
+        if (globalPlayButton != null) {
+            globalPlayButton.setMessage(globalPlaying
+                    ? Component.translatable(Main.MOD_ID + ".screen.global_play.stop")
+                    : Component.translatable(Main.MOD_ID + ".screen.global_play"));
         }
 
         if (shouldFilter) {
@@ -1794,7 +1920,15 @@ public class DiscJockeyScreen extends Screen {
 
     
     private void renderSpectrum(GuiGraphicsExtractor context, int screenWidth, int screenHeight) {
-        float[] levels = Main.SMOOTHER.getSmoothedLevels();
+        // 官方链路打通后，GUI 与 HUD 读同一份数据（Main.SMOOTHER.getSmoothedLevels），
+        // 观感与预览完全一致；没打通时才退回自算数组，保证 GUI 内至少看得见。
+        float[] levels;
+        if (globalPlaying) {
+            levels = new float[SPECTRUM_BINS];
+            synchronized (LEVEL_LOCK) { System.arraycopy(globalLevels, 0, levels, 0, SPECTRUM_BINS); }
+        } else {
+            levels = Main.SMOOTHER.getSmoothedLevels();
+        }
         SpectrumRendererManager.getCurrent().render(
                 context,
                 screenWidth,
@@ -1823,12 +1957,6 @@ public class DiscJockeyScreen extends Screen {
         return (aa << 24) | (r << 16) | (g << 8) | bb;
     }
 
-<<<<<<< Updated upstream
-    /* ❌ 已删除 mouseButtonPressed(double, double, int)
-       原因：26.3 下该处理器会对每一次点击都触发，导致点「播放 / 预览 / 检测音符盒」
-             都被拦截并弹出 SongDetailScreen，按钮自身逻辑根本没执行（问题 2/3/4 根因）。
-       右键查看详情待探测到 26.3 真实按键常量后再装回，见同目录 修改说明.txt。 */
-=======
     // ==================== 右键打开歌曲详情 ====================
     //
     // 26.3 真实签名（javap 实测）：
@@ -1902,7 +2030,6 @@ public class DiscJockeyScreen extends Screen {
         }
         return super.mouseClicked(event, doubled);
     }
->>>>>>> Stashed changes
 
     @Override
     public void onFilesDrop(List<Path> paths) {
@@ -1951,6 +2078,10 @@ public class DiscJockeyScreen extends Screen {
     
     @Override
     public void onClose() {
+        // ★ 不再停止全局广播：退出菜单后继续播，重新打开界面点同一按钮可停止
+        if (globalPlaying) {
+            globalChat(3, "§6[DiscJockey] 全局广播仍在后台进行，重新打开 DJ 界面可停止");
+        }
         new Thread(() -> Main.configHolder.save()).start();
         if (parent != null) {
             Main.setScreenCompatStatic(Minecraft.getInstance(), parent);
@@ -1961,5 +2092,32 @@ public class DiscJockeyScreen extends Screen {
     
     public void markSongsDirty() {
         this.shouldFilter = true;
+    }
+    /** 26.3 已移除 Gui.getChat() 与 player.displayClientMessage()，改全反射（Fabric / NeoForge 通用） */
+    private static void showMsg(String text) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return;
+        Component c = Component.literal(text);
+        try {
+            Object gui = mc.gui;
+            if (gui != null) {
+                for (Method m : gui.getClass().getMethods()) {
+                    if (m.getParameterCount() == 0 && m.getName().equals("chatListener")) {
+                        Object cl = m.invoke(gui);
+                        if (cl == null) break;
+                        for (Method hm : cl.getClass().getMethods()) {
+                            if (hm.getName().equals("handleSystemMessage")
+                                    && hm.getParameterCount() == 2
+                                    && hm.getParameterTypes()[0].isAssignableFrom(Component.class)) {
+                                hm.invoke(cl, c, false);
+                                return;
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {}
+        Main.LOGGER.info("[DJ] {}", text);
     }
 }
