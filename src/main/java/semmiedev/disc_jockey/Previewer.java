@@ -1,6 +1,11 @@
 package semmiedev.disc_jockey;
+<<<<<<< Updated upstream
 
+=======
+/* Fabric 26.3 */
+>>>>>>> Stashed changes
 import semmiedev.disc_jockey.LyricsPlayer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -13,7 +18,7 @@ import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class Previewer implements Main.TickListener {
+public class Previewer implements ClientTickEvents.StartLevelTick {
 
     private static final Previewer INSTANCE = new Previewer();
     private static final Logger LOGGER = LogManager.getLogger("Disc Jockey");
@@ -33,7 +38,13 @@ public class Previewer implements Main.TickListener {
     private int lyricsNextIndex = 0;
 
     
-    // NeoForge 26.3：tick 由 Main.onClientTick -> Previewer.getInstance().onStartTick(level) 驱动
+    static {
+        ClientTickEvents.START_CLIENT_TICK.register(mc -> {
+            if (running && mc.level == null) {
+                INSTANCE.tickAndPlay(mc.level);
+            }
+        });
+    }
 
     public Previewer() {}
 

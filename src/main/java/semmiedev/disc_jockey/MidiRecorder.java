@@ -4,13 +4,9 @@ import javax.sound.midi.*;
 import java.io.File;
 import java.io.FileOutputStream;   
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 public class MidiRecorder {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/MidiRecorder");
-
 
     private static final int PPQ = 480;
     private static final int CHANNEL = 0;
@@ -36,7 +32,7 @@ public class MidiRecorder {
             recording = true;
         } catch (InvalidMidiDataException t) {   
             recording = false;
-            LOGGER.error("异常详情", t);
+            t.printStackTrace();
         }
     }
 
@@ -55,10 +51,10 @@ public class MidiRecorder {
             }
             return true;
         } catch (InvalidMidiDataException t) {   
-            LOGGER.error("异常详情", t);
+            t.printStackTrace();
             return false;
         } catch (IOException t) {                
-            LOGGER.error("异常详情", t);
+            t.printStackTrace();
             return false;
         }
     }

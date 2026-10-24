@@ -14,11 +14,34 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+<<<<<<< Updated upstream
 public class MidiToNbsImporter {
     private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/MidiToNbsImporter");
 
 
     private static final int DEFAULT_BPM = 120;
+=======
+/**
+ * MIDI (.mid/.midi) -> NBS 导入器（Fabric 版）。
+ *
+ * 设计目标
+ * --------
+ * 1) 时间轴严格按 tickRatio 换算，并做去重、限幅、排序。
+ * 2) 同一 tick 内多个同音高音符只保留一个（保留 velocity 最大的）。
+ * 3) 音高从 MIDI(0..127) 映射到 NBS 的 signedNoteId：nbsKey = midi - 21，signedNoteId = nbsKey - 33。
+ * 4) 乐器从 GM program 映射到 NBS 乐器号（0..15）。
+ * 5) 保存前重建 uniqueNotes，保证音符盒数量检测正确。
+ *
+ * 时间基准
+ * --------
+ * NBS 标准速率为 10 tick/秒（tempo=1000 → secPerTick = 100.0/1000 = 0.1s）。
+ * tickRatio 与 tempo 必须共用这一基准，否则会出现"歌曲被压缩、播放极快"。
+ */
+public final class MidiToNbsImporter {
+
+    /** NBS 标准 tick 速率：tempo=1000 → secPerTick=100.0/1000=0.1s → 10 tick/秒 */
+    private static final int NBS_TICKS_PER_SECOND = 10;
+>>>>>>> Stashed changes
 
     
     @SuppressWarnings("unused")
@@ -29,8 +52,15 @@ public class MidiToNbsImporter {
     
     private static final int MIDI_TO_NBS_OFFSET = 21;
 
+<<<<<<< Updated upstream
     
     private static final int DEFAULT_PPQ = 480;
+=======
+    /** 诊断输出（Fabric 版：控制台；NeoForge 版改为 LOGGER.info） */
+    private static void log(String s) {
+        System.out.println(s);
+    }
+>>>>>>> Stashed changes
 
     
     private static final int NBS_PPQ = 4;

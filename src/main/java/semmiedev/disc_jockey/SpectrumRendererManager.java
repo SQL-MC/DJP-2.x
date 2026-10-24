@@ -3,12 +3,8 @@ package semmiedev.disc_jockey.gui.screen.spectrum;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import java.util.List;
 import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SpectrumRendererManager {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger("Disc Jockey/SpectrumRendererManager");
 
     public enum Style {
         BAR("条形", 0),
@@ -75,10 +71,19 @@ public class SpectrumRendererManager {
     ) {
         SpectrumRenderer renderer = getCurrent();
         if (renderer == null) return;
+
         try {
-            renderer.render(extractor, width, height, levels, bands, baseY);
+            
+            renderer.getClass().getMethod(
+                "render",
+                GuiGraphicsExtractor.class,
+                int.class, int.class,
+                float[].class,
+                int.class, int.class
+            ).invoke(renderer, extractor, width, height, levels, bands, baseY);
         } catch (Throwable t) {
-            LOGGER.error("[Disc Jockey] SpectrumRenderer render failed: {}", t.toString());
+            
+            System.err.println("[Disc Jockey] SpectrumRenderer render failed (check renderer signature): " + t);
         }
     }
 }

@@ -1,5 +1,6 @@
 package semmiedev.disc_jockey;
 import net.minecraft.world.item.component.SwingAnimation;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -19,7 +20,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Random;
 
-public class SongPlayer implements Main.TickListener {
+public class SongPlayer implements ClientTickEvents.StartLevelTick {
 
     private static boolean warned;
     public boolean running;

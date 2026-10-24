@@ -1,8 +1,6 @@
 package semmiedev.disc_jockey;
 
-import com.mojang.brigadier.Command;
-import net.minecraft.commands.CommandSourceStack;
-import com.mojang.brigadier.context.CommandContext;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
@@ -10,8 +8,6 @@ import org.jetbrains.annotations.Nullable;
 import semmiedev.disc_jockey.gui.screen.DiscJockeyScreen;
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -26,48 +22,15 @@ import java.io.InputStreamReader;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.ChatFormatting;
 
-import static net.minecraft.commands.Commands.argument;
-import static net.minecraft.commands.Commands.literal;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
+import static net.minecraft.commands.SharedSuggestionProvider.suggest;
 
 public class DiscjockeyCommand {
 
-    /**
-     * 26.3: CommandSourceStack.suggest(...) 静态辅助方法已移除。
-     * 自建等价实现：按剩余输入前缀过滤候选并构建 Suggestions。
-     * 参数用 Iterable<String>，可同时接收 ArrayList / Arrays.asList / List。
-     */
-    private static CompletableFuture<Suggestions> suggest(Iterable<String> candidates, SuggestionsBuilder builder) {
-        String remaining = builder.getRemaining().toLowerCase(Locale.ROOT);
-        for (String candidate : candidates) {
-            if (candidate.toLowerCase(Locale.ROOT).startsWith(remaining)) {
-                builder.suggest(candidate);
-            }
-        }
-        return builder.buildFuture();
-    }
-
-    /** 26.3：Fabric 的 sendFeedback/sendError 不存在，改为客户端消息兜底 */
-    private static void sendFeedback(Object src, Component msg) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) return;
-        if (mc.player != null) {
-            mc.player.sendSystemMessage(msg);
-        } else {
-            LOGGER_MSG(msg);
-        }
-    }
-
-    private static void LOGGER_MSG(Component msg) {
-        org.slf4j.LoggerFactory.getLogger(DiscjockeyCommand.class).info("[DJ] {}", msg.getString());
-    }
-
-    private static void sendError(Object src, Component msg) {
-        sendFeedback(src, msg.copy().withStyle(net.minecraft.ChatFormatting.RED));
-    }
-
     
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    public static void register(CommandDispatcher<FabricClientCommandSource> dispatcher) {
         final List<String> instrumentNames = new ArrayList<>();
         for (NoteBlockInstrument instrument : NoteBlockInstrument.values()) {
             instrumentNames.add(instrument.toString().toLowerCase());
@@ -91,7 +54,7 @@ public class DiscjockeyCommand {
                                 Main.openScreenOnNextTick(new DiscJockeyScreen(null));
                                 return 1;
                             } catch (Throwable t) {
-                                sendError(ctx.getSource(), 
+                                ctx.getSource().sendError(
                                         Component.literal("§c[Disc Jockey] Failed to open GUI: " + t.getMessage())
                                 );
                                 Main.LOGGER.error("DJP020002: Failed to open DiscJockey GUI from command", t);
@@ -102,51 +65,55 @@ public class DiscjockeyCommand {
                         
                         .then(literal("help")
                                 .executes(ctx -> {
-                                    CommandSourceStack src = ctx.getSource();
+                                    FabricClientCommandSource src = ctx.getSource();
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.title")
                                                     .withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
                                     );
 
+<<<<<<< Updated upstream
                                     sendFeedback(src, 
+=======
+                                    src.sendFeedback(
+>>>>>>> Stashed changes
                                             Component.translatable(
                                                     "disc_jockey.command.help.version",
                                                     Main.VERSION
                                             ).withStyle(net.minecraft.ChatFormatting.GOLD, net.minecraft.ChatFormatting.BOLD)
                                     );
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.author")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
                                     );
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.cmd")
                                                     .withStyle(net.minecraft.ChatFormatting.YELLOW)
                                     );
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.keybind")
                                                     .withStyle(net.minecraft.ChatFormatting.YELLOW)
                                     );
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.rightclick")
                                                     .withStyle(net.minecraft.ChatFormatting.YELLOW)
                                     );
 
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.translatable("disc_jockey.command.help.config")
                                                     .withStyle(net.minecraft.ChatFormatting.YELLOW)
                                     );
 
                                     
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.literal("§7[Disc Jockey] §f依赖库 §ePianoLib§f：为 DJP 提供 88 个钢琴音符")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
                                     );
-                                    sendFeedback(src, 
+                                    src.sendFeedback(
                                             Component.literal("§7→ §nhttps://www.curseforge.com/minecraft/mc-mods/pianolib")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
                                     );
@@ -173,11 +140,11 @@ public class DiscjockeyCommand {
                                         }
                                     }
                                     if (needsFold == 0) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.clamp.all_ok", total)
                                         );
                                     } else {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.clamp.needs_fold", total, needsFold)
                                         );
                                     }
@@ -194,7 +161,7 @@ public class DiscjockeyCommand {
                                                     folded++;
                                                 }
                                             }
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.clamp.runtime_applied", total, folded)
                                             );
                                             return 1;
@@ -212,18 +179,18 @@ public class DiscjockeyCommand {
                                                     .findFirst()
                                                     .orElse(null);
                                             if (song == null) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.clamp.not_found", name)
                                                 );
                                                 return 0;
                                             }
                                             if (NoteClamper.checkSong(song) == 0) {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.clamp.no_change", song.displayName)
                                                 );
                                             } else {
                                                 NoteClamper.buildFoldedNotes(song, Main.SONG_PLAYER.transpose);
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.clamp.runtime_success", song.displayName)
                                                 );
                                             }
@@ -236,13 +203,13 @@ public class DiscjockeyCommand {
                         .then(literal("unclamp")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.not_playing")
                                         );
                                         return 0;
                                     }
                                     NoteClamper.clearFoldedNotes(Main.SONG_PLAYER.song);
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.clamp.cleared", Main.SONG_PLAYER.song.displayName)
                                     );
                                     return 1;
@@ -253,17 +220,17 @@ public class DiscjockeyCommand {
                         .then(literal("clampstatus")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.not_playing")
                                         );
                                         return 0;
                                     }
                                     if (NoteClamper.hasFoldedNotes(Main.SONG_PLAYER.song)) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.clamp.status_active", Main.SONG_PLAYER.song.displayName)
                                         );
                                     } else {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.clamp.status_inactive", Main.SONG_PLAYER.song.displayName)
                                         );
                                     }
@@ -286,7 +253,7 @@ public class DiscjockeyCommand {
                                                             .findFirst()
                                                             .orElse(null);
                                                     if (s == null) {
-                                                        sendError(ctx.getSource(), 
+                                                        ctx.getSource().sendError(
                                                                 Component.translatable("disc_jockey.clamp.not_found", name)
                                                         );
                                                         return 0;
@@ -294,7 +261,7 @@ public class DiscjockeyCommand {
 
                                                     var r = FoldAnalyzer.analyze(s);
 
-                                                    sendFeedback(ctx.getSource(), 
+                                                    ctx.getSource().sendFeedback(
                                                             Component.literal(
                                                                     "🎼 " + r.songName() + "\n" +
                                                                     "音域: " + r.minNote() + " ~ " + r.maxNote() + "\n" +
@@ -314,7 +281,7 @@ public class DiscjockeyCommand {
                                         .executes(ctx -> {
                                             if (isLoading(ctx)) return 0;
                                             int need = FoldAnalyzer.countSongsNeedingFold(SongLoader.SONGS);
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.fold.scan_result", need, SongLoader.SONGS.size())
                                             );
                                             return 1;
@@ -323,17 +290,17 @@ public class DiscjockeyCommand {
                                 .then(literal("status")
                                         .executes(ctx -> {
                                             if (Main.SONG_PLAYER == null || Main.SONG_PLAYER.song == null) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.not_playing")
                                                 );
                                                 return 0;
                                             }
                                             if (NoteClamper.hasFoldedNotes(Main.SONG_PLAYER.song)) {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.fold.status_active", Main.SONG_PLAYER.song.displayName)
                                                 );
                                             } else {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.fold.status_inactive", Main.SONG_PLAYER.song.displayName)
                                                 );
                                             }
@@ -343,13 +310,13 @@ public class DiscjockeyCommand {
                                 .then(literal("rebuild")
                                         .executes(ctx -> {
                                             if (Main.SONG_PLAYER == null || Main.SONG_PLAYER.song == null) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.not_playing")
                                                 );
                                                 return 0;
                                             }
                                             NoteClamper.buildFoldedNotes(Main.SONG_PLAYER.song, Main.SONG_PLAYER.transpose);
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.fold.rebuilt", Main.SONG_PLAYER.song.displayName)
                                             );
                                             return 1;
@@ -366,7 +333,7 @@ public class DiscjockeyCommand {
                                                     folded++;
                                                 }
                                             }
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.clamp.runtime_applied", total, folded)
                                             );
                                             return 1;
@@ -385,13 +352,13 @@ public class DiscjockeyCommand {
                                             try {
                                                 val = Integer.parseInt(arg);
                                             } catch (NumberFormatException e) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.transpose.invalid", arg)
                                                 );
                                                 return 0;
                                             }
                                             if (val < -24 || val > 24) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.transpose.range")
                                                 );
                                                 return 0;
@@ -409,17 +376,17 @@ public class DiscjockeyCommand {
 
                                             String d = String.format("%+d", val).replace("+0", "0");
                                             if (val == 0) {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.transpose.off")
                                                 );
                                             } else {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.literal("§b[Disc Jockey] §fTranspose §e" + d)
                                                 );
                                             }
 
                                             if (Main.SONG_PLAYER.song == null) {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.literal("§7[Disc Jockey] §fTranspose set. Will apply on next play/preview.")
                                                 );
                                             }
@@ -433,7 +400,7 @@ public class DiscjockeyCommand {
                         .then(literal("spectrum")
                                 .executes(ctx -> {
                                     Main.SPECTRUM.setEnabled(!Main.SPECTRUM.isEnabled());
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Main.SPECTRUM.isEnabled()
                                                     ? Component.translatable("disc_jockey.spectrum.on")
                                                     : Component.translatable("disc_jockey.spectrum.off")
@@ -454,7 +421,7 @@ public class DiscjockeyCommand {
 
                                             if ("NEXT".equals(style)) {
                                                 SpectrumRendererManager.next();
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable(
                                                                 "disc_jockey.spectrum.style_set",
                                                                 SpectrumRendererManager.getCurrentStyle().displayName
@@ -472,11 +439,11 @@ public class DiscjockeyCommand {
                                                         break;
                                                     }
                                                 }
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.spectrum.style_set", s.displayName)
                                                 );
                                             } catch (IllegalArgumentException e) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.spectrum.style_invalid", style)
                                                 );
                                             }
@@ -492,8 +459,13 @@ public class DiscjockeyCommand {
                                     if (Main.SONG_PLAYER.autoPlay) {
                                         Main.SONG_PLAYER.loopSong = false;
                                     }
+<<<<<<< Updated upstream
                                     sendFeedback(ctx.getSource(), 
                                             Main.SONG_PLAYER.autoPlay
+=======
+                                    ctx.getSource().sendFeedback(
+                                            v
+>>>>>>> Stashed changes
                                                     ? Component.translatable("disc_jockey.autoplay.on")
                                                     : Component.translatable("disc_jockey.autoplay.off")
                                     );
@@ -509,7 +481,7 @@ public class DiscjockeyCommand {
                                         Main.SONG_PLAYER.autoPlay = true;
                                         Main.SONG_PLAYER.shuffleQueue.clear();
                                     }
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Main.SONG_PLAYER.shuffle
                                                     ? Component.translatable("disc_jockey.shuffle.on")
                                                     : Component.translatable("disc_jockey.shuffle.off")
@@ -522,13 +494,13 @@ public class DiscjockeyCommand {
                         .then(literal("pause")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.pause.already_stopped")
                                         );
                                         return 0;
                                     }
                                     Main.SONG_PLAYER.togglePause();
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Main.SONG_PLAYER.paused
                                                     ? Component.translatable("disc_jockey.pause.paused", Main.SONG_PLAYER.song.displayName)
                                                     : Component.translatable("disc_jockey.pause.resumed", Main.SONG_PLAYER.song.displayName)
@@ -541,19 +513,19 @@ public class DiscjockeyCommand {
                         .then(literal("resume")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.pause.already_stopped")
                                         );
                                         return 0;
                                     }
                                     if (!Main.SONG_PLAYER.paused) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.pause.already_playing")
                                         );
                                         return 1;
                                     }
                                     Main.SONG_PLAYER.togglePause();
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.pause.resumed", Main.SONG_PLAYER.song.displayName)
                                     );
                                     return 1;
@@ -571,19 +543,19 @@ public class DiscjockeyCommand {
                                             try {
                                                 mins = Integer.parseInt(arg);
                                             } catch (NumberFormatException e) {
-                                                sendError(ctx.getSource(), 
+                                                ctx.getSource().sendError(
                                                         Component.translatable("disc_jockey.invalid_number", arg)
                                                 );
                                                 return 0;
                                             }
                                             if (mins <= 0) {
                                                 Main.SONG_PLAYER.setSleepTimer(0);
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.sleep.cancel")
                                                 );
                                             } else {
                                                 Main.SONG_PLAYER.setSleepTimer(mins);
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.sleep.set", mins)
                                                 );
                                             }
@@ -592,7 +564,7 @@ public class DiscjockeyCommand {
                                 )
                                 .executes(ctx -> {
                                     Main.SONG_PLAYER.setSleepTimer(0);
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.sleep.cancel")
                                     );
                                     return 1;
@@ -603,7 +575,7 @@ public class DiscjockeyCommand {
                         .then(literal("reload")
                                 .executes(ctx -> {
                                     if (isLoading(ctx)) return 0;
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.reload")
                                     );
                                     SongLoader.loadSongs();
@@ -626,7 +598,7 @@ public class DiscjockeyCommand {
                                                 Main.SONG_PLAYER.start(song.get());
                                                 return 1;
                                             }
-                                            sendError(ctx.getSource(), 
+                                            ctx.getSource().sendError(
                                                     Component.translatable("disc_jockey.song_not_found", name)
                                             );
                                             return 0;
@@ -638,7 +610,7 @@ public class DiscjockeyCommand {
                         .then(literal("random")
                                 .executes(ctx -> {
                                     if (isLoading(ctx) || SongLoader.SONGS.isEmpty()) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.no_songs")
                                         );
                                         return 0;
@@ -653,14 +625,14 @@ public class DiscjockeyCommand {
                         .then(literal("stop")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
-                                        sendError(ctx.getSource(), 
+                                        ctx.getSource().sendError(
                                                 Component.translatable("disc_jockey.not_playing")
                                         );
                                         return 0;
                                     }
                                     String name = Main.SONG_PLAYER.song.displayName;
                                     Main.SONG_PLAYER.stop();
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.stopped_playing", name)
                                     );
                                     return 1;
@@ -677,7 +649,7 @@ public class DiscjockeyCommand {
                                             Main.SONG_PLAYER.speed = sp;
                                             Main.PREVIEW_SPEED = sp;
                                             setPreviewerSpeedCap(sp);
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.speed.changed", sp)
                                             );
                                             return 1;
@@ -689,19 +661,19 @@ public class DiscjockeyCommand {
                         .then(literal("info")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.info.not_running", Main.SONG_PLAYER.speed)
                                         );
                                         return 0;
                                     }
                                     if (!Main.SONG_PLAYER.tuner.isTuned()) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.info.tuning", Main.SONG_PLAYER.speed)
                                         );
                                         return 0;
                                     }
                                     if (!Main.SONG_PLAYER.didSongReachEnd) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable(
                                                         "disc_jockey.info.playing",
                                                         formatTimestamp((int) Main.SONG_PLAYER.getSongElapsedSeconds()),
@@ -712,7 +684,7 @@ public class DiscjockeyCommand {
                                         );
                                         return 0;
                                     }
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable(
                                                     "disc_jockey.info.finished",
                                                     Main.SONG_PLAYER.song.displayName,
@@ -726,7 +698,7 @@ public class DiscjockeyCommand {
                         
                         .then(literal("remapInstruments")
                                 .executes(ctx -> {
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.instrument.info")
                                     );
                                     return 1;
@@ -749,13 +721,13 @@ public class DiscjockeyCommand {
                                                             }
 
                                                             if (original == null && !orig.equalsIgnoreCase("all")) {
-                                                                sendFeedback(ctx.getSource(), 
+                                                                ctx.getSource().sendFeedback(
                                                                         Component.translatable("disc_jockey.instrument.invalid", orig)
                                                                 );
                                                                 return 0;
                                                             }
                                                             if (newInst == null && !neu.equalsIgnoreCase("nothing")) {
-                                                                sendFeedback(ctx.getSource(), 
+                                                                ctx.getSource().sendFeedback(
                                                                         Component.translatable("disc_jockey.instrument.invalid", neu)
                                                                 );
                                                                 return 0;
@@ -765,12 +737,12 @@ public class DiscjockeyCommand {
                                                                 for (NoteBlockInstrument i : NoteBlockInstrument.values()) {
                                                                     Main.SONG_PLAYER.tuner.instrumentMap.put(i, newInst);
                                                                 }
-                                                                sendFeedback(ctx.getSource(), 
+                                                                ctx.getSource().sendFeedback(
                                                                         Component.translatable("disc_jockey.instrument.mapped_all", neu)
                                                                 );
                                                             } else {
                                                                 Main.SONG_PLAYER.tuner.instrumentMap.put(original, newInst);
-                                                                sendFeedback(ctx.getSource(), 
+                                                                ctx.getSource().sendFeedback(
                                                                         Component.translatable("disc_jockey.instrument.mapped", orig, neu)
                                                                 );
                                                             }
@@ -793,13 +765,13 @@ public class DiscjockeyCommand {
                                                         }
                                                     }
                                                     if (instrument == null) {
-                                                        sendFeedback(ctx.getSource(), 
+                                                        ctx.getSource().sendFeedback(
                                                                 Component.translatable("disc_jockey.instrument.invalid", inst)
                                                         );
                                                         return 0;
                                                     }
                                                     Main.SONG_PLAYER.tuner.instrumentMap.remove(instrument);
-                                                    sendFeedback(ctx.getSource(), 
+                                                    ctx.getSource().sendFeedback(
                                                             Component.translatable("disc_jockey.instrument.unmapped", inst)
                                                     );
                                                     return 1;
@@ -809,7 +781,7 @@ public class DiscjockeyCommand {
                                 .then(literal("show")
                                         .executes(ctx -> {
                                             if (Main.SONG_PLAYER.tuner.instrumentMap.isEmpty()) {
-                                                sendFeedback(ctx.getSource(), 
+                                                ctx.getSource().sendFeedback(
                                                         Component.translatable("disc_jockey.instrument.no_mappings")
                                                 );
                                                 return 1;
@@ -823,7 +795,7 @@ public class DiscjockeyCommand {
                                                                 ? Component.translatable("disc_jockey.instrument.none")
                                                                 : e.getValue().toString().toLowerCase());
                                             }
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.instrument.list", sb)
                                             );
                                             return 1;
@@ -832,7 +804,7 @@ public class DiscjockeyCommand {
                                 .then(literal("clear")
                                         .executes(ctx -> {
                                             Main.SONG_PLAYER.tuner.instrumentMap.clear();
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.instrument.cleared")
                                             );
                                             return 1;
@@ -840,7 +812,7 @@ public class DiscjockeyCommand {
                         )
                         .then(literal("loop")
                                 .executes(ctx -> {
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.loop.status",
                                                     Main.SONG_PLAYER.loopSong ? "yes" : "no")
                                     );
@@ -849,7 +821,7 @@ public class DiscjockeyCommand {
                                 .then(literal("yes")
                                         .executes(ctx -> {
                                             Main.SONG_PLAYER.loopSong = true;
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.loop.enabled")
                                             );
                                             return 1;
@@ -858,7 +830,7 @@ public class DiscjockeyCommand {
                                 .then(literal("no")
                                         .executes(ctx -> {
                                             Main.SONG_PLAYER.loopSong = false;
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.loop.disabled")
                                             );
                                             return 1;
@@ -869,7 +841,7 @@ public class DiscjockeyCommand {
                         
                         .then(literal("preview")
                                 .executes(ctx -> {
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable(
                                                     "disc_jockey.preview.status",
                                                     Previewer.running
@@ -886,7 +858,7 @@ public class DiscjockeyCommand {
                                 .then(literal("stop")
                                         .executes(ctx -> {
                                             Previewer.stop();
-                                            sendFeedback(ctx.getSource(), 
+                                            ctx.getSource().sendFeedback(
                                                     Component.translatable("disc_jockey.preview.stopped")
                                             );
                                             return 1;
@@ -904,7 +876,7 @@ public class DiscjockeyCommand {
                                           for (NoteBlockInstrument inst : NoteBlockInstrument.values()) {
                                               if (inst.toString().equalsIgnoreCase(name)) {
                                                   var block = Note.INSTRUMENT_BLOCKS.get(inst);
-                                                  sendFeedback(ctx.getSource(), 
+                                                  ctx.getSource().sendFeedback(
                                                           Component.translatable(
                                                                   "disc_jockey.instrument.info_detail",
                                                                   name.toLowerCase(),
@@ -914,7 +886,7 @@ public class DiscjockeyCommand {
                                                   return 1;
                                               }
                                           }
-                                          sendError(ctx.getSource(), 
+                                          ctx.getSource().sendError(
                                                   Component.translatable("disc_jockey.instrument.invalid", name)
                                           );
                                           return 0;
@@ -926,7 +898,7 @@ public class DiscjockeyCommand {
                         .then(literal("progress")
                                 .executes(ctx -> {
                                     if (!Main.SONG_PLAYER.running || Main.SONG_PLAYER.song == null) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.progress.not_playing")
                                         );
                                         return 0;
@@ -934,7 +906,7 @@ public class DiscjockeyCommand {
                                     int cur = (int) Main.SONG_PLAYER.getSongElapsedSeconds();
                                     int len = (int) Main.SONG_PLAYER.song.getLengthInSeconds();
                                     int percent = (int) ((cur / (float) len) * 100);
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable(
                                                     "disc_jockey.progress.text",
                                                     formatTimestamp(cur),
@@ -950,12 +922,12 @@ public class DiscjockeyCommand {
                         .then(literal("now")
                                 .executes(ctx -> {
                                     if (Main.SONG_PLAYER.song == null) {
-                                        sendFeedback(ctx.getSource(), 
+                                        ctx.getSource().sendFeedback(
                                                 Component.translatable("disc_jockey.not_playing")
                                         );
                                         return 0;
                                     }
-                                    sendFeedback(ctx.getSource(), 
+                                    ctx.getSource().sendFeedback(
                                             Component.translatable("disc_jockey.now_playing", Main.SONG_PLAYER.song.displayName)
                                     );
                                     return 1;
@@ -988,13 +960,13 @@ public class DiscjockeyCommand {
     }
 
     
-    private static void checkForUpdates(CommandSourceStack source) {
+    private static void checkForUpdates(FabricClientCommandSource source) {
         
         String projectId = (Main.config != null && Main.config.modrinthProjectId != null && !Main.config.modrinthProjectId.isEmpty())
                 ? Main.config.modrinthProjectId
                 : "disc-jockey-plus";
 
-        sendFeedback(source, Component.literal("§7[Disc Jockey] §f正在检查 Modrinth 更新..."));
+        source.sendFeedback(Component.literal("§7[Disc Jockey] §f正在检查 Modrinth 更新..."));
 
         CompletableFuture.runAsync(() -> {
             HttpURLConnection conn = null;
@@ -1009,12 +981,12 @@ public class DiscjockeyCommand {
                 int code = conn.getResponseCode();
                 if (code == 404) {
                     Minecraft.getInstance().execute(() ->
-                        sendError(source, Component.literal("§c[Disc Jockey] §f未找到 Modrinth 项目（404）：§7" + projectId)));
+                        source.sendError(Component.literal("§c[Disc Jockey] §f未找到 Modrinth 项目（404）：§7" + projectId)));
                     return;
                 }
                 if (code != 200) {
                     Minecraft.getInstance().execute(() ->
-                        sendError(source, Component.literal("§c[Disc Jockey] §f检查更新失败（HTTP " + code + "）。")));
+                        source.sendError(Component.literal("§c[Disc Jockey] §f检查更新失败（HTTP " + code + "）。")));
                     return;
                 }
 
@@ -1038,7 +1010,7 @@ public class DiscjockeyCommand {
                 final String finalLatest = latest;
                 Minecraft.getInstance().execute(() -> {
                     if (finalLatest == null) {
-                        sendError(source, Component.literal("§c[Disc Jockey] §f解析 Modrinth 响应失败（未找到 version_number）。"));
+                        source.sendError(Component.literal("§c[Disc Jockey] §f解析 Modrinth 响应失败（未找到 version_number）。"));
                         return;
                     }
                     String cur = stripV(Main.VERSION);
@@ -1046,22 +1018,22 @@ public class DiscjockeyCommand {
                     int cmp = compareSemver(lat, cur);
                     if (cmp > 0) {
                         
-                        sendFeedback(source, Component.literal("§e[Disc Jockey] §f发现新版本！§7 当前：§c" + cur + " §7最新：§a" + lat));
-                        sendFeedback(source, Component.literal("§7前往下载：§nhttps://modrinth.com/mod/" + projectId));
+                        source.sendFeedback(Component.literal("§e[Disc Jockey] §f发现新版本！§7 当前：§c" + cur + " §7最新：§a" + lat));
+                        source.sendFeedback(Component.literal("§7前往下载：§nhttps://modrinth.com/mod/" + projectId));
                     } else if (cmp < 0) {
                         
-                        sendFeedback(source, Component.literal("§a[Disc Jockey] §f本地版本（§a" + cur + "§f）已领先于 Modrinth 最新版（§7" + lat + "§f）。"));
-                        sendFeedback(source, Component.literal("§7Modrinth 版本可能仍在审核中；Disc Jockey 最新稳定版 / PianoLib 依赖请前往 CurseForge 查看："));
-                        sendFeedback(source, Component.literal("§nhttps://www.curseforge.com/minecraft/mc-mods/disc-jockey-plus"));
-                        sendFeedback(source, Component.literal("§7PianoLib（DJP 依赖库）：§nhttps://www.curseforge.com/minecraft/mc-mods/pianolib"));
+                        source.sendFeedback(Component.literal("§a[Disc Jockey] §f本地版本（§a" + cur + "§f）已领先于 Modrinth 最新版（§7" + lat + "§f）。"));
+                        source.sendFeedback(Component.literal("§7Modrinth 版本可能仍在审核中；Disc Jockey 最新稳定版 / PianoLib 依赖请前往 CurseForge 查看："));
+                        source.sendFeedback(Component.literal("§nhttps://www.curseforge.com/minecraft/mc-mods/disc-jockey-plus"));
+                        source.sendFeedback(Component.literal("§7PianoLib（DJP 依赖库）：§nhttps://www.curseforge.com/minecraft/mc-mods/pianolib"));
                     } else {
                         
-                        sendFeedback(source, Component.literal("§a[Disc Jockey] §f已是最新版本（§a" + cur + "§f）。"));
+                        source.sendFeedback(Component.literal("§a[Disc Jockey] §f已是最新版本（§a" + cur + "§f）。"));
                     }
                 });
             } catch (Exception e) {
                 Minecraft.getInstance().execute(() ->
-                    sendError(source, Component.literal("§c[Disc Jockey] §f检查更新出错：§7" + e.getMessage())));
+                    source.sendError(Component.literal("§c[Disc Jockey] §f检查更新出错：§7" + e.getMessage())));
             } finally {
                 if (conn != null) conn.disconnect();
             }
@@ -1096,9 +1068,9 @@ public class DiscjockeyCommand {
         catch (Exception e) { return 0; }
     }
 
-    private static boolean isLoading(CommandContext<CommandSourceStack> ctx) {
+    private static boolean isLoading(CommandContext<FabricClientCommandSource> ctx) {
         if (SongLoader.loadingSongs) {
-            sendError(ctx.getSource(), 
+            ctx.getSource().sendError(
                     Component.translatable("disc_jockey.still_loading")
             );
             SongLoader.showToast = true;

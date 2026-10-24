@@ -1,6 +1,6 @@
 package semmiedev.disc_jockey;
 
-import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
@@ -18,15 +18,12 @@ public final class LyricsChat {
 
     
     public static void register() {
-        net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
-            (ClientChatReceivedEvent event) -> {
-                if (event.isSystem()) return;
-                net.minecraft.network.chat.Component message = event.getMessage();
-                if (!LyricsDispatch.awaitingSelectorProbe()) return;
-                if (!(message.getContents() instanceof TranslatableContents contents)) return;
-                if (!"argument.entity.selector.not_allowed".equals(contents.getKey())) return;
-                LyricsDispatch.onSelectorRefused();
-            });
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!LyricsDispatch.awaitingSelectorProbe()) return;
+            if (!(message.getContents() instanceof TranslatableContents contents)) return;
+            if (!"argument.entity.selector.not_allowed".equals(contents.getKey())) return;
+            LyricsDispatch.onSelectorRefused();
+        });
     }
 
     public static void send(String text) {

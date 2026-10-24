@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["NJN", "NJN", "NJN"],
+  "key": {
+    "N": "minecraft:netherite_ingot",
+    "J": "minecraft:jukebox"
+  },
+  "result": { "id": "disc_jockey:jukebox_projector", "count": 1 }
+}

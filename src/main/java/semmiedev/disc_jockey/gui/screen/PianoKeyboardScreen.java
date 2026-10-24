@@ -197,7 +197,8 @@ public class PianoKeyboardScreen extends Screen {
 
     
     private static final MidiRecorder MIDI_REC = new MidiRecorder();
-/** MIDI 回放：用 PianoLib 音色播放 .mid，同时驱动琴键高亮与滚落 */
+
+    /** MIDI 回放：用 PianoLib 音色播放 .mid，同时驱动琴键高亮与滚落 */
     private static final MidiPlayback MIDI_PLAY = new MidiPlayback();
     private static final java.util.Queue<int[]> MIDI_EVENTS =
             new java.util.concurrent.ConcurrentLinkedQueue<>();

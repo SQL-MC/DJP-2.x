@@ -1,5 +1,6 @@
 package semmiedev.disc_jockey;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.jspecify.annotations.NonNull;
 
@@ -7,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public final class LyricsPlayer implements Main.TickListener {
+public final class LyricsPlayer implements ClientTickEvents.StartLevelTick {
     private static final boolean DEBUG_TICK = false;
     private static final long BACKWARD_SEEK_MILLIS = 500;
     
