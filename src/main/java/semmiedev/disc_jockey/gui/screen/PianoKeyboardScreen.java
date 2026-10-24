@@ -18,7 +18,6 @@ import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.NoteBlock;
@@ -40,6 +39,11 @@ import javax.sound.midi.*;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+// ============================================================
+// 版本：NeoForge / MC 26.3（渲染 4 参）
+// 相对基线改了三处（音高修正 / 广播拆流 / MIDI 联动广播），
+// 其余一字未动。渲染签名按版本区分（26.3=4参，26.4=1参）。
+// ============================================================
 public class PianoKeyboardScreen extends Screen {
 
     private static final int NOTE_ID_A0 = -39;
@@ -173,6 +177,8 @@ public class PianoKeyboardScreen extends Screen {
     private int scanTick = 0;
     private long lastPkt = -1;
     private static final long PKT_INT = 50;
+    /** MIDI 回放：每帧最多广播几个音符（防服务器限流，同时保证和弦不丢） */
+    private static final int MAX_MIDI_PKT_PER_TICK = 4;
 
     private final List<Note> history = new ArrayList<>();
     private static final int HIST_MAX = 48;
@@ -197,7 +203,8 @@ public class PianoKeyboardScreen extends Screen {
 
     
     private static final MidiRecorder MIDI_REC = new MidiRecorder();
-/** MIDI 回放：用 PianoLib 音色播放 .mid，同时驱动琴键高亮与滚落 */
+
+    /** MIDI 回放：用 PianoLib 音色播放 .mid，同时驱动琴键高亮与滚落 */
     private static final MidiPlayback MIDI_PLAY = new MidiPlayback();
     private static final java.util.Queue<int[]> MIDI_EVENTS =
             new java.util.concurrent.ConcurrentLinkedQueue<>();
@@ -211,10 +218,23 @@ public class PianoKeyboardScreen extends Screen {
         this.parent = parent;
     }
 
+    /** 26.4 移除了 Mth.clamp 的 float 重载（NoSuchMethodError），改用纯 JDK 实现，不依赖任何 MC API */
+    private static float clampF(float v, float lo, float hi) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    }
+
+    private static int clampI(int v, int lo, int hi) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    }
+
     
     private void setShift(int s) {
         int old = shift;
-        shift = Mth.clamp(s, INTERNAL_MIN, INTERNAL_MAX);
+        shift = clampI(s, INTERNAL_MIN, INTERNAL_MAX);
         if (old != shift) {
             System.out.println("[DJ] shift " + old + " -> " + shift + " (display +" + getDisp() + ")");
         }
@@ -425,7 +445,7 @@ public class PianoKeyboardScreen extends Screen {
             int midiNote = id + 60;
             int useCount = midiNote - 54;
             if (useCount >= 0 && useCount <= 24) {
-                float pitch = Mth.clamp((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
+                float pitch = clampF((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
                 if (inWorld) {
                     m.level.playSound(m.player, m.player.blockPosition(),
                         SoundEvents.NOTE_BLOCK_HARP.value(), SoundSource.RECORDS, 2.0f, pitch);
@@ -449,7 +469,7 @@ public class PianoKeyboardScreen extends Screen {
         if (id < NOTE_ID_A0 || id > NOTE_ID_C8) return;
         Minecraft m = Minecraft.getInstance();
         if (m == null) return;
-        vol = Mth.clamp(vol, 0.15f, 1.0f);
+        vol = clampF(vol, 0.15f, 1.0f);
         boolean inWorld = m.level != null && m.player != null;
 
         if (inWorld && isPianoAPIAvail() && apiPlay != null) {
@@ -474,7 +494,7 @@ public class PianoKeyboardScreen extends Screen {
             int midiNote = id + 60;
             int useCount = midiNote - 54;
             if (useCount >= 0 && useCount <= 24) {
-                float pitch = Mth.clamp((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
+                float pitch = clampF((float) Math.pow(2.0, (useCount - 12) / 12.0), 0.5f, 2.0f);
                 if (inWorld) {
                     m.level.playSound(m.player, m.player.blockPosition(),
                             SoundEvents.NOTE_BLOCK_HARP.value(),
@@ -564,29 +584,63 @@ public class PianoKeyboardScreen extends Screen {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
+    /**
+     * 钢琴 noteId（0 = C4 = MIDI 60）→ 音符盒 note 值（0 = F#3 = MIDI 54）。
+     * 两套体系 0 点差 6 个半音 —— 这就是「弹 C4 外面响 #F」的根因：
+     * 原实现直接拿钢琴 id 去查 nbCache（里面存的是音符盒 note 值），
+     * 于是 C4(id=0) 查到 note=0 → MIDI 54 = F#3，正好偏了 6 个半音。
+     */
+    private static int toBlockNote(int id) {
+        int midi = id + 60;                  // 钢琴 id → MIDI
+        while (midi < 54) midi += 12;        // 八度折叠进音符盒可播区 MIDI 54..78
+        while (midi > 78) midi -= 12;
+        return midi - 54;                    // → 0..24（BlockStateProperties.NOTE 取值）
+    }
+
     private BlockPos findNB(int id) {
         try {
             if (!nbReady) scanNB();
-            BlockPos p = nbCache.get(id);
+            int note = toBlockNote(id);
+            BlockPos p = nbCache.get(note);
             if (p != null) return p;
-            if (id >= 12) { p = nbCache.get(id - 12); if (p != null) return p; }
-            if (id <= 12) { p = nbCache.get(id + 12); if (p != null) return p; }
+            // 该音没摆盒子 → 退到八度等价音（音名相同，只是差一个八度），
+            // 不会再出现「弹 C 响 F#」这种音名错位。
+            if (note - 12 >= 0)  { p = nbCache.get(note - 12); if (p != null) return p; }
+            if (note + 12 <= 24) { p = nbCache.get(note + 12); if (p != null) return p; }
         } catch (Exception e) {}
         return null;
     }
 
+    /** 手动弹琴：保留 50ms 节流 + 挥手动画（人手不可能弹得比 50ms 更密） */
     private void broadcastNB(int id) {
         try {
             if (minecraft.player == null || minecraft.level == null) return;
             long now = System.currentTimeMillis();
             if (now - lastPkt < PKT_INT) return;
             lastPkt = now;
+            sendNB(id, true);
+        } catch (Exception e) {}
+    }
+
+    /**
+     * MIDI 回放：不按时间节流 —— 和弦/密集琶音必须在同一帧全部发出去，
+     * 用 50ms 节流会大量吞音。改由调用方按帧限量（MAX_MIDI_PKT_PER_TICK）。
+     */
+    private void broadcastNBMidi(int id) {
+        try {
+            if (minecraft.player == null || minecraft.level == null) return;
+            sendNB(id, false);
+        } catch (Exception e) {}
+    }
+
+    /** 实际发包：START_DESTROY_BLOCK 左键交互音符盒 */
+    private void sendNB(int id, boolean swing) {
+        try {
             BlockPos t = findNB(id);
-            if (t != null) {
-                minecraft.player.connection.send(new ServerboundPlayerActionPacket(
-                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, t, Direction.UP, 0));
-                minecraft.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
-            }
+            if (t == null) return;
+            minecraft.player.connection.send(new ServerboundPlayerActionPacket(
+                ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, t, Direction.UP, 0));
+            if (swing) minecraft.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
         } catch (Exception e) {}
     }
 
@@ -704,13 +758,27 @@ public class PianoKeyboardScreen extends Screen {
         try {
             // --- MIDI 回放事件：Sequencer 线程 → 渲染线程 ---
             int[] ev;
+            int midiPktThisTick = 0;
             while ((ev = MIDI_EVENTS.poll()) != null) {
                 if (ev[0] < 0) { stopMidiUI(); continue; }   // 播放结束
                 int noteId = ev[0] - 60;                     // MIDI note → DJ noteId
+
+                // 八度折叠进 A0~C8：playQuiet 对超范围音直接 return，
+                // 若这里不折叠就会出现「外面响、里面没声」的内外不一致。
+                // 折叠后钢琴声与广播音名保持相同（只是差一个八度）。
+                while (noteId < NOTE_ID_A0) noteId += 12;
+                while (noteId > NOTE_ID_C8) noteId -= 12;
+
                 if (ev[2] == 1) {
                     playQuiet(noteId, ev[1] / 127.0f);
                     addRoll(noteId);                         // 滚落动画
                     pressed.put(noteId, true);               // 琴键高亮
+                    // ★ MIDI 回放联动广播：开着喇叭按钮时，MIDI 音符同步敲外面的音符盒
+                    //   每帧限量，和弦能一起出，又不会触发服务器限流
+                    if (broadcast && midiPktThisTick < MAX_MIDI_PKT_PER_TICK) {
+                        broadcastNBMidi(noteId);
+                        midiPktThisTick++;
+                    }
                 } else {
                     pressed.remove(noteId);
                 }
@@ -954,7 +1022,7 @@ public class PianoKeyboardScreen extends Screen {
             int bx = KX + r.lx + 1 - origin;
             if (bx < KX || bx > KX + rw) continue;
             int by = RY + 2 + (r.age * 3) % (rh - 4);
-            float fade = Mth.clamp(1f - (float)r.age / HIST_MAX, 0.1f, 1f);
+            float fade = clampF(1f - (float)r.age / HIST_MAX, 0.1f, 1f);
             c.fill(bx, by, bx + Math.max(2, rw/40), by+2, color(r.id, (int)(fade * r.iv)));
         }
 
@@ -1148,7 +1216,7 @@ public class PianoKeyboardScreen extends Screen {
 
     
     private int color(int id, int a) {
-        a = Mth.clamp(a, 30, 255);
+        a = clampI(a, 30, 255);
         float t = (float)(id - NOTE_ID_A_MIN) / RW_SPAN;
         int r, g, b;
         if (t < 0.33f) { r=255; g=(int)(100+155*t/0.33f); b=50; }
