@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ СВИРИ",
   "disc_jockey.editor.instrument.flute": "Флейта",
   "disc_jockey.editor.save_failed_all": "Запазването не успя (и двата метода са недостъпни)",
-  "disc_jockey.editor.stop": "■ СПРИ"
+  "disc_jockey.editor.stop": "■ СПРИ",
+  "disc_jockey.screen.record_noteblock_song": "Запис на NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Спиране на записа"
 }

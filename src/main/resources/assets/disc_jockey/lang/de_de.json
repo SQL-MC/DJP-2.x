@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ WIEDERGABE",
   "disc_jockey.editor.instrument.flute": "Flöte",
   "disc_jockey.editor.save_failed_all": "Speichern fehlgeschlagen (beide Methoden nicht verfügbar)",
-  "disc_jockey.editor.stop": "■ STOPP"
+  "disc_jockey.editor.stop": "■ STOPP",
+  "disc_jockey.screen.record_noteblock_song": "NBS aufnehmen",
+  "disc_jockey.screen.record_noteblock_song.stop": "Aufnahme stoppen"
 }

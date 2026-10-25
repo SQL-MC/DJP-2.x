@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ SPELAR",
   "disc_jockey.editor.instrument.flute": "Flöjt",
   "disc_jockey.editor.save_failed_all": "Sparning misslyckades (båda metoderna otillgängliga)",
-  "disc_jockey.editor.stop": "■ STOPP"
+  "disc_jockey.editor.stop": "■ STOPP",
+  "disc_jockey.screen.record_noteblock_song": "Spela in NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Stoppa inspelning"
 }

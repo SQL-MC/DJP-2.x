@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ 재생 중",
   "disc_jockey.editor.instrument.flute": "플루트",
   "disc_jockey.editor.save_failed_all": "저장 실패 (두 방법 모두 사용 불가)",
-  "disc_jockey.editor.stop": "■ 정지"
+  "disc_jockey.editor.stop": "■ 정지",
+  "disc_jockey.screen.record_noteblock_song": "NBS 녹음",
+  "disc_jockey.screen.record_noteblock_song.stop": "녹음 중지"
 }

@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ מתנגן",
   "disc_jockey.editor.instrument.flute": "חליל",
   "disc_jockey.editor.save_failed_all": "השמירה נכשלה (שתי השיטות אינן זמינות)",
-  "disc_jockey.editor.stop": "■ עצור"
+  "disc_jockey.editor.stop": "■ עצור",
+  "disc_jockey.screen.record_noteblock_song": "הקלט NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "עצור הקלטה"
 }

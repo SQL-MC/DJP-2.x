@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ PŘEHRÁVÁNÍ",
   "disc_jockey.editor.instrument.flute": "Flétna",
   "disc_jockey.editor.save_failed_all": "Uložení selhalo (obě metody jsou nedostupné)",
-  "disc_jockey.editor.stop": "■ STOP"
+  "disc_jockey.editor.stop": "■ STOP",
+  "disc_jockey.screen.record_noteblock_song": "Nahrát NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Zastavit nahrávání"
 }
