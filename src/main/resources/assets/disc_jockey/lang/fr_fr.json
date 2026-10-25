@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ LECTURE EN COURS",
   "disc_jockey.editor.instrument.flute": "Flûte",
   "disc_jockey.editor.save_failed_all": "Échec de l'enregistrement (les deux méthodes sont indisponibles)",
-  "disc_jockey.editor.stop": "■ ARRÊT"
+  "disc_jockey.editor.stop": "■ ARRÊT",
+  "disc_jockey.screen.record_noteblock_song": "Enregistrer NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Arrêter l'enregistrement"
 }

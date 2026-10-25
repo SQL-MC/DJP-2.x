@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ चल रहा है",
   "disc_jockey.editor.instrument.flute": "बांसुरी",
   "disc_jockey.editor.save_failed_all": "सहेजना विफल (दोनों विधियाँ अनुपलब्ध)",
-  "disc_jockey.editor.stop": "■ रोकें"
+  "disc_jockey.editor.stop": "■ रोकें",
+  "disc_jockey.screen.record_noteblock_song": "NBS रिकॉर्ड करें",
+  "disc_jockey.screen.record_noteblock_song.stop": "रिकॉर्डिंग रोकें"
 }

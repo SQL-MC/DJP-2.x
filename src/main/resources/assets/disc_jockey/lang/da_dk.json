@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ SPILLER",
   "disc_jockey.editor.instrument.flute": "Fløjte",
   "disc_jockey.editor.save_failed_all": "Gemmislykkedes (begge metoder utilgængelige)",
-  "disc_jockey.editor.stop": "■ STOP"
+  "disc_jockey.editor.stop": "■ STOP",
+  "disc_jockey.screen.record_noteblock_song": "Optag NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Stop optagelse"
 }

@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ 再生中",
   "disc_jockey.editor.instrument.flute": "フルート",
   "disc_jockey.editor.save_failed_all": "保存に失敗しました（両方の方法が利用できません）",
-  "disc_jockey.editor.stop": "■ 停止"
+  "disc_jockey.editor.stop": "■ 停止",
+  "disc_jockey.screen.record_noteblock_song": "NBSを録音",
+  "disc_jockey.screen.record_noteblock_song.stop": "録音を停止"
 }

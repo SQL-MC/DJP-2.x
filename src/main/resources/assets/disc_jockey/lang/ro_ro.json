@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ REDARE",
   "disc_jockey.editor.instrument.flute": "Flaut",
   "disc_jockey.editor.save_failed_all": "Salvarea a eșuat (ambele metode indisponibile)",
-  "disc_jockey.editor.stop": "■ OPRIRE"
+  "disc_jockey.editor.stop": "■ OPRIRE",
+  "disc_jockey.screen.record_noteblock_song": "Înregistrează NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Oprește înregistrarea"
 }

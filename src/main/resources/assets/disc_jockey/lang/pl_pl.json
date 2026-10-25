@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ ODTWARZANIE",
   "disc_jockey.editor.instrument.flute": "Flet",
   "disc_jockey.editor.save_failed_all": "Zapisywanie nie udało się (obie metody niedostępne)",
-  "disc_jockey.editor.stop": "■ STOP"
+  "disc_jockey.editor.stop": "■ STOP",
+  "disc_jockey.screen.record_noteblock_song": "Nagraj NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Zatrzymaj nagrywanie"
 }

@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ AAN HET SPELEN",
   "disc_jockey.editor.instrument.flute": "Fluit",
   "disc_jockey.editor.save_failed_all": "Opslaan mislukt (beide methoden niet beschikbaar)",
-  "disc_jockey.editor.stop": "■ STOP"
+  "disc_jockey.editor.stop": "■ STOP",
+  "disc_jockey.screen.record_noteblock_song": "NBS opnemen",
+  "disc_jockey.screen.record_noteblock_song.stop": "Opname stoppen"
 }

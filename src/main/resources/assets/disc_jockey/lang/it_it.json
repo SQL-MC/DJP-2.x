@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ RIPRODUZIONE",
   "disc_jockey.editor.instrument.flute": "Flauto",
   "disc_jockey.editor.save_failed_all": "Salvataggio fallito (entrambi i metodi non disponibili)",
-  "disc_jockey.editor.stop": "■ FERMA"
+  "disc_jockey.editor.stop": "■ FERMA",
+  "disc_jockey.screen.record_noteblock_song": "Registra NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Interrompi registrazione"
 }

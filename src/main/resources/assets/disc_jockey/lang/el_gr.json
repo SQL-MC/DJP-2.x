@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ ΑΝΑΠΑΡΑΓΩΓΗ",
   "disc_jockey.editor.instrument.flute": "Φλάουτο",
   "disc_jockey.editor.save_failed_all": "Αποτυχία αποθήκευσης (και οι δύο μέθοδοι μη διαθέσιμες)",
-  "disc_jockey.editor.stop": "■ ΔΙΑΚΟΠΗ"
+  "disc_jockey.editor.stop": "■ ΔΙΑΚΟΠΗ",
+  "disc_jockey.screen.record_noteblock_song": "Εγγραφή NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Διακοπή εγγραφής"
 }

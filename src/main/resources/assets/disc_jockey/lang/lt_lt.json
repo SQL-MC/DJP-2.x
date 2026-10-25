@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ GROJA",
   "disc_jockey.editor.instrument.flute": "Fleita",
   "disc_jockey.editor.save_failed_all": "Išsaugoti nepavyko (abu metodai nepasiekiami)",
-  "disc_jockey.editor.stop": "■ SUSTABDYTI"
+  "disc_jockey.editor.stop": "■ SUSTABDYTI",
+  "disc_jockey.screen.record_noteblock_song": "Įrašyti NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Sustabdyti įrašymą"
 }
