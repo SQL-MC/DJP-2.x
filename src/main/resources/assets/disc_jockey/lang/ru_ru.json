@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ ВОСПРОИЗВЕДЕНИЕ",
   "disc_jockey.editor.instrument.flute": "Флейта",
   "disc_jockey.editor.save_failed_all": "Ошибка сохранения (оба метода недоступны)",
-  "disc_jockey.editor.stop": "■ СТОП"
+  "disc_jockey.editor.stop": "■ СТОП",
+  "disc_jockey.screen.record_noteblock_song": "Записать NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Остановить запись"
 }

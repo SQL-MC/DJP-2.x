@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ PREDVAJANJE",
   "disc_jockey.editor.instrument.flute": "Flavta",
   "disc_jockey.editor.save_failed_all": "Shranjevanje ni uspelo (obe metodi nista na voljo)",
-  "disc_jockey.editor.stop": "■ USTAVI"
+  "disc_jockey.editor.stop": "■ USTAVI",
+  "disc_jockey.screen.record_noteblock_song": "Posnemi NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Ustavi snemanje"
 }

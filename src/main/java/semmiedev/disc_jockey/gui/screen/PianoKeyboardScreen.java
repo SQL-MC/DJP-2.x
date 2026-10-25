@@ -3,12 +3,14 @@ package semmiedev.disc_jockey.gui.screen;
 
 
 import semmiedev.disc_jockey.Main;
+import semmiedev.disc_jockey.NbsRecorder;
 import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.util.RandomSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -157,6 +159,8 @@ public class PianoKeyboardScreen extends Screen {
     private static final int REC_BTN_H = TS;
     private static final int REC_BTN_X = 10;
     private static final int REC_BTN_Y = TY;
+    /** 录制NBS 按钮宽度（放在 X 退出左边；窄窗口时可调小，如 56） */
+    private static final int REC_NBS_W = 72;
 
     private final Screen parent;
     private final Map<Integer, Boolean> pressed = new HashMap<>();
@@ -172,6 +176,10 @@ public class PianoKeyboardScreen extends Screen {
     private boolean broadcast = false;
     private Button sndBtn;
     private Button recBtn;
+    private Button recNbsBtn;
+    private EditBox recRadiusBox;
+    private EditBox recNameBox;
+    private Button recTempoBtn;
     private final Map<Integer, BlockPos> nbCache = new HashMap<>();
     private boolean nbReady = false;
     private int scanTick = 0;
@@ -641,6 +649,9 @@ public class PianoKeyboardScreen extends Screen {
             minecraft.player.connection.send(new ServerboundPlayerActionPacket(
                 ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, t, Direction.UP, 0));
             if (swing) minecraft.player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, false);
+            // \u2605 \u5f55\u5236\u4e2d\uff1a\u672c mod \u53d1\u51fa\u7684\u97f3\u4e00\u5b9a\u8bb0\u5f55\u4e0b\u6765\u2014\u2014
+            //   \u5305\u94a9\u5b50\u6ce8\u518c\u5931\u8d25\u65f6\u7684\u964d\u7ea7\u8def\u5f84\uff0c\u4fdd\u8bc1\u81ea\u5df1\u5f39\u7434 / MIDI \u5e7f\u64ad\u4e0d\u4f1a\u6f0f\u5f55\u3002
+            NbsRecorder.onNoteBlockEvent(t, 0L);
         } catch (Exception e) {}
     }
 
@@ -728,12 +739,151 @@ public class PianoKeyboardScreen extends Screen {
               .size(90, REC_BTN_H).build();
             addRenderableWidget(midiFileButton);
 
+            // ==================== 录制NBS ====================
+            // 点一下：以玩家为中心、按 R 半径开始录制，并【退出界面】回到游戏；
+            // 再点一下：停止并保存为 .nbs，同样【退出界面】。
+            // 半径用下方工具行的 R- / R: / R+ 调（1..16，录制中也可改，立即生效）。
+            recNbsBtn = Button.builder(
+                    Component.translatable(NbsRecorder.isRecording()
+                            ? "disc_jockey.screen.record_noteblock_song.stop"
+                            : "disc_jockey.screen.record_noteblock_song"),
+                    b -> {
+                        if (NbsRecorder.isRecording()) {
+                            String savedName = NbsRecorder.stopAndSave();
+                            if (savedName != null) {
+                                showRecMsg("\u00a7a[DiscJockey] \u5f55\u5236\u5df2\u4fdd\u5b58\uff1a" + savedName);
+                            } else {
+                                showRecMsg("\u00a7c[DiscJockey] \u5f55\u5236\u7ed3\u675f\uff0c\u4f46\u6ca1\u6709\u6355\u83b7\u5230\u97f3\u7b26\u76d2\u53d1\u58f0");
+                            }
+                        } else {
+                            // \u70b9\u51fb\u65f6\u4e3b\u52a8\u8bfb\u4e00\u6b21\u8f93\u5165\u6846\uff1a\u9632\u6b62\u6700\u540e\u4e00\u6b21\u8f93\u5165\u6ca1\u89e6\u53d1 responder
+                            if (recNameBox != null) NbsRecorder.setCustomName(recNameBox.getValue());
+                            if (recRadiusBox != null) {
+                                try {
+                                    NbsRecorder.setRadius(Integer.parseInt(recRadiusBox.getValue().trim()));
+                                } catch (NumberFormatException ignored) { }
+                            }
+                            BlockPos recCenter = (minecraft.player != null)
+                                    ? minecraft.player.blockPosition() : BlockPos.ZERO;
+                            NbsRecorder.start(recCenter, NbsRecorder.getRadius());
+                            String nm = NbsRecorder.getCustomName();
+                            showRecMsg("\u00a7a[DiscJockey] \u5f00\u59cb\u5f55\u5236\u97f3\u7b26\u76d2\uff08\u534a\u5f84 "
+                                    + NbsRecorder.getRadius()
+                                    + "\uff0c\u901f\u5ea6 " + tempoLabel()
+                                    + (nm != null ? ("\uff0c\u540d\u5b57 " + nm) : "")
+                                    + "\uff09");
+                        }
+                        // \u4e24\u79cd\u60c5\u51b5\u90fd\u9000\u51fa\u754c\u9762\uff0c\u56de\u5230\u6e38\u620f
+                        nbReady = false;
+                        nbCache.clear();
+                        Main.setScreenCompatStatic(minecraft, null);
+                    })
+                    .pos(rx - TS*2 - 4 - REC_NBS_W - 4, TY)
+                    .size(REC_NBS_W, REC_BTN_H).build();
+            addRenderableWidget(recNbsBtn);
+
             addRenderableWidget(Button.builder(Component.literal("[-]"), b -> addDisp(-1)).pos(KX, BY).size(ICON, ICON).build());
             addRenderableWidget(Button.builder(Component.literal("[+]"), b -> addDisp(+1)).pos(KX+ICON+4, BY).size(ICON, ICON).build());
             addRenderableWidget(Button.builder(Component.literal("C4"), b -> setDisp(4)).pos(KX+(ICON+4)*2, BY).size(ICON*2, ICON).build());
             addRenderableWidget(Button.builder(Component.literal("CLR"), b -> history.clear()).pos(KX+(ICON+4)*4, BY).size(ICON, ICON).build());
             addRenderableWidget(Button.builder(Component.literal("SCN"), b -> { nbCache.clear(); nbReady=false; scanNB(); }).pos(KX+(ICON+4)*5+ICON, BY).size(ICON, ICON).build());
+
+            // ==================== \u5f55\u5236\u81ea\u5b9a\u4e49\uff1a\u534a\u5f84(\u76f4\u63a5\u8f93\u5165) / \u901f\u5ea6 / \u6587\u4ef6\u540d ====================
+            // \u534a\u5f84\u8303\u56f4 1..64\uff1a\u53ef\u70b9 - / + \u5fae\u8c03\uff0c\u4e5f\u53ef\u5728\u6846\u91cc\u76f4\u63a5\u952e\u5165\u4efb\u610f\u503c
+            int rx0 = KX + (ICON+4)*5 + ICON + (ICON+4);
+
+            addRenderableWidget(Button.builder(Component.literal("-"), b -> {
+                NbsRecorder.setRadius(NbsRecorder.getRadius() - 1);
+                syncRecControls();
+            }).pos(rx0, BY).size(ICON, ICON).build());
+
+            recRadiusBox = new EditBox(font, rx0 + ICON + 4, BY + 2, 40, 18,
+                    Component.literal("R"));
+            recRadiusBox.setMaxLength(3);
+            recRadiusBox.setValue(String.valueOf(NbsRecorder.getRadius()));
+            recRadiusBox.setResponder(t -> {
+                try {
+                    NbsRecorder.setRadius(Integer.parseInt(t.trim()));
+                } catch (NumberFormatException ignored) { }
+            });
+            addRenderableWidget(recRadiusBox);
+
+            addRenderableWidget(Button.builder(Component.literal("+"), b -> {
+                NbsRecorder.setRadius(NbsRecorder.getRadius() + 1);
+                syncRecControls();
+            }).pos(rx0 + ICON + 4 + 40 + 4, BY).size(ICON, ICON).build());
+
+            // \u901f\u5ea6\uff08\u5f55\u5236\u65f6\u9501\u5b9a\uff0c\u4e2d\u9014\u6539\u53ea\u5f71\u54cd\u4e0b\u4e00\u6bb5\uff09
+            int tx0 = rx0 + ICON + 4 + 40 + 4 + ICON + 8;
+            addRenderableWidget(Button.builder(Component.literal("<"), b -> stepTempo(-1))
+                    .pos(tx0, BY).size(ICON, ICON).build());
+
+            recTempoBtn = Button.builder(Component.literal(tempoLabel()), b -> { })
+                    .pos(tx0 + ICON + 4, BY).size(64, ICON).build();
+            addRenderableWidget(recTempoBtn);
+
+            addRenderableWidget(Button.builder(Component.literal(">"), b -> stepTempo(+1))
+                    .pos(tx0 + ICON + 4 + 64 + 4, BY).size(ICON, ICON).build());
+
+            // \u6587\u4ef6\u540d\uff08\u7559\u7a7a = \u65f6\u95f4\u6233\uff09
+            int nx0 = tx0 + ICON + 4 + 64 + 4 + ICON + 8;
+            recNameBox = new EditBox(font, nx0, BY + 2, 140, 18,
+                    Component.literal("Name"));
+            recNameBox.setMaxLength(64);
+            recNameBox.setHint(Component.literal("\u6587\u4ef6\u540d(\u7a7a=\u65f6\u95f4\u6233)"));
+            String cn0 = NbsRecorder.getCustomName();
+            recNameBox.setValue(cn0 == null ? "" : cn0);
+            recNameBox.setResponder(t -> NbsRecorder.setCustomName(t));
+            addRenderableWidget(recNameBox);
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+
+    // ==================== \u5f55\u5236\u81ea\u5b9a\u4e49\u63a7\u4ef6\u7684\u8f85\u52a9\u65b9\u6cd5 ====================
+
+    /** \u901f\u5ea6\u9884\u8bbe\u6863\u4f4d\uff08tempo\uff0c\u5355\u4f4d 0.01 TPS\uff09 */
+    private static final int[] TEMPO_STEPS = {100, 250, 500, 1000, 1500, 2000, 4000, 10000};
+
+    /** \u901f\u5ea6\u6309\u94ae\u6587\u5b57\uff1a\u663e\u793a TPS\uff08tick/\u79d2\uff09\u66f4\u76f4\u89c2 */
+    private static String tempoLabel() {
+        return "T:" + String.format(java.util.Locale.ROOT, "%.1f", NbsRecorder.ticksPerSecond());
+    }
+
+    /** \u5728\u9884\u8bbe\u6863\u4f4d\u95f4\u524d\u540e\u79fb\u52a8 */
+    private void stepTempo(int dir) {
+        int cur = NbsRecorder.getTempo();
+        int idx = 0, best = Integer.MAX_VALUE;
+        for (int i = 0; i < TEMPO_STEPS.length; i++) {
+            int d = Math.abs(TEMPO_STEPS[i] - cur);
+            if (d < best) { best = d; idx = i; }
+        }
+        int ni = idx + dir;
+        if (ni < 0) ni = TEMPO_STEPS.length - 1;
+        if (ni >= TEMPO_STEPS.length) ni = 0;
+        NbsRecorder.setTempo(TEMPO_STEPS[ni]);
+        syncRecControls();
+    }
+
+    /**
+     * \u628a NbsRecorder \u91cc\u7684\u503c\u56de\u5199\u5230\u63a7\u4ef6\u4e0a\u3002
+     * \u6ce8\u610f\uff1asetValue \u4f1a\u89e6\u53d1 responder\uff0c\u4f46 responder \u91cc\u53ea setXxx \u3001\u4e0d\u518d setValue\uff0c
+     * \u6240\u4ee5\u4e0d\u4f1a\u65e0\u9650\u9012\u5f52\u3002
+     */
+    private void syncRecControls() {
+        if (recRadiusBox != null) {
+            recRadiusBox.setValue(String.valueOf(NbsRecorder.getRadius()));
+        }
+        if (recTempoBtn != null) {
+            recTempoBtn.setMessage(Component.literal(tempoLabel()));
+        }
+    }
+
+    /** \u5f55\u5236\u63d0\u793a\uff1a\u5168\u53cd\u5c04\u517c\u5bb9 26.3 / 26.4 \u7684\u804a\u5929\u901a\u9053 */
+    private void showRecMsg(String text) {
+        try {
+            minecraft.gui.chatListener().handleSystemMessage(
+                    Component.literal(text), false);
+        } catch (Throwable t) {}
     }
 
     private void updateRecBtnColor(Button b) {
@@ -1142,6 +1292,11 @@ public class PianoKeyboardScreen extends Screen {
             sb.append("REC: OFF");
         }
         sb.append(" | NB: ").append(nbCache.size());
+        if (NbsRecorder.isRecording()) {
+            sb.append(" | NBS-REC: ON(").append(NbsRecorder.noteCount())
+              .append(" notes, ").append(String.format(Locale.ROOT, "%.1f", NbsRecorder.elapsedSeconds()))
+              .append("s, R=").append(NbsRecorder.getRadius()).append(")");
+        }
         if (!active.isEmpty()) {
             sb.append(" | ");
             for (int n : active) {

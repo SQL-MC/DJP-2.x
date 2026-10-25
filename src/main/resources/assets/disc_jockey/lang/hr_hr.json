@@ -249,5 +249,7 @@
   "disc_jockey.editor.playing": " ▶ SVIRA",
   "disc_jockey.editor.instrument.flute": "Flauta",
   "disc_jockey.editor.save_failed_all": "Spremanje nije uspjelo (obje metode nedostupne)",
-  "disc_jockey.editor.stop": "■ ZAUSTAVI"
+  "disc_jockey.editor.stop": "■ ZAUSTAVI",
+  "disc_jockey.screen.record_noteblock_song": "Snimi NBS",
+  "disc_jockey.screen.record_noteblock_song.stop": "Zaustavi snimanje"
 }
