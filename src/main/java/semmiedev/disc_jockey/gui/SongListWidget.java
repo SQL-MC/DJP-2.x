@@ -9,6 +9,8 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
+import javax.swing.RowFilter.Entry;
+
 import org.jetbrains.annotations.Nullable;
 import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.Song;
@@ -109,6 +111,7 @@ public class SongListWidget extends AbstractSelectionList<SongListWidget.SongEnt
             cachedPipelineDone = true;
 
             String[] classNames = {
+                    "net.minecraft.client.gui.GuiPipeline",
                     "net.minecraft.client.renderer.RenderPipelines",
                     "net.minecraft.client.renderer.pipeline.RenderPipelines",
                     "com.mojang.renderpearl.api.pipeline.RenderPipelines",

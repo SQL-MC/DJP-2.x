@@ -17,6 +17,7 @@ public final class BlitCompat {
 
 
     private static final String[] PIPELINE_FIELD_CANDIDATES = {
+            // 26.3：net.minecraft.client.renderer.RenderPipelines
             "GUI_TEXTURED",
             "GUI",
             "GUI_OPAQUE_TEXTURED_BACKGROUND",
@@ -24,6 +25,11 @@ public final class BlitCompat {
             "GUI_TEXTURED_OVERLAY",
             "GUI_TEXTURED_PREMULTIPLIED_ALPHA",
             "GUI_TEXT_HIGHLIGHT",
+            // 26.4 snapshot-6：net.minecraft.client.gui.GuiPipeline（javap 实测）
+            "TEXTURED",
+            "TEXTURED_PREMULTIPLIED_ALPHA",
+            "OPAQUE_TEXTURED_BACKGROUND",
+            "DEFAULT",
     };
 
     private static final Object PIPELINE;
@@ -45,10 +51,15 @@ public final class BlitCompat {
         String name = "<none>";
 
         Class<?> rpClass = null;
-        try {
-            rpClass = Class.forName("net.minecraft.client.renderer.RenderPipelines");
-        } catch (Throwable t) {
-            LOGGER.warn("[BlitCompat] 找不到 RenderPipelines 类：{}", t.toString());
+        for (String cn : new String[]{
+                "net.minecraft.client.renderer.RenderPipelines",   // 26.3
+                "net.minecraft.client.gui.GuiPipeline"}) {          // 26.4 snapshot-6
+            try {
+                rpClass = Class.forName(cn);
+                break;
+            } catch (Throwable t) {
+                LOGGER.warn("[BlitCompat] 找不到管线类 {}：{}", cn, t.toString());
+            }
         }
 
         if (rpClass != null) {
@@ -114,6 +125,8 @@ public final class BlitCompat {
     private static final AtomicBoolean WARN_PIPE = new AtomicBoolean(false);
     /** 无管线也失败只报一次 */
     private static final AtomicBoolean WARN_FALLBACK = new AtomicBoolean(false);
+    /** blitFull 命中签名只报一次 */
+    private static final AtomicBoolean WARN_FULL = new AtomicBoolean(false);
     /** 已确认带管线路径不可用，后续不再尝试（省反射开销、杜绝刷屏） */
     private static volatile boolean pipeDisabled = false;
 
@@ -124,22 +137,31 @@ public final class BlitCompat {
     private static volatile boolean withPipeLookupDone = false;
     private static volatile boolean withoutPipeLookupDone = false;
 
-    public static void blit(GuiGraphicsExtractor gfx,
+    /**
+     * 绘制纹理。返回是否真的画成功了（调用方可据此决定要不要退回纯色）。
+     *
+     * ★ 后端无关：OpenGL（26.3）/ Vulkan（26.4）对这里的代码是透明的，
+     *   MC 的 GuiGraphics 抽象层屏蔽了后端差异。真正需要适配的是【API 签名】：
+     *     · 有 RenderPipelines 类（26.3）→ 10 参带管线，u/v 为像素
+     *     · 无 RenderPipelines 类（26.4）→ 9 参无管线，u/v 为 0..1 归一化
+     *   两条路径的实参排布在下面分别处理，因此同一个 jar 两端都能画。
+     */
+    public static boolean blit(GuiGraphicsExtractor gfx,
                             Identifier texture,
                             int x, int y,
                             int u, int v,
                             int w, int h,
                             int tw, int th) {
-        if (gfx == null || texture == null) return;
+        if (gfx == null || texture == null) return false;
 
-        // ---- 路径 1：带管线（10 参）----
+        // ---- 路径 1：带管线（10 参，像素 UV）----
         if (PIPELINE != null && !pipeDisabled) {
             Object[] args = {PIPELINE, texture, x, y, u, v, w, h, tw, th};
             Method m = getBlitWithPipeline(args);
             if (m != null) {
                 try {
                     m.invoke(gfx, coerce(m, args));
-                    return;
+                    return true;
                 } catch (Throwable t) {
                     if (WARN_PIPE.compareAndSet(false, true)) {
                         LOGGER.warn("[BlitCompat] 带管线 blit 调用失败，此后改用无管线（此条只报一次）：{}", t.toString());
@@ -149,13 +171,20 @@ public final class BlitCompat {
             }
         }
 
-        // ---- 路径 2：无管线（9 参）----
-        Object[] args2 = {texture, x, y, u, v, w, h, tw, th};
+        // ---- 路径 2：无管线（9 参，归一化 UV）----
+        // 形参是 (texture, x, y, width, height, u0, v0, uWidth, vHeight)，
+        // 后 4 个是 0..1 归一化，不是像素 —— 传 u/v 进去会让 width/height 变 0，
+        // 调用不报错但什么也画不出（26.4 早期"只剩纯色"就是这个坑）。
+        Object[] args2 = {texture, x, y, w, h,
+                  tw > 0 ? (float) u / tw : 0f,
+                  th > 0 ? (float) v / th : 0f,
+                  tw > 0 ? (float) w / tw : 1f,
+                  th > 0 ? (float) h / th : 1f};
         Method m2 = getBlitWithoutPipeline(args2);
         if (m2 != null) {
             try {
                 m2.invoke(gfx, coerce(m2, args2));
-                return;
+                return true;
             } catch (Throwable t) {
                 if (WARN_FALLBACK.compareAndSet(false, true)) {
                     LOGGER.error("[BlitCompat] 无管线 blit 也失败（已解析管线={}），此条只报一次：{}",
@@ -165,6 +194,97 @@ public final class BlitCompat {
         } else if (WARN_FALLBACK.compareAndSet(false, true)) {
             LOGGER.error("[BlitCompat] 找不到可用的 blit 方法，纹理绘制跳过（已解析管线={}）", RESOLVED_NAME);
         }
+        return false;
+    }
+
+    /**
+     * 把【整张】贴图缩放绘制到 (x, y, w, h) 目标矩形（UV 固定 0..1）。
+     *
+     * ★ 与 blit() 的关键区别：
+     *   blit() 的 w/h 同时承担「源区域尺寸」与「目标绘制尺寸」两个角色，
+     *   在归一化路径下会把 UV 宽度算成 w/tw —— 例如格子 9x9、贴图 16x16
+     *   时得到 9/16≈0.56，只采样左上角 56% 再拉伸，图标被裁切放大；
+     *   音符密集（上万音符）时整片糊成黑白黄斑，正是 26.4 之前「GUI 烂掉」的根因。
+     *
+     *   blitFull 固定采样整张贴图（u0=0, v0=0, uW=1, vH=1），
+     *   目标尺寸独立传 (w, h)，因此是「缩放」而不是「裁切放大」。
+     *
+     * 只匹配归一化签名（后 4 位是 float），不会误匹配像素 UV 版本，
+     * 避免把 (x,y,w,h) 当成 (u,v,w,h) 传进去画出 0 尺寸。
+     */
+    public static boolean blitFull(GuiGraphicsExtractor gfx,
+                                   Identifier texture,
+                                   int x, int y, int w, int h) {
+        if (gfx == null || texture == null) return false;
+
+        // ---- 路径 1：带管线 + 归一化（26.3 若提供该重载）----
+        if (PIPELINE != null && !pipeDisabled) {
+            Method m = findNormalizedBlit(true);
+            if (m != null) {
+                try {
+                    m.invoke(gfx, coerce(m, new Object[]{PIPELINE, texture, x, y, w, h, 0f, 0f, 1f, 1f}));
+                    return true;
+                } catch (Throwable t) {
+                    pipeDisabled = true;
+                    if (WARN_FULL.compareAndSet(false, true)) {
+                        LOGGER.warn("[BlitCompat] blitFull 带管线失败，改走无管线（只报一次）：{}", t.toString());
+                    }
+                }
+            }
+        }
+
+        // ---- 路径 2：无管线 + 归一化（26.4 snapshot-6 实际走这条）----
+        Method m2 = findNormalizedBlit(false);
+        if (m2 != null) {
+            try {
+                m2.invoke(gfx, coerce(m2, new Object[]{texture, x, y, w, h, 0f, 0f, 1f, 1f}));
+                if (WARN_FULL.compareAndSet(false, true)) {
+                    LOGGER.info("[BlitCompat] ✓ blitFull 命中归一化签名：blit{}", signature(m2));
+                }
+                return true;
+            } catch (Throwable t) {
+                if (WARN_FALLBACK.compareAndSet(false, true)) {
+                    LOGGER.error("[BlitCompat] blitFull 无管线归一化失败（只报一次）：{}", t.toString());
+                }
+            }
+        }
+        if (WARN_FALLBACK.compareAndSet(false, true)) {
+            LOGGER.error("[BlitCompat] blitFull 找不到归一化 blit，图标退回纯色");
+        }
+        return false;
+    }
+
+    /**
+     * 精确匹配「归一化 UV」版 blit，避免误命中像素 UV 版本。
+     *   带管线：(pipeline, Identifier, int x, int y, int w, int h, float u0, float v0, float uW, float vH)
+     *   无管线：(Identifier, int x, int y, int w, int h, float u0, float v0, float uW, float vH)
+     */
+    private static Method findNormalizedBlit(boolean withPipe) {
+        int off = withPipe ? 1 : 0;
+        for (Method m : GuiGraphicsExtractor.class.getMethods()) {
+            if (!"blit".equals(m.getName())) continue;
+            Class<?>[] p = m.getParameterTypes();
+            if (p.length != off + 9) continue;
+
+            boolean ok = true;
+            if (withPipe) {
+                if (PIPELINE == null || !p[0].isInstance(PIPELINE)) ok = false;
+            }
+            if (ok) {
+                Class<?> tex = p[off];
+                if (!(Identifier.class.isAssignableFrom(tex) || tex.isAssignableFrom(Identifier.class))) ok = false;
+            }
+            // x, y, w, h 四位必须是 int（排除把 (u,v) 排在前面的像素版）
+            for (int i = off + 1; i <= off + 4 && ok; i++) {
+                if (p[i] != int.class) ok = false;
+            }
+            // u0, v0, uWidth, vHeight 四位必须是 float
+            for (int i = off + 5; i <= off + 8 && ok; i++) {
+                if (p[i] != float.class) ok = false;
+            }
+            if (ok) return m;
+        }
+        return null;
     }
 
 
