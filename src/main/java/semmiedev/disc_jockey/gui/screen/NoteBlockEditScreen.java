@@ -186,14 +186,14 @@ public class NoteBlockEditScreen extends Screen {
     };
 
     /** \u515c\u5e95\u4e5f\u5931\u8d25\u8fc7\uff0c\u4e0d\u518d\u91cd\u590d\u63a2\u6d4b */
-    private static final boolean[] instTexDead = new boolean[INST_TEX.length];
+    private final boolean[] instTexDead = new boolean[INST_TEX.length];
     private static volatile boolean vanillaFallbackLogged = false;
 
-    private static final Identifier[] instTexCache = new Identifier[INST_TEX.length];
-    private static volatile boolean instTexTried = false;
+    private final Identifier[] instTexCache = new Identifier[INST_TEX.length];
+    private volatile boolean instTexTried = false;
 
     /** 每个音色的贴图是否已向 TextureManager 注册过 */
-    private static final boolean[] instTexRegistered = new boolean[INST_TEX.length];
+    private final boolean[] instTexRegistered = new boolean[INST_TEX.length];
     private static volatile boolean texRegLogged = false;
     private static final boolean TEXTURE_REGISTER = true;
 
@@ -1485,7 +1485,7 @@ public class NoteBlockEditScreen extends Screen {
     // 并把缺失的贴图名打进日志，方便定位是路径写错还是没打进 jar。
 
     /** 每个音色的贴图可用状态：null=未查过，TRUE=可用，FALSE=缺失 */
-    private static final Boolean[] instTexOk = new Boolean[INST_TEX.length];
+    private final Boolean[] instTexOk = new Boolean[INST_TEX.length];
 
     private static volatile java.lang.reflect.Method rmGetter;
     private static volatile java.lang.reflect.Method resGetter;
@@ -1502,7 +1502,7 @@ public class NoteBlockEditScreen extends Screen {
      * 只查一次，结果缓存；查不到 ResourceManager 时返回 true（按可用处理，
      * 由 blit 自己兜底），避免因为反射失败而永远不画图标。
      */
-    private static boolean resourceExists(int instrument, Identifier id) {
+    private boolean resourceExists(int instrument, Identifier id) {
         // 探针不可信（连 MC 原版贴图都报缺失）时不再拦截，直接画，避免误判成缺失
         if (!probeTrusted) return true;
         if (instrument >= 0 && instrument < instTexOk.length) {
@@ -1761,7 +1761,7 @@ public class NoteBlockEditScreen extends Screen {
      * \u539f\u7248\u8d44\u6e90\u4e00\u5b9a\u5b58\u5728\uff0c\u6240\u4ee5\u5373\u4f7f mod \u8d34\u56fe\u6ca1\u6253\u8fdb jar\uff0c
      * \u56fe\u6807\u4e5f\u4e0d\u4f1a\u9000\u5316\u6210\u7eaf\u8272\u6216\u9ed1\u7d2b\u68cb\u76d8\u3002
      */
-    private static Identifier instTexture(int instrument) {
+    private Identifier instTexture(int instrument) {
         if (instrument < 0 || instrument >= INST_TEX.length) return null;
         if (instTexDead[instrument]) return null;
         Identifier cached = instTexCache[instrument];
@@ -1817,7 +1817,7 @@ public class NoteBlockEditScreen extends Screen {
     }
 
     /** 让 TextureManager 认识这个贴图 id；失败也不影响后续 blit 尝试 */
-    private static void ensureTexture(int instrument, Identifier id) {
+    private void ensureTexture(int instrument, Identifier id) {
         if (!TEXTURE_REGISTER) return;
         if (instrument >= 0 && instrument < instTexRegistered.length) {
             if (instTexRegistered[instrument]) return;
@@ -1882,11 +1882,11 @@ public class NoteBlockEditScreen extends Screen {
     //   · 末 4 位是 int    → 像素  ：tex,x,y, 0,0,w,h, 16,16
     // 命中后缓存 Method，之后零反射。
 
-    private static volatile java.lang.reflect.Method iconBlit;
-    private static volatile int iconBlitPlan = -1;
-    private static volatile Object iconBlitPipe;
-    private static volatile boolean iconBlitTried = false;
-    private static volatile boolean iconBlitWarned = false;
+    private volatile java.lang.reflect.Method iconBlit;
+    private volatile int iconBlitPlan = -1;
+    private volatile Object iconBlitPipe;
+    private volatile boolean iconBlitTried = false;
+    private volatile boolean iconBlitWarned = false;
     private static volatile boolean iconDrawnLogged = false;
 
     /**
@@ -1901,7 +1901,7 @@ public class NoteBlockEditScreen extends Screen {
      *     （对应签名 int,int,int,int,float,float,float,float —— 26.4 无管线）
      * 按 float 出现的位置挑 plan，挑错再退试另一种。
      */
-    private static boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h)  {
+    private boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h)  {
         if (c == null || tex == null) return false;
 
         java.lang.reflect.Method m = iconBlit;
