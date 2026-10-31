@@ -65,10 +65,37 @@ public class NoteBlockEditScreen extends Screen {
     private static final int PLAYABLE_LOW = 0;
     private static final int PLAYABLE_HIGH = 24;
 
+    /** NBS 乐器英文短名（0..15） */
     private static final String[] INST_NAMES = {
-            "Harp", "Bass", "BDrum", "Snare", "Click", "Guitar", "Flute", "Bell",
-            "Chime", "Xylo", "IronXyl", "CowBell", "Didger", "Bit", "Banjo", "Pling"
+        "Harp", "Bass", "BDrum", "Snare", "Click", "Guitar", "Flute", "Bell",
+        "Chime", "Xylo", "IronXyl", "CowBell", "Didger", "Bit", "Banjo", "Pling"
     };
+    private static final String[] INST_KEY = {
+        "disc_jockey.editor.instrument.harp",
+        "disc_jockey.editor.instrument.bass",
+        "disc_jockey.editor.instrument.basedrum",
+        "disc_jockey.editor.instrument.snare",
+        "disc_jockey.editor.instrument.hat",
+        "disc_jockey.editor.instrument.guitar",
+        "disc_jockey.editor.instrument.flute",
+        "disc_jockey.editor.instrument.bell",
+        "disc_jockey.editor.instrument.chime",
+        "disc_jockey.editor.instrument.xylophone",
+        "disc_jockey.editor.instrument.iron_xylophone",
+        "disc_jockey.editor.instrument.cow_bell",
+        "disc_jockey.editor.instrument.didgeridoo",
+        "disc_jockey.editor.instrument.bit",
+        "disc_jockey.editor.instrument.banjo",
+        "disc_jockey.editor.instrument.pling"
+    };
+    /** 取翻译键（越界兜底为竖琴） */
+    private static String instKey(int i) {
+        return (i >= 0 && i < INST_KEY.length) ? INST_KEY[i] : INST_KEY[0];
+    }
+    /** 取可翻译的乐器名组件 */
+    private static net.minecraft.network.chat.Component instName(int i) {
+        return net.minecraft.network.chat.Component.translatable(instKey(i));
+    }
 
     /**
      * 每种音色对应的图标贴图（项目自带，assets/disc_jockey/textures/item/）。
@@ -83,15 +110,15 @@ public class NoteBlockEditScreen extends Screen {
             "glass",           // 4  Click / Hat
             "white_wool",      // 5  Guitar
             "clay",            // 6  Flute
-            "noteblock",       // 7  Bell
-            "noteblock",       // 8  Chime
-            "noteblock",       // 9  Xylo
-            "noteblock",       // 10 IronXyl
-            "noteblock",       // 11 CowBell
-            "emerald_block",   // 12 Didger
-            "noteblock",       // 13 Bit
+            "gold_block",       // 7  Bell
+            "packed_ice",       // 8  Chime
+            "bone_block_top",       // 9  Xylo
+            "iron_block",       // 10 IronXyl
+            "soul_sand",       // 11 CowBell
+            "pumpkin_side",   // 12 Didger
+            "emerald_block",       // 13 Bit
             "hay_block_side",  // 14 Banjo
-            "noteblock"        // 15 Pling
+            "glowstone"        // 15 Pling
     };
 
     /**
@@ -184,6 +211,9 @@ public class NoteBlockEditScreen extends Screen {
     private int scrollTick = 0;
     private int scrollRow = 0;
     private int curInstrument = 0;
+    private Button pauseButton;
+    private boolean paused = false;
+        private volatile int resumeFromTick = 0;
 
     // ---- 边缘自动滚动 ----
     private static final int EDGE_PX = 30;      // 触发区宽度（像素）
@@ -598,9 +628,9 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(playButton);
         bx += 54;
 
-        instButton = Button.builder(Component.literal(instName(curInstrument)), b -> {
+        instButton = Button.builder(instName(curInstrument), b -> {
             curInstrument = (curInstrument + 1) % INST_NAMES.length;
-            b.setMessage(Component.literal(instName(curInstrument)));
+            b.setMessage(instName(curInstrument));
         }).pos(bx, y2).size(76, 18).build();
         addRenderableWidget(instButton);
         bx += 78;
@@ -623,7 +653,9 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.sel_all"), b -> selectAll()).pos(bx, y2).size(22, 18).build());
         bx += 24;
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.undo"), b -> undo()).pos(bx, y2).size(22, 18).build());
-
+        bx += 24;
+        pauseButton = Button.builder(Component.literal("暂停"), b -> togglePause()).pos(bx, y2).size(22, 18).build();
+        addRenderableWidget(pauseButton);
         initInstSounds();
         initInstKeys();
     }
@@ -961,7 +993,7 @@ public class NoteBlockEditScreen extends Screen {
         if (code == SD_UP    || code == GL_UP)    { scrollRow = Math.max(0, scrollRow - 2); return true; }
         if (code == SD_DOWN  || code == GL_DOWN)  { scrollRow = Math.min(maxScrollRow(), scrollRow + 2); return true; }
         if (code == SD_SPACE || code == GL_SPACE) {
-            if (playing) stopPlayback(); else startPlayback();
+            togglePause();
             return true;
         }
         return false;
@@ -998,7 +1030,8 @@ public class NoteBlockEditScreen extends Screen {
 
     // ==================== 播放 ====================
 
-    private void startPlayback() {
+    private void startPlayback(int startTick) {
+        final int from = Math.max(0, startTick);   // 先算好，stopPlayback 会清 playheadTick
         stopPlayback();
         if (notes.isEmpty()) return;
         final List<EditableNote> snapshot = new ArrayList<>(notes);
@@ -1006,10 +1039,11 @@ public class NoteBlockEditScreen extends Screen {
         final long tickMs = Math.max(1, 100000L / Math.max(1, song.tempo));
 
         playing = true;
+        paused = false;
         playButton.setMessage(Component.translatable("disc_jockey.editor.stop"));
 
         playThread = new Thread(() -> {
-            for (int t = 0; t <= end && playing; t++) {
+            for (int t = from; t <= end && playing; t++) {
                 playheadTick = t;
                 List<EditableNote> at = new ArrayList<>();
                 for (EditableNote n : snapshot) if (n.tick == t) at.add(n);
@@ -1023,11 +1057,19 @@ public class NoteBlockEditScreen extends Screen {
                 try { Thread.sleep(tickMs); } catch (InterruptedException e) { break; }
             }
             playing = false;
-            playheadTick = -1;
-            Minecraft.getInstance().execute(() ->
-                    playButton.setMessage(Component.translatable("disc_jockey.editor.play")));
+            // 暂停导致的中断：保留 playheadTick，供继播使用
+            if (!paused) {
+                playheadTick = -1;
+                Minecraft.getInstance().execute(() ->
+                        playButton.setMessage(Component.translatable("disc_jockey.editor.play")));
+            }
         }, "DJ-NBSEditor-Play");
         playThread.start();
+    }
+
+    /** 从头播放 */
+    private void startPlayback() {
+        startPlayback(0);
     }
 
     private void stopPlayback() {
@@ -1137,14 +1179,6 @@ public class NoteBlockEditScreen extends Screen {
             } catch (Throwable ignored) {}
         }
         return null;
-    }
-
-    private static String instName(int i) {
-        initInstKeys();
-        String key = (i >= 0 && i < instKeys.length) ? instKeys[i] : null;
-        if (key == null) return INST_NAMES[i];
-        String t = Component.translatable(key).getString();
-        return (t == null || t.isEmpty() || t.equals(key)) ? INST_NAMES[i] : t;
     }
 
     private void save(boolean saveAs) {
@@ -1793,14 +1827,10 @@ public class NoteBlockEditScreen extends Screen {
             Object tm = textureManager();
             if (tm == null) return;
             String used = null;
-            java.lang.reflect.Method reloadM = null;
-            for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
-                if (m.getName().equals("registerForNextReload") && m.getParameterCount() == 1) { reloadM = m; break; }
-            }
-            if (reloadM != null) {
-                reloadM.invoke(tm, id);
-                used = "registerForNextReload";
-            } else {
+            // ★ 先走「真加载」：register(id, SimpleTexture) 会立刻把贴图传上 GPU。
+            //   而 registerForNextReload(id) 只是登记「下次资源重载时才加载」，
+            //   本次会话内 getTexture 拿不到纹理 -> blit 抛异常 -> 图标只剩纯色。
+            try {
                 java.lang.reflect.Method regM = null;
                 for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
                     if (m.getName().equals("register") && m.getParameterCount() == 2) { regM = m; break; }
@@ -1810,6 +1840,18 @@ public class NoteBlockEditScreen extends Screen {
                     Object tex = st.getConstructor(Identifier.class).newInstance(id);
                     regM.invoke(tm, id, tex);
                     used = "register(SimpleTexture)";
+                }
+            } catch (Throwable t) {
+                LOGGER.info("[Editor] register(SimpleTexture) 不可用（{}），改用 registerForNextReload", t);
+            }
+            if (used == null) {
+                java.lang.reflect.Method reloadM = null;
+                for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
+                    if (m.getName().equals("registerForNextReload") && m.getParameterCount() == 1) { reloadM = m; break; }
+                }
+                if (reloadM != null) {
+                    reloadM.invoke(tm, id);
+                    used = "registerForNextReload";
                 }
             }
             if (used != null && !texRegLogged) {
@@ -1859,7 +1901,9 @@ public class NoteBlockEditScreen extends Screen {
      *     （对应签名 int,int,int,int,float,float,float,float —— 26.4 无管线）
      * 按 float 出现的位置挑 plan，挑错再退试另一种。
      */
-    private static boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h) {
+    private static boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h)  {
+        if (c == null || tex == null) return false;
+
         java.lang.reflect.Method m = iconBlit;
         if (m != null && iconBlitPlan >= 0) {
             try {
@@ -1877,56 +1921,57 @@ public class NoteBlockEditScreen extends Screen {
         try { pipe = BlitCompat.guiPipeline(); } catch (Throwable ignored) {}
 
         StringBuilder diag = new StringBuilder();
+        StringBuilder errs = new StringBuilder();
+
+        // \u7b2c 0 \u8f6e\uff1a\u53ea\u8bd5\u5e26\u7ba1\u7ebf\u7684\u91cd\u8f7d\uff1b\u7b2c 1 \u8f6e\uff1a\u624d\u9000\u56de\u65e0\u7ba1\u7ebf\u3002
         for (int pass = 0; pass < 2 && iconBlit == null; pass++) {
-        for (java.lang.reflect.Method cand : GuiGraphicsExtractor.class.getMethods()) {
-            if (!"blit".equals(cand.getName())) continue;
-            diag.append(sig(cand)).append(' ');
-            Class<?>[] p = cand.getParameterTypes();
+            for (java.lang.reflect.Method cand : GuiGraphicsExtractor.class.getMethods()) {
+                if (!"blit".equals(cand.getName())) continue;
+                Class<?>[] p = cand.getParameterTypes();
+                if (pass == 0) diag.append(sig(cand)).append(' ');
 
-            int ti = -1;
-            for (int i = 0; i < p.length; i++) {
-                if (p[i].isAssignableFrom(Identifier.class) || Identifier.class.isAssignableFrom(p[i])) {
-                    ti = i;
-                    break;
+                int ti = -1;
+                for (int k = 0; k < p.length; k++) {
+                    if (p[k] == Identifier.class || p[k].isAssignableFrom(Identifier.class)
+                            || Identifier.class.isAssignableFrom(p[k])) { ti = k; break; }
                 }
-            }
-            if (ti < 0) continue;
+                if (ti < 0) continue;
 
-            java.util.List<Integer> nums = new java.util.ArrayList<>();
-            java.util.List<Integer> pipes = new java.util.ArrayList<>();
-            for (int i = 0; i < p.length; i++) {
-                if (i == ti) continue;
-                if (isInt(p[i]) || isFloat(p[i])) nums.add(i);
-                else pipes.add(i);
-            }
-            if (nums.size() != 8) continue;
-            if (!pipes.isEmpty() && pipe == null) continue;
-            // ★ 26.3：第一轮只试带 RenderPipeline 的重载（真实签名
-            //   (RenderPipeline, Identifier, int, int, float, float, int, int, int, int)），
-            //   第二轮才退回无管线的。避免 AUTO 探测时选中 26.4 才有的 9 参重载。
-            if (pass == 0 && pipes.isEmpty()) continue;
-            if (pass == 1 && !pipes.isEmpty()) continue;
+                java.util.List<Integer> nums = new java.util.ArrayList<>();
+                java.util.List<Integer> pipes = new java.util.ArrayList<>();
+                for (int k = 0; k < p.length; k++) {
+                    if (k == ti) continue;
+                    if (isInt(p[k]) || isFloat(p[k])) nums.add(k);
+                    else pipes.add(k);
+                }
+                if (nums.size() != 8) continue;
+                if (!pipes.isEmpty() && pipe == null) continue;
+                if (pass == 0 && pipes.isEmpty()) continue;
+                if (pass == 1 && !pipes.isEmpty()) continue;
 
-            // float 落在第 2,3 个数值位 -> 像素 UV；落在末尾 4 位 -> 归一化 UV
-            boolean pixFirst = isFloat(p[nums.get(2)]) || isFloat(p[nums.get(3)]);
-            int[] order = pixFirst ? new int[]{0, 1} : new int[]{1, 0};
-            for (int plan : order) {
-                try {
-                    cand.invoke(c, fillArgs(cand, plan, pipe, tex, x, y, w, h));
-                    iconBlit = cand;
-                    iconBlitPlan = plan;
-                    iconBlitPipe = pipe;
-                    LOGGER.info("[Editor] \u2713 \u97f3\u8272\u56fe\u6807 blit \u5c31\u7eea\uff1a{}\uff0c\u6392\u5e03={}",
-                            plan == 0 ? "\u50cf\u7d20UV" : "\u5f52\u4e00\u5316UV", sig(cand));
-                    return true;
-                } catch (Throwable ignored) {
+                // float \u843d\u5728\u7b2c 2,3 \u4e2a\u6570\u503c\u4f4d -> \u50cf\u7d20 UV\uff1b\u843d\u5728\u672b\u5c3e 4 \u4f4d -> \u5f52\u4e00\u5316 UV
+                boolean pixFirst = isFloat(p[nums.get(2)]) || isFloat(p[nums.get(3)]);
+                int[] order = pixFirst ? new int[]{0, 1} : new int[]{1, 0};
+                for (int plan : order) {
+                    try {
+                        cand.invoke(c, fillArgs(cand, plan, pipe, tex, x, y, w, h));
+                        iconBlit = cand;
+                        iconBlitPlan = plan;
+                        iconBlitPipe = pipe;
+                        LOGGER.info("[Editor] \u2713 \u97f3\u8272\u56fe\u6807 blit \u5c31\u7eea\uff1a{}\uff0c\u6392\u5e03={}",
+                                sig(cand), plan == 0 ? "\u50cf\u7d20UV" : "\u5f52\u4e00\u5316UV");
+                        return true;
+                    } catch (Throwable t) {
+                        errs.append(sig(cand)).append("/plan").append(plan)
+                            .append(" -> ").append(t).append("; ");
+                    }
                 }
             }
         }
-        }
+
         if (!iconBlitWarned) {
             iconBlitWarned = true;
-            LOGGER.warn("[Editor] \u627e\u4e0d\u5230\u53ef\u7528 blit(Identifier,\u2026)\uff0c\u97f3\u8272\u56fe\u6807\u9000\u56de\u7eaf\u8272\u3002\u5019\u9009\uff1a{}", diag);
+            LOGGER.warn("[Editor] \u627e\u4e0d\u5230\u53ef\u7528 blit\uff08\u56fe\u6807\u9000\u56de\u7eaf\u8272\uff09\u3002\u5019\u9009\uff1a{} \u2225 \u5931\u8d25\u539f\u56e0\uff1a{}", diag, errs);
         }
         return false;
     }
@@ -2001,7 +2046,19 @@ public class NoteBlockEditScreen extends Screen {
         int pc = ((midi % 12) + 12) % 12;
         return n[pc] + (midi / 12 - 1);
     }
-
+    private void togglePause() {
+        if (playing) {
+            resumeFromTick = Math.max(0, playheadTick);   // ① 先存进度
+            paused = true;
+            playing = false;
+            if (playThread != null) { playThread.interrupt(); playThread = null; }
+            pauseButton.setMessage(Component.literal("继播"));
+        } else if (paused) {
+            startPlayback(resumeFromTick);                 // ② 从存的进度续播
+        } else {
+            startPlayback(0);
+        }
+    }
     @Override
     public boolean isPauseScreen() { return false; }
 
