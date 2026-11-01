@@ -164,12 +164,16 @@ public class SongLoader {
                     reader.readShort();
                 }
 
-                Note note = new Note(
-                        Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
-                        (byte) noteId
-                );
-
-                seenNotes.add(note);
+                // 自定义乐器（instrumentId >= vanillaInstrumentCount）没有对应的
+                // NoteBlockInstrument，塞进 uniqueNotes 会误显示成竖琴，故跳过
+                int vc = (song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
+                if ((instrumentId & 0xFF) < vc) {
+                    Note note = new Note(
+                            Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
+                            (byte) noteId
+                    );
+                    seenNotes.add(note);
+                }
 
                 long packed = ((long) tick)
                                 | ((long) layer << 16)
@@ -183,6 +187,56 @@ public class SongLoader {
 
         song.uniqueNotes.clear();
         song.uniqueNotes.addAll(seenNotes);
+
+        // ---- NBS 第 4 段：自定义乐器 ----
+        // NBS 第3段 Layers：v4 必须跳过
+        try {
+            int layerCount = reader.readShort() & 0xFFFF;
+            StringBuilder ls = new StringBuilder();
+            for (int i = 0; i < layerCount; i++) {
+                String lname = reader.readString();
+                reader.readByte();
+                reader.readByte();
+                reader.readByte();
+                if (i < 3) ls.append("[").append(lname).append("]");
+            }
+            System.out.println("[DJ] " + song.fileName + " Layers=" + layerCount + " " + ls);
+        } catch (Throwable t) {
+            System.out.println("[DJ] " + song.fileName + " Layers skip fail: " + t);
+        }
+
+            // NBS 第3段 Layers：v4 必须跳过
+        try {
+            int layerCount = reader.readShort() & 0xFFFF;
+            StringBuilder ls = new StringBuilder();
+            for (int i = 0; i < layerCount; i++) {
+                String lname = reader.readString();
+                reader.readByte();
+                reader.readByte();
+                reader.readByte();
+                if (i < 3) ls.append("[").append(lname).append("]");
+            }
+            System.out.println("[DJ] " + song.fileName + " Layers=" + layerCount + " " + ls);
+        } catch (Throwable t) {
+            System.out.println("[DJ] " + song.fileName + " Layers skip fail: " + t);
+        }
+
+    song.customInstruments.clear();
+        try {
+            int ciCount = reader.readByte() & 0xFF;
+            for (int i = 0; i < ciCount; i++) {
+                String ciName = reader.readString();
+                String ciFile = reader.readString();
+                byte ciPitch = reader.readByte();
+                byte ciPress = reader.readByte();
+                song.customInstruments.add(new Song.CustomInstrument(ciName, ciFile, ciPitch, ciPress));
+            System.out.println("[DJ] CI[" + i + "] name=" + ciName + " file=" + ciFile + " pitch=" + ciPitch + " press=" + ciPress);
+            }
+            if (ciCount > 0)
+                Main.LOGGER.info("[DJ] {} 载入 {} 个自定义乐器", song.fileName, ciCount);
+        } catch (Throwable ignored) {
+            // 旧文件没有第 4 段，读不到就当没有自定义乐器，不影响加载
+        }
 
         song.detectKeySignature();
 
