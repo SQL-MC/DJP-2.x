@@ -217,8 +217,8 @@ public class NoteBlockEditScreen extends Screen {
 
     private final Set<EditableNote> selection = new HashSet<>();
     private final List<int[]> clipboard = new ArrayList<>();
-    private final List<int[]> undoStack = new ArrayList<>();
-    private final List<int[]> redoStack = new ArrayList<>();
+    private final List<Snap> undoStack = new ArrayList<>();
+    private final List<Snap> redoStack = new ArrayList<>();
     private int hoverTick = -1;
     private int hoverNote = Integer.MIN_VALUE;
 
@@ -275,6 +275,14 @@ public class NoteBlockEditScreen extends Screen {
         s.entry = null;
         return s;
     }
+
+    /** 撤销快照：音符数据 + 自定义音色（否则 undo/redo 会把音色弄丢） */
+    private static final class Snap {
+        int[] a;
+        String[] tones;
+        boolean[] nat;
+    }
+
 
     private static final class EditableNote {
         int tick, layer, instrument, noteId;
@@ -348,30 +356,40 @@ public class NoteBlockEditScreen extends Screen {
         return m;
     }
 
-    private int[] snapshot() {
-        int[] a = new int[notes.size() * 4];
-        for (int i = 0; i < notes.size(); i++) {
+    private Snap snapshot() {
+        Snap s = new Snap();
+        int m = notes.size();
+        s.a = new int[m * 4];
+        s.tones = new String[m];
+        s.nat = new boolean[m];
+        for (int i = 0; i < m; i++) {
             EditableNote n = notes.get(i);
-            a[i * 4    ] = n.tick;
-            a[i * 4 + 1] = n.layer;
-            a[i * 4 + 2] = n.instrument;
-            a[i * 4 + 3] = n.noteId;
+            s.a[i * 4    ] = n.tick;
+            s.a[i * 4 + 1] = n.layer;
+            s.a[i * 4 + 2] = n.instrument;
+            s.a[i * 4 + 3] = n.noteId;
+            s.tones[i] = n.tone;
+            s.nat[i]   = n.toneNatural;
         }
-        return a;
-    }
+        return s;
+}
 
-    private void restore(int[] a) {
+    private void restore(Snap s) {
         notes.clear();
         noteIndex.clear();
         selection.clear();
-        if (a == null) return;
+        if (s == null || s.a == null) return;
+        int[] a = s.a;
         for (int i = 0; i + 3 < a.length; i += 4) {
             EditableNote n = new EditableNote(a[i], a[i + 1], a[i + 2], a[i + 3]);
+            int k = i / 4;
+            if (s.tones != null && k < s.tones.length) n.tone = s.tones[k];
+            if (s.nat   != null && k < s.nat.length)   n.toneNatural = s.nat[k];
             notes.add(n);
             noteIndex.put(key(n.tick, n.noteId), n);
         }
         notes.sort(Comparator.comparingInt(x -> x.tick));
-    }
+}
 
     private void pushUndo() {
         undoStack.add(snapshot());
@@ -603,6 +621,12 @@ public class NoteBlockEditScreen extends Screen {
         }).pos(x, 6).size(40, 18).build());
         x += 42;
 
+        // ★ 自定义音色入口：贴窗口右边缘放置，任何窗口宽度都不会被挤出屏幕
+        addRenderableWidget(Button.builder(Component.literal("\u97f3\u8272"), b -> {
+            toneQuery = ""; toneScroll = 0; tonePickerOpen = !tonePickerOpen;
+            if (tonePickerOpen && selection.isEmpty())
+                System.out.println("[DJ-EDIT] CustomTone: 面板已打开，但还没选中音符（右键点音符=加入选择）");
+        }).pos(width - 64, 6).size(38, 18).build());
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.close"), b -> close()).pos(width - 24, 6).size(20, 18).build());
 
         int y2 = 30, bx = 6;
@@ -652,8 +676,7 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.undo"), b -> undo()).pos(bx, y2).size(22, 18).build());
         bx += 24;
 
-        addRenderableWidget(Button.builder(Component.literal("\u97f3\u8272"), b -> { toneQuery = ""; toneScroll = 0; tonePickerOpen = !tonePickerOpen; }).pos(bx, y2).size(30, 18).build());
-        bx += 32;
+        // ★ 自定义音色入口已挪到顶行右侧（见 close 按钮旁），此处不再占位
         // ★ 暂停 / 继播：暂停保留进度，继播时从原 tick 续播
         pauseButton = Button.builder(Component.literal("\u6682\u505c"), b -> togglePause())
                 .pos(bx, y2).size(30, 18).build();
@@ -742,6 +765,8 @@ public class NoteBlockEditScreen extends Screen {
         double v = (sy != 0) ? sy : sx;
         int dir = (v > 0) ? 1 : (v < 0 ? -1 : 0);
         if (dir == 0) return true;
+
+        if (tonePickerOpen) { scrollTonePicker(-dir); return true; }
 
         if (ctrlHeld) {
             zoom = Math.max(0, Math.min(4, zoom + dir));
@@ -1158,15 +1183,23 @@ public class NoteBlockEditScreen extends Screen {
     }
 
     private static SoundEvent unwrap(Object o) {
-        if (o instanceof SoundEvent s) return s;
-        if (o == null) return null;
-        for (String mn : new String[]{"value", "get"}) {
-            try {
-                Object v = o.getClass().getMethod(mn).invoke(o);
-                if (v instanceof SoundEvent s) return s;
-            } catch (Throwable ignored) {}
+        Object cur = o;
+        for (int d = 0; d < 6 && cur != null; d++) {
+            if (cur instanceof SoundEvent s) return s;
+            if (cur instanceof java.util.Optional<?> op) { cur = op.orElse(null); continue; }
+            Object next = null;
+            for (String mn : new String[]{"value", "get", "valueOrThrow"}) {
+                try {
+                    java.lang.reflect.Method m = cur.getClass().getMethod(mn);
+                    if (m.getParameterCount() != 0) continue;
+                    Object v = m.invoke(cur);
+                    if (v != null) { next = v; break; }
+                } catch (Throwable ignored) {}
+            }
+            if (next == null) break;
+            cur = next;
         }
-        return null;
+        return (cur instanceof SoundEvent s) ? s : null;
     }
 
     private static SoundEvent instSound(int i) {
@@ -1228,15 +1261,27 @@ public class NoteBlockEditScreen extends Screen {
 
             File out = new File(Main.songsFolder, base + ".nbs");
 
+            // 优先走原版 song.save()（NBS 格式最标准，NoteBlockStudio 能正常打开）；
+            // 只有 song.save 不可用时才退回 NbsToMidiExporter.writeNbs
             boolean ok = false;
+            String via = "?";
             try {
-                byte[] data = NbsToMidiExporter.writeNbs(song);
-                Files.write(out.toPath(), data);
-                ok = true;
-            } catch (Throwable t) {
-                LOGGER.warn("[Editor] writeNbs 失败，回退 song.save(): {}", t.getMessage());
                 ok = saveViaSong(out);
+                if (ok) via = "song.save()";
+            } catch (Throwable t) {
+                ok = false;
             }
+            if (!ok) {
+                try {
+                    byte[] data = NbsToMidiExporter.writeNbs(song);
+                    Files.write(out.toPath(), data);
+                    ok = true;
+                    via = "NbsToMidiExporter.writeNbs";
+                } catch (Throwable t) {
+                    LOGGER.warn("[Editor] 两种保存方式都失败: {}", t.getMessage());
+                }
+            }
+            if (ok) LOGGER.info("[Editor] 保存成功，使用路径: {}", via);
 
             if (ok) {
                 showMsg(Component.translatable("disc_jockey.editor.saved", out.getName())
@@ -1269,6 +1314,23 @@ public class NoteBlockEditScreen extends Screen {
             Method m = song.getClass().getMethod("save", String.class);
             m.invoke(song, out.getAbsolutePath());
             return true;
+        } catch (Throwable ignored) {}
+
+        // 三种签名都没匹配上：把 Song 类里名字含 save/write 的方法全部打印出来，便于确认真实签名
+        try {
+            StringBuilder sb = new StringBuilder("[Editor] Song 类可用写方法：");
+            for (Method mm : song.getClass().getMethods()) {
+                String mn = mm.getName();
+                if (!mn.toLowerCase().contains("save") && !mn.toLowerCase().contains("write")) continue;
+                sb.append(" ").append(mn).append("(");
+                Class<?>[] ps = mm.getParameterTypes();
+                for (int i = 0; i < ps.length; i++) {
+                    if (i > 0) sb.append(",");
+                    sb.append(ps[i].getSimpleName());
+                }
+                sb.append(")");
+            }
+            LOGGER.warn(sb.toString());
         } catch (Throwable ignored) {}
         return false;
     }
@@ -1334,7 +1396,6 @@ public class NoteBlockEditScreen extends Screen {
         autoScrollEdge(mx, my);
 
         super.extractRenderState(c, mx, my, delta);
-        if (tonePickerOpen) drawTonePicker(c, mx, my);
 
         int ch = cellH(), cw = cellW();
         int rows = visibleRows(), ticks = visibleTicks();
@@ -1462,7 +1523,9 @@ public class NoteBlockEditScreen extends Screen {
                 + (boxSelecting ? " | ▧BOX(边缘滚动)" : "")
                 + (playing ? " | ▶PLAYING" : "");
         c.text(font, Component.literal(st), gridX, height - 16, 0xFFAAAAAA, false);
-    }
+    
+        if (tonePickerOpen) drawTonePicker(c, mx, my);
+}
 
     private void drawKeyboard(GuiGraphicsExtractor c, int ch, int rows) {
         c.fill(2, gridY, KEYBOARD_W, gridY + gridH, 0xFF1A1A1E);
@@ -1999,6 +2062,8 @@ public class NoteBlockEditScreen extends Screen {
 
     private boolean drawSpriteIcon(GuiGraphicsExtractor c, int instrument, int x, int y, int w, int h) {
         if (spriteState != 1 || c == null) return false;
+        if (instrument < 0 || instrument >= INST_SPRITE.length) return false;
+        if (spriteCache == null || instrument >= spriteCache.length) return false;
         try {
             Object sp = spriteCache[instrument];
             if (sp == null) {
@@ -2338,10 +2403,8 @@ public class NoteBlockEditScreen extends Screen {
         if (c != null) return c;
         Identifier rid = newId(id);
         Object o = regGet(soundRegistry(), rid);
-        if (o instanceof SoundEvent) {
-            TONE_CACHE.put(id, (SoundEvent) o);
-            return (SoundEvent) o;
-        }
+        SoundEvent se = unwrap(o);
+        if (se != null) { TONE_CACHE.put(id, se); return se; }
         return null;
     }
 
@@ -2349,15 +2412,40 @@ public class NoteBlockEditScreen extends Screen {
 
     /** 有自定义音色就播它，否则播乐器原音色 */
     private void playToneOrInst(EditableNote n) {
+        // ★ 优先按 NBS 自定义乐器取声音（instrument >= vanillaInstrumentCount）
+        if (n != null && song != null) {
+                    {
+            int _vc = (song != null && song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
+            int _sz = (song != null && song.customInstruments != null) ? song.customInstruments.size() : -1;
+            System.out.println("[DJ-EDIT] DIAG inst=" + (n != null ? n.instrument : -999)
+                + " vc=" + _vc + " ciSize=" + _sz
+                + " isCustom=" + Note.isCustom(_vc, (n != null ? n.instrument : 0) & 0xFF)
+                + " tone=" + (n != null ? String.valueOf(n.tone) : "null"));
+        }
+            Song.CustomInstrument ci = song.customInstrumentOf(n.instrument);
+            if (ci != null && ci.file != null && !ci.file.isEmpty()) {
+                Minecraft mc = Minecraft.getInstance();
+                SoundEvent se = soundById(ci.file);
+                if (mc != null && se != null) {
+                    float pitch = (ci.press == 1) ? 1.0f : pitchFor(n.noteId);
+                    final SoundEvent fse = se;
+                    mc.execute(() -> mc.getSoundManager().play(SimpleSoundInstance.forUI(fse, pitch, 1.0f)));
+                    return;
+                }
+            }
+        }
         if (n != null && n.tone != null && !n.tone.isEmpty()) {
             Minecraft mc = Minecraft.getInstance();
             SoundEvent se = soundById(n.tone);
             if (mc != null && se != null) {
-                float pitch = n.toneNatural ? 1.0f : pitchFor(n.noteId);
+                float pitch = n.toneNatural ? pitchFor(n.noteId) : 1.0f;
                 final SoundEvent fse = se;
                 mc.execute(() -> mc.getSoundManager().play(
                         SimpleSoundInstance.forUI(fse, pitch, 1.0f)));
                 return;
+            }
+            if (se == null) {
+                LOGGER.warn("[DJ-EDIT] CustomTone: 音色查不到，回退原乐器 -> " + n.tone);
             }
         }
         if (n != null) playNoteSound(n.noteId, n.instrument);
@@ -2390,57 +2478,42 @@ public class NoteBlockEditScreen extends Screen {
         catch (Throwable t) { return null; }
     }
 
+    /** 从 NBS 第 4 段（自定义乐器）恢复音色显示信息；旧的 .djtone.txt 不再使用 */
     private void loadTones() {
-        File f = sidecarOf();
-        if (f == null || !f.isFile()) return;
-        try {
-            int cnt = 0;
-            for (String line : Files.readAllLines(f.toPath())) {
-                if (line.isEmpty() || line.startsWith("#")) continue;
-                int eq = line.indexOf('=');
-                if (eq < 0) continue;
-                int c = line.indexOf(':');
-                if (c < 0 || c > eq) continue;
-                int tick, noteId;
-                try {
-                    tick   = Integer.parseInt(line.substring(0, c).trim());
-                    noteId = Integer.parseInt(line.substring(c + 1, eq).trim());
-                } catch (NumberFormatException nfe) { continue; }
-                String v = line.substring(eq + 1).trim();
-                int bar = v.indexOf('|');
-                String id  = (bar < 0) ? v : v.substring(0, bar);
-                boolean nat = (bar >= 0) && v.substring(bar + 1).trim().equals("1");
-                EditableNote n = noteIndex.get(key(tick, noteId));
-                if (n != null && !id.isEmpty()) { n.tone = id; n.toneNatural = nat; cnt++; }
-            }
-            if (cnt > 0) System.out.println("[DJ-EDIT] CustomTone: 已载入 " + cnt + " 条自定义音色");
-        } catch (Throwable t) {
-            LOGGER.warn("[DJ-EDIT] CustomTone: sidecar 载入失败 {}", t.getMessage());
+        if (song == null || song.customInstruments == null || song.customInstruments.isEmpty()) return;
+        int cnt = 0;
+        for (EditableNote n : notes) {
+                    {
+            int _vc = (song != null && song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
+            int _sz = (song != null && song.customInstruments != null) ? song.customInstruments.size() : -1;
+            System.out.println("[DJ-EDIT] DIAG inst=" + (n != null ? n.instrument : -999)
+                + " vc=" + _vc + " ciSize=" + _sz
+                + " isCustom=" + Note.isCustom(_vc, (n != null ? n.instrument : 0) & 0xFF)
+                + " tone=" + (n != null ? String.valueOf(n.tone) : "null"));
         }
+            Song.CustomInstrument ci = song.customInstrumentOf(n.instrument);
+            if (ci == null) continue;
+            n.tone = ci.file;
+            n.toneNatural = (ci.press == 0);
+            cnt++;
+        }
+        if (cnt > 0)
+            System.out.println("[DJ-EDIT] CustomTone: 已从 NBS 载入 " + cnt + " 个音符的自定义音色");
     }
 
+    /** 音色已写进 NBS 第 4 段，不再需要 sidecar。这里只负责清理历史遗留文件 */
     private void writeTones(File nbsOut) {
         try {
-            List<String> lines = new ArrayList<>();
-            lines.add("# Disc Jockey CustomTone sidecar");
-            for (EditableNote n : notes) {
-                if (n.tone == null || n.tone.isEmpty()) continue;
-                lines.add(n.tick + ":" + n.noteId + "=" + n.tone + "|" + (n.toneNatural ? "1" : "0"));
-            }
             File f = (nbsOut != null && nbsOut.getParentFile() != null)
                     ? new File(nbsOut.getParentFile(), nbsOut.getName() + ".djtone.txt")
                     : sidecarOf();
-            if (f == null) return;
-            if (lines.size() <= 1) {
-                if (f.isFile()) f.delete();
-                return;
+            if (f != null && f.isFile()) {
+                f.delete();
+                System.out.println("[DJ-EDIT] CustomTone: 已清理历史 sidecar " + f.getName());
             }
-            Files.write(f.toPath(), lines);
-            System.out.println("[DJ-EDIT] CustomTone: 已写入 " + (lines.size() - 1)
-                    + " 条自定义音色 -> " + f.getName());
-        } catch (Throwable t) {
-            LOGGER.warn("[DJ-EDIT] CustomTone: sidecar 写入失败 {}", t.getMessage());
-        }
+        } catch (Throwable ignored) { }
+        if (song != null && song.customInstruments != null && !song.customInstruments.isEmpty())
+            System.out.println("[DJ-EDIT] CustomTone: 随 NBS 保存 " + song.customInstruments.size() + " 个自定义乐器");
     }
 
     // ---------- 面板交互 ----------
@@ -2449,6 +2522,15 @@ public class NoteBlockEditScreen extends Screen {
     private int pickerY() { return Math.max(4, (height - Math.min(340, height - 20)) / 2); }
     private int pickerW() { return Math.min(460, width  - 20); }
     private int pickerH() { return Math.min(340, height - 20); }
+
+    /** 音色面板滚轮翻页 */
+    private void scrollTonePicker(int dir) {
+        List<String> items = filteredTones();
+        int rows = Math.max(1, (pickerH() - 34 - 24) / 12);
+        int max = Math.max(0, items.size() - rows);
+        toneScroll = Math.max(0, Math.min(max, toneScroll + dir * 3));
+    }
+
 
     private List<String> filteredTones() {
         ensureSounds();
@@ -2473,7 +2555,7 @@ public class NoteBlockEditScreen extends Screen {
         if (my >= listY && my < listY + listH) {
             List<String> items = filteredTones();
             int idx = toneScroll + (int) ((my - listY) / 12);
-            if (idx >= 0 && idx < items.size()) applyTone(items.get(idx), button == 1);
+            if (idx >= 0 && idx < items.size()) applyTone(items.get(idx), button != 3);
             return true;
         }
         return true;
@@ -2481,13 +2563,33 @@ public class NoteBlockEditScreen extends Screen {
 
     private void applyTone(String id, boolean natural) {
         List<EditableNote> sel = selectedList();
+        if (sel.isEmpty() && !selection.isEmpty()) {
+            // selection 与 notes 引用失配：退化为直接用 selection（过滤掉已删除的）
+            sel = new ArrayList<>();
+            java.util.Set<EditableNote> live = new java.util.HashSet<>(notes);
+            for (EditableNote n : selection) if (live.contains(n)) sel.add(n);
+            sel.sort(Comparator.comparingInt(x -> x.tick));
+            System.out.println("[DJ-EDIT] CustomTone: 选择集失配已修正 -> " + sel.size());
+        }
         if (sel.isEmpty()) {
             tonePickerOpen = false;
-            System.out.println("[DJ-EDIT] CustomTone: 没有选中音符");
+            System.out.println("[DJ-EDIT] CustomTone: 没有选中音符（selection="
+                    + selection.size() + " notes=" + notes.size() + "）");
             return;
         }
         pushUndo();
-        for (EditableNote n : sel) { n.tone = id; n.toneNatural = natural; }
+        // ★ NBS 原生：登记自定义乐器（写入 NBS 第 4 段），并把音符 instrument 改成它的编号
+        int press = natural ? 0 : 1;   // 0 = 跟随音高，1 = 原声
+        int instId = (song != null) ? song.addOrGetCustomInstrument(id, press) : -1;
+        if (instId < 0) {
+            tonePickerOpen = false;
+            System.out.println("[DJ-EDIT] CustomTone: 自定义乐器数量已达上限，无法应用");
+            return;
+        }
+        for (EditableNote n : sel) { int _reg = (song != null) ? song.addOrGetCustomInstrument(id, natural ? 0 : 1) : -1;
+            if (_reg >= 0) { n.instrument = _reg; System.out.println("[DJ-EDIT] DIAG apply -> instrument=" + _reg + " (" + id + ")"); }
+            else { n.instrument = instId; }
+            n.tone = id; n.toneNatural = natural; }
         tonePickerOpen = false;
         System.out.println("[DJ-EDIT] CustomTone: 应用 " + id
                 + (natural ? "（原声）" : "（跟随音高）") + " -> " + sel.size() + " 个音符");
@@ -2569,7 +2671,11 @@ public class NoteBlockEditScreen extends Screen {
             c.text(mc.font, s, px + 9, yy + 2, hover ? 0xFFFFFF80 : 0xFFB0B0B0);
         }
 
-        c.text(mc.font, items.size() + " 个声音  |  已选 " + selection.size()
-                + " 个音符  |  ESC 关闭", px + 9, py + ph - 15, 0xFF909090);
+        if (selection.isEmpty()) {
+            c.text(mc.font, "\u26a0 \u8bf7\u5148\u5173\u95ed\u672c\u9762\u677f\uff0c\u7528\u53f3\u952e\u70b9\u9009\u4e2d\u97f3\u7b26\uff0c\u518d\u6253\u5f00\u672c\u9762\u677f\u9009\u97f3\u8272", px + 9, py + ph - 15, 0xFFFF6060);
+        } else {
+            c.text(mc.font, items.size() + " 个声音  |  已选 " + selection.size()
+                    + " 个音符（左键=跟随音高 / 右键=原声）  |  ESC 关闭", px + 9, py + ph - 15, 0xFF909090);
+        }
     }
 }

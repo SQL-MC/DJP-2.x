@@ -16,6 +16,74 @@ import semmiedev.disc_jockey.gui.SongListWidget;
 
 public class Song {
 
+    /** NBS_V4 固定：原版乐器数量（Harp..Pling = 16） */
+    public static final int VANILLA_INST_COUNT = 16;
+
+
+    /**
+     * NBS 自定义乐器（文件第 4 段，与 NoteBlockStudio 完全同款机制）。
+     * file 字段我们用来存 Minecraft 声音事件 id（如 pianolib:a4 / minecraft:entity.player.death）。
+     * press 字段复用为音高模式：0 = 跟随音高，1 = 原声（pitch = 1.0）。
+     */
+    public static final class CustomInstrument {
+        public String name;
+        public String file;
+        public byte pitch;
+        public byte press;
+
+        public CustomInstrument() { this("", "", (byte) 45, (byte) 0); }
+
+        public CustomInstrument(String name, String file, byte pitch, byte press) {
+            this.name = name == null ? "" : name;
+            this.file = file == null ? "" : file;
+            this.pitch = pitch;
+            this.press = press;
+        }
+
+        @Override
+        public String toString() { return name + " -> " + file; }
+    }
+
+    /** NBS 第 4 段：自定义乐器列表。下标 i 对应音符 instrument = vanillaInstrumentCount + i */
+    public final ArrayList<CustomInstrument> customInstruments = new ArrayList<>();
+
+    /** instrument 字节是否是自定义乐器 */
+    public boolean isCustomInstrument(int instrumentId) {
+        int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
+        return (instrumentId & 0xFF) >= vc;
+    }
+
+    /** 取 instrument 字节对应的自定义乐器，非自定义或越界返回 null */
+    public CustomInstrument customInstrumentOf(int instrumentId) {
+        if (!isCustomInstrument(instrumentId)) return null;
+        int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
+        int idx = (instrumentId & 0xFF) - vc;
+        if (idx < 0 || idx >= customInstruments.size()) return null;
+        return customInstruments.get(idx);
+    }
+
+    /**
+     * 登记一个自定义乐器（同声音 id + 同音高模式复用同一条），返回它的 instrument 字节。
+     * 超出 255 时返回 -1。
+     */
+    public int addOrGetCustomInstrument(String soundId, int press) {
+        // 自定义乐器一律按 NBS_V4 的 16 个原版乐器之后编号
+        this.vanillaInstrumentCount = (byte) VANILLA_INST_COUNT;
+        int vc = VANILLA_INST_COUNT;
+        byte p = (byte) press;
+        String sid = (soundId == null) ? "" : soundId;
+        for (int i = 0; i < customInstruments.size(); i++) {
+            CustomInstrument c = customInstruments.get(i);
+            if (c != null && sid.equals(c.file) && c.press == p) return vc + i;
+        }
+        if (customInstruments.size() >= (255 - vc)) return -1;
+        String nm = sid;
+        int slash = nm.indexOf(':');
+        if (slash >= 0 && slash + 1 < nm.length()) nm = nm.substring(slash + 1);
+        customInstruments.add(new CustomInstrument(nm, sid, (byte) 45, p));
+        return vc + customInstruments.size() - 1;
+    }
+
     public String relativePath = "";
 
     public Lyrics lyrics = null;
@@ -225,6 +293,15 @@ public class Song {
 
             int headerLength = Math.max(1, computeMaxTick(all));
 
+            // ★ NBS v4 新格式头：0 + version(4) + vanillaInstrumentCount(16) + length
+            byte version = 4;
+            byte vanillaCount = (byte) VANILLA_INST_COUNT;   // NBS_V4 固定 16 个原版乐器
+            this.formatVersion = version;
+            this.vanillaInstrumentCount = vanillaCount;
+
+            writeShortLE(raf, 0);                 // 新格式标记
+            writeByte(raf, version & 0xFF);       // formatVersion = 4
+            writeByte(raf, vanillaCount & 0xFF);  // vanillaInstrumentCount = 16
             writeShortLE(raf, headerLength);
             writeShortLE(raf, this.height & 0xFFFF);
             writeNbsStringLE(raf, this.name);
@@ -241,16 +318,16 @@ public class Song {
             writeIntLE(raf, this.blocksAdded);
             writeIntLE(raf, this.blocksRemoved);
             writeNbsStringLE(raf, this.importFileName);
-            // ★ 旧格式：此处不含 formatVersion / vanillaInstrumentCount / loop / maxLoopCount / loopStartTick
+            // ★ v4 头尾字段
+            writeByte(raf, this.loop);
+            writeByte(raf, this.maxLoopCount);
+            writeShortLE(raf, this.loopStartTick & 0xFFFF);
 
-            writeNotesLE(raf, all, headerLength);
+            writeNotesV4(raf, all, headerLength);
+            writeLayersV4(raf, this.height & 0xFFFF);
 
-            // 每条 = int长度(4) + "Grand Piano"(11字节) + volume(1字节) = 16 字节定长
-            // 与实测正常文件尾部结构完全一致（逐条 "0B 00 00 00 Grand Pianod"）
-            writeLayersLE(raf, this.height & 0xFFFF);
-
-            // 与实测正常文件末尾 "00 00 00 00" 一致（防加载器读到垃圾值）
-            writeIntLE(raf, 0);
+            // ★ NBS 第 4 段：自定义乐器（NoteBlockStudio 读的就是这里）
+            writeCustomInstruments(raf);
         }
     }
 
@@ -280,6 +357,64 @@ public class Song {
             writeShortLE(raf, 0);
         }
         writeShortLE(raf, 0);
+    }
+
+    /** v4 音符：instrument(1) + key(1) + velocity(1) + panning(1) + pitch(2) */
+    private static void writeNotesV4(RandomAccessFile raf, List<NoteData> all, int headerLength) throws IOException {
+        if (all.isEmpty()) { writeShortLE(raf, 0); return; }
+
+        Map<Integer, List<NoteData>> byTick = new HashMap<>();
+        for (NoteData n : all) byTick.computeIfAbsent(n.tick, k -> new ArrayList<>()).add(n);
+
+        List<Integer> tickKeys = new ArrayList<>(byTick.keySet());
+        tickKeys.sort(Comparator.naturalOrder());
+
+        int lastTick = -1;
+        for (int t : tickKeys) {
+            List<NoteData> layerList = byTick.get(t);
+            writeShortLE(raf, (t - lastTick) & 0xFFFF);
+            lastTick = t;
+
+            layerList.sort(Comparator.comparingInt(n -> n.layer));
+            int lastLayer = -1;
+            for (NoteData n : layerList) {
+                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF);
+                lastLayer = n.layer;
+                writeByte(raf, n.instrument & 0xFF);
+                writeByte(raf, noteIdToRaw(n.noteId));
+                writeByte(raf, 100);          // velocity
+                writeByte(raf, 100);          // panning（100 = 居中）
+                writeShortLE(raf, 0);         // pitch 微调 = 0
+            }
+            writeShortLE(raf, 0);
+        }
+        writeShortLE(raf, 0);
+    }
+
+    /** v4 图层：name + lock(1) + volume(1) + stereo(1) */
+    private static void writeLayersV4(RandomAccessFile raf, int layerCount) throws IOException {
+        if (layerCount < 1) layerCount = 1;
+        for (int i = 0; i < layerCount; i++) {
+            writeNbsStringLE(raf, "Grand Piano");
+            writeByte(raf, 0);      // lock
+            writeByte(raf, 100);    // volume
+            writeByte(raf, 100);    // stereo（100 = 居中）
+        }
+    }
+
+    /** 第 4 段：byte 数量 + 每项 [name, file, pitch, press] */
+    private void writeCustomInstruments(RandomAccessFile raf) throws IOException {
+        List<CustomInstrument> list = (customInstruments == null) ? new ArrayList<CustomInstrument>() : customInstruments;
+        int n = Math.min(255, list.size());
+        writeByte(raf, n & 0xFF);
+        for (int i = 0; i < n; i++) {
+            CustomInstrument ci = list.get(i);
+            if (ci == null) ci = new CustomInstrument();
+            writeNbsStringLE(raf, ci.name);
+            writeNbsStringLE(raf, ci.file);
+            writeByte(raf, ci.pitch & 0xFF);
+            writeByte(raf, ci.press & 0xFF);
+        }
     }
 
     private static void writeLayersLE(RandomAccessFile raf, int layerCount) throws IOException {
