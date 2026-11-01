@@ -14,6 +14,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 import org.slf4j.Logger;
+import net.minecraft.resources.Identifier;
+import semmiedev.disc_jockey.util.BlitCompat;
 import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.MidiToNbsImporter;
 import semmiedev.disc_jockey.NbsToMidiExporter;
@@ -21,8 +23,6 @@ import semmiedev.disc_jockey.Note;
 import semmiedev.disc_jockey.NoteClamper;
 import semmiedev.disc_jockey.Song;
 import semmiedev.disc_jockey.SongLoader;
-import semmiedev.disc_jockey.util.BlitCompat;
-import net.minecraft.resources.Identifier;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -65,64 +65,66 @@ public class NoteBlockEditScreen extends Screen {
     private static final int PLAYABLE_LOW = 0;
     private static final int PLAYABLE_HIGH = 24;
 
-    /** NBS 乐器英文短名（0..15） */
     private static final String[] INST_NAMES = {
-        "Harp", "Bass", "BDrum", "Snare", "Click", "Guitar", "Flute", "Bell",
-        "Chime", "Xylo", "IronXyl", "CowBell", "Didger", "Bit", "Banjo", "Pling"
+            "Harp", "Bass", "BDrum", "Snare", "Click", "Guitar", "Flute", "Bell",
+            "Chime", "Xylo", "IronXyl", "CowBell", "Didger", "Bit", "Banjo", "Pling"
     };
-    private static final String[] INST_KEY = {
-        "disc_jockey.editor.instrument.harp",
-        "disc_jockey.editor.instrument.bass",
-        "disc_jockey.editor.instrument.basedrum",
-        "disc_jockey.editor.instrument.snare",
-        "disc_jockey.editor.instrument.hat",
-        "disc_jockey.editor.instrument.guitar",
-        "disc_jockey.editor.instrument.flute",
-        "disc_jockey.editor.instrument.bell",
-        "disc_jockey.editor.instrument.chime",
-        "disc_jockey.editor.instrument.xylophone",
-        "disc_jockey.editor.instrument.iron_xylophone",
-        "disc_jockey.editor.instrument.cow_bell",
-        "disc_jockey.editor.instrument.didgeridoo",
-        "disc_jockey.editor.instrument.bit",
-        "disc_jockey.editor.instrument.banjo",
-        "disc_jockey.editor.instrument.pling"
+
+    private static final String[] INST_SUFFIX = {
+            "harp", "bass", "basedrum", "snare", "hat", "guitar", "flute", "bell",
+            "chime", "xylophone", "iron_xylophone", "cow_bell", "didgeridoo",
+            "bit", "banjo", "pling"
     };
-    /** 取翻译键（越界兜底为竖琴） */
-    private static String instKey(int i) {
-        return (i >= 0 && i < INST_KEY.length) ? INST_KEY[i] : INST_KEY[0];
-    }
-    /** 取可翻译的乐器名组件 */
-    private static net.minecraft.network.chat.Component instName(int i) {
-        return net.minecraft.network.chat.Component.translatable(instKey(i));
-    }
+
+    /**
+     * 内置中文名（lang 文件没配、或当前语言不是 zh_cn 时的兜底）。
+     * 保证乐器按钮 / 状态栏始终显示中文，不再依赖 MC 原版语言包。
+     */
+    private static final String[] INST_CN = {
+            "竖琴",       // 0  Harp
+            "贝斯",       // 1  Bass
+            "底鼓",       // 2  BDrum      basedrum
+            "军鼓",       // 3  Snare      snare
+            "踩镲",       // 4  Click      hat
+            "吉他",       // 5  Guitar
+            "长笛",       // 6  Flute
+            "钟",         // 7  Bell
+            "风铃",       // 8  Chime
+            "木琴",       // 9  Xylo       xylophone
+            "铁木琴",     // 10 IronXyl    iron_xylophone
+            "牛铃",       // 11 CowBell    cow_bell
+            "迪吉里杜管", // 12 Didger     didgeridoo
+            "电子音",     // 13 Bit        bit
+            "班卓琴",     // 14 Banjo
+            "拨弦"        // 15 Pling
+    };
 
     /**
      * 每种音色对应的图标贴图（项目自带，assets/disc_jockey/textures/item/）。
-     * 都是从 MC 里解出来的 16x16 物品图，索引与 INST_NAMES / Note.NBS_V4 一致。
-     * 没有专属图的（Bell/Chime/Xylo/IronXyl/CowBell/Bit/Pling/Harp）统一用 noteblock。
+     * 16 种各有专属图，索引与 INST_NAMES / Note.NBS_V4 一致。
+     * ★ Didger(12) = 南瓜、Bit(13) = 绿宝石块（MC 原始对应关系）。
      */
     private static final String[] INST_TEX = {
-            "noteblock",       // 0  Harp
-            "oak_planks",      // 1  Bass
-            "stone",           // 2  BDrum
-            "sand",            // 3  Snare
-            "glass",           // 4  Click / Hat
-            "white_wool",      // 5  Guitar
-            "clay",            // 6  Flute
-            "gold_block",       // 7  Bell
-            "packed_ice",       // 8  Chime
-            "bone_block_top",       // 9  Xylo
-            "iron_block",       // 10 IronXyl
-            "soul_sand",       // 11 CowBell
-            "pumpkin_side",   // 12 Didger
-            "emerald_block",       // 13 Bit
-            "hay_block_side",  // 14 Banjo
-            "glowstone"        // 15 Pling
+            "noteblock",       // 0  Harp      音符盒
+            "oak_planks",      // 1  Bass      橡木木板
+            "stone",           // 2  BDrum     石头
+            "sand",            // 3  Snare     沙子
+            "glass",           // 4  Click     玻璃
+            "white_wool",      // 5  Guitar    白色羊毛
+            "clay",            // 6  Flute     黏土
+            "gold_block",      // 7  Bell      金块
+            "packed_ice",      // 8  Chime     浮冰
+            "bone_block_top",  // 9  Xylo      骨块
+            "iron_block",      // 10 IronXyl   铁块
+            "soul_sand",       // 11 CowBell   灵魂沙
+            "pumpkin_side",    // 12 Didger    南瓜
+            "emerald_block",   // 13 Bit       绿宝石块
+            "hay_block_side",  // 14 Banjo     干草捆
+            "glowstone"        // 15 Pling     萤石
     };
 
     /**
-     * 每种音色的色块颜色（取发声方块本色）。
+     * 每种音色的色块颜色（取发声方块本色，与 INST_TEX 一一对应）。
      * 图标只在格子够大时才画，小缩放全靠这 16 色区分音色 ——
      * 所以即使图标没出来，也不会再退回「只有蓝/绿两色」。
      */
@@ -138,65 +140,56 @@ public class NoteBlockEditScreen extends Screen {
             0xFF7EC8E3, // 8  Chime     浮冰
             0xFFE3DCC0, // 9  Xylo      骨块
             0xFFC8C8C8, // 10 IronXyl   铁块
-            0xFFE08A2E, // 11 CowBell   南瓜
-            0xFF2ECC71, // 12 Didger    绿宝石块
-            0xFF8B4A4A, // 13 Bit       下界岩
+            0xFF7A5C3E, // 11 CowBell   灵魂沙
+            0xFFE08A2E, // 12 Didger    南瓜
+            0xFF2ECC71, // 13 Bit       绿宝石块
             0xFFC8A34A, // 14 Banjo     干草捆
             0xFFEAD36B  // 15 Pling     萤石
     };
 
     /** 格子达到这个尺寸才叠加图标（16x16 贴图的最小需求） */
     private static final int ICON_MIN_CELL = 8;
-    /**
-     * 音色图标总开关。
-     *
-     * 默认 false：只按 16 种音色着色，不画贴图。
-     * 原因：assets/disc_jockey/textures/item/*.png 在运行时解析不到时，
-     * MC 会渲染「缺失贴图」的黑紫棋盘格，反而比纯色更糟。
-     * 确认 png 已打进 jar 之后，把这里改成 true 即可启用图标。
-     */
+
     /**
      * 音色图标总开关。
      * true = 贴图存在就画图标；贴图不存在则自动退回纯色（不会出现黑紫缺失贴图）。
      */
     private static final boolean ICONS_ENABLED = true;
 
-    /** 图标贴图缓存（Identifier 构造方式 26.3 / 26.4 不同，反射兜底） */
     /**
-     * \u515c\u5e95\u7528\u7684 MC \u539f\u7248\u65b9\u5757\u8d34\u56fe\uff08assets/minecraft/textures/block/\uff09\u3002
-     * \u7d22\u5f15\u4e0e INST_TEX \u4e00\u81f4\uff1b\u9879\u76ee\u91cc\u53eb noteblock\uff0cMC \u91cc\u53eb note_block\u3002
+     * 兜底用的 MC 原版方块贴图（assets/minecraft/textures/block/）。
+     * 索引与 INST_TEX 一致；项目里叫 noteblock，MC 里叫 note_block。
      */
     private static final String[] INST_TEX_VANILLA = {
             "note_block",      // 0  Harp
             "oak_planks",      // 1  Bass
             "stone",           // 2  BDrum
             "sand",            // 3  Snare
-            "glass",           // 4  Click / Hat
+            "glass",           // 4  Click
             "white_wool",      // 5  Guitar
             "clay",            // 6  Flute
-            "note_block",      // 7  Bell
-            "note_block",      // 8  Chime
-            "note_block",      // 9  Xylo
-            "note_block",      // 10 IronXyl
-            "note_block",      // 11 CowBell
-            "emerald_block",   // 12 Didger
-            "note_block",      // 13 Bit
+            "gold_block",      // 7  Bell
+            "packed_ice",      // 8  Chime
+            "bone_block_top",  // 9  Xylo
+            "iron_block",      // 10 IronXyl
+            "soul_sand",       // 11 CowBell
+            "pumpkin_side",    // 12 Didger    南瓜
+            "emerald_block",   // 13 Bit       绿宝石块
             "hay_block_side",  // 14 Banjo
-            "note_block"       // 15 Pling
+            "glowstone"        // 15 Pling
     };
 
-    /** \u515c\u5e95\u4e5f\u5931\u8d25\u8fc7\uff0c\u4e0d\u518d\u91cd\u590d\u63a2\u6d4b */
+    /** 兜底也失败过，不再重复探测 */
     private final boolean[] instTexDead = new boolean[INST_TEX.length];
-    private static volatile boolean vanillaFallbackLogged = false;
+    private volatile boolean vanillaFallbackLogged = false;
 
     private final Identifier[] instTexCache = new Identifier[INST_TEX.length];
     private volatile boolean instTexTried = false;
 
     /** 每个音色的贴图是否已向 TextureManager 注册过 */
     private final boolean[] instTexRegistered = new boolean[INST_TEX.length];
-    private static volatile boolean texRegLogged = false;
+    private volatile boolean texRegLogged = false;
     private static final boolean TEXTURE_REGISTER = true;
-
     private static volatile SoundEvent[] instSounds;
     private static String[] instKeys;
 
@@ -211,9 +204,6 @@ public class NoteBlockEditScreen extends Screen {
     private int scrollTick = 0;
     private int scrollRow = 0;
     private int curInstrument = 0;
-    private Button pauseButton;
-    private boolean paused = false;
-        private volatile int resumeFromTick = 0;
 
     // ---- 边缘自动滚动 ----
     private static final int EDGE_PX = 30;      // 触发区宽度（像素）
@@ -253,6 +243,8 @@ public class NoteBlockEditScreen extends Screen {
     private Thread playThread;
     private volatile boolean playing;
     private volatile int playheadTick = -1;
+    private Button pauseButton;
+    private volatile boolean paused = false;
 
     public NoteBlockEditScreen(Screen parent, Song song) {
         super(Component.translatable("disc_jockey.editor.title"));
@@ -286,6 +278,10 @@ public class NoteBlockEditScreen extends Screen {
 
     private static final class EditableNote {
         int tick, layer, instrument, noteId;
+        /** 自定义音色 id（null = 用乐器原音色）；格式 namespace:path */
+        String tone;
+        /** true = 原声（pitch=1.0），false = 跟随音高 */
+        boolean toneNatural;
         EditableNote(int t, int l, int i, int n) { tick = t; layer = l; instrument = i; noteId = n; }
     }
 
@@ -305,6 +301,7 @@ public class NoteBlockEditScreen extends Screen {
             noteIndex.put(key(tick, noteId), n);
         }
         notes.sort(Comparator.comparingInt(n -> n.tick));
+        loadTones();
     }
 
     private void packToSong() {
@@ -455,7 +452,7 @@ public class NoteBlockEditScreen extends Screen {
             noteIndex.put(k, n);
             System.out.println("[DJ-EDIT] ADD tick=" + tick + " " + noteName(noteId)
                     + " instr=" + instName(curInstrument));
-            playNoteSound(n.noteId, n.instrument);
+            playToneOrInst(n);
         }
     }
 
@@ -617,7 +614,7 @@ public class NoteBlockEditScreen extends Screen {
         bx += 20;
         addRenderableWidget(Button.builder(Component.literal("▼"), b -> scrollRow = Math.min(Math.max(0, ROW_COUNT - visibleRows()), scrollRow + 4)).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("+"), b -> zoom = Math.min(6, zoom + 1)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.literal("+"), b -> zoom = Math.min(4, zoom + 1)).pos(bx, y2).size(18, 18).build());
         bx += 20;
         addRenderableWidget(Button.builder(Component.literal("−"), b -> zoom = Math.max(0, zoom - 1)).pos(bx, y2).size(18, 18).build());
         bx += 24;
@@ -628,9 +625,9 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(playButton);
         bx += 54;
 
-        instButton = Button.builder(instName(curInstrument), b -> {
+        instButton = Button.builder(Component.literal(instName(curInstrument)), b -> {
             curInstrument = (curInstrument + 1) % INST_NAMES.length;
-            b.setMessage(instName(curInstrument));
+            b.setMessage(Component.literal(instName(curInstrument)));
         }).pos(bx, y2).size(76, 18).build();
         addRenderableWidget(instButton);
         bx += 78;
@@ -654,8 +651,16 @@ public class NoteBlockEditScreen extends Screen {
         bx += 24;
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.undo"), b -> undo()).pos(bx, y2).size(22, 18).build());
         bx += 24;
-        pauseButton = Button.builder(Component.literal("暂停"), b -> togglePause()).pos(bx, y2).size(22, 18).build();
+
+        addRenderableWidget(Button.builder(Component.literal("\u97f3\u8272"), b -> { toneQuery = ""; toneScroll = 0; tonePickerOpen = !tonePickerOpen; }).pos(bx, y2).size(30, 18).build());
+        bx += 32;
+        // ★ 暂停 / 继播：暂停保留进度，继播时从原 tick 续播
+        pauseButton = Button.builder(Component.literal("\u6682\u505c"), b -> togglePause())
+                .pos(bx, y2).size(30, 18).build();
         addRenderableWidget(pauseButton);
+        bx += 32;
+
+        preloadInstTextures();
         initInstSounds();
         initInstKeys();
     }
@@ -683,7 +688,7 @@ public class NoteBlockEditScreen extends Screen {
         } catch (Throwable ignored) {}
     }
 
-    private int cellH() { return 4 + zoom * 3; }   // ★ 与 cellW 同比例：zoom=4 → 16x16，刚好放得下图标
+    private int cellH() { return 5 + zoom * 2; }
     private int cellW() { return 4 + zoom * 3; }
     private int visibleRows() { return Math.max(1, gridH / cellH()); }
     private int visibleTicks() { return Math.max(1, gridW / cellW()); }
@@ -739,7 +744,7 @@ public class NoteBlockEditScreen extends Screen {
         if (dir == 0) return true;
 
         if (ctrlHeld) {
-            zoom = Math.max(0, Math.min(6, zoom + dir));
+            zoom = Math.max(0, Math.min(4, zoom + dir));
             scrollRow = Math.min(scrollRow, maxScrollRow());
             return true;
         }
@@ -777,6 +782,7 @@ public class NoteBlockEditScreen extends Screen {
         double mx = toGuiX(mc.mouseHandler.xpos());
         double my = toGuiY(mc.mouseHandler.ypos());
         int button = click.button();
+        if (tonePickerOpen && tonePickerClick(mx, my, button)) return true;
 
         if (button == 2) return false;
         if (mx < gridX || mx >= gridX + gridW || my < gridY || my >= gridY + gridH) return false;
@@ -797,6 +803,11 @@ public class NoteBlockEditScreen extends Screen {
         Long k = key(tick, noteId);
         EditableNote exist = noteIndex.get(k);
 
+        if (button == 1 && ctrlHeld && exist != null) {
+            selection.clear(); selection.add(exist);
+            toneQuery = ""; toneScroll = 0; tonePickerOpen = true;
+            return true;
+        }
         if (button == 3 && exist != null) {
             if (selection.contains(exist)) {
                 selection.remove(exist);
@@ -1015,6 +1026,7 @@ public class NoteBlockEditScreen extends Screen {
         System.out.println("[DJ-EDIT] KEY code=" + code + " mods=" + mods
                 + " ctrl=" + ctrl + " shift=" + shift);
 
+        if (tonePickerOpen && tonePickerKey(code)) return true;
         if (code != 0 && tryHotkey(code, ctrl)) return true;
 
         return super.keyPressed(evt);
@@ -1030,17 +1042,20 @@ public class NoteBlockEditScreen extends Screen {
 
     // ==================== 播放 ====================
 
+    private void startPlayback() { startPlayback(0); }
+
     private void startPlayback(int startTick) {
-        final int from = Math.max(0, startTick);   // 先算好，stopPlayback 会清 playheadTick
         stopPlayback();
         if (notes.isEmpty()) return;
         final List<EditableNote> snapshot = new ArrayList<>(notes);
         final int end = maxTick() + 2;
         final long tickMs = Math.max(1, 100000L / Math.max(1, song.tempo));
+        final int from = Math.max(0, startTick);
 
-        playing = true;
         paused = false;
+        playing = true;
         playButton.setMessage(Component.translatable("disc_jockey.editor.stop"));
+        if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
 
         playThread = new Thread(() -> {
             for (int t = from; t <= end && playing; t++) {
@@ -1049,34 +1064,47 @@ public class NoteBlockEditScreen extends Screen {
                 for (EditableNote n : snapshot) if (n.tick == t) at.add(n);
                 if (!at.isEmpty()) {
                     Minecraft.getInstance().execute(() -> {
-                        for (EditableNote n : at) playNoteSound(n.noteId, n.instrument);
+                        for (EditableNote n : at) playToneOrInst(n);
                     });
                 }
                 if (t < scrollTick || t >= scrollTick + visibleTicks())
                     scrollTick = Math.max(0, t - visibleTicks() / 4);
                 try { Thread.sleep(tickMs); } catch (InterruptedException e) { break; }
             }
+            if (paused) return;
             playing = false;
-            // 暂停导致的中断：保留 playheadTick，供继播使用
-            if (!paused) {
-                playheadTick = -1;
-                Minecraft.getInstance().execute(() ->
-                        playButton.setMessage(Component.translatable("disc_jockey.editor.play")));
-            }
+            playheadTick = -1;
+            Minecraft.getInstance().execute(() -> {
+                playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
+                if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
+            });
         }, "DJ-NBSEditor-Play");
         playThread.start();
     }
 
-    /** 从头播放 */
-    private void startPlayback() {
-        startPlayback(0);
-    }
-
     private void stopPlayback() {
+        paused = false;
         playing = false;
         playheadTick = -1;
         if (playThread != null) { playThread.interrupt(); playThread = null; }
         if (playButton != null) playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
+        if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
+    }
+
+    /** 暂停 / 继播：与顶部「暂停」按钮、空格键共用一套逻辑 */
+    private void togglePause() {
+        if (playing) {
+            paused = true;
+            playing = false;
+            if (playThread != null) { playThread.interrupt(); playThread = null; }
+            if (playButton != null) playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
+            if (pauseButton != null) pauseButton.setMessage(Component.literal("\u7ee7\u64ad"));
+            System.out.println("[DJ-EDIT] PAUSE @ tick " + playheadTick);
+        } else {
+            int at = (playheadTick > 0) ? playheadTick : 0;
+            System.out.println("[DJ-EDIT] RESUME @ tick " + at);
+            startPlayback(at);
+        }
     }
 
     private void playNoteSound(int noteId, int instrument) {
@@ -1181,6 +1209,14 @@ public class NoteBlockEditScreen extends Screen {
         return null;
     }
 
+    private static String instName(int i) {
+        if (i < 0 || i >= INST_SUFFIX.length) return INST_NAMES[0];
+        String key = "disc_jockey.editor.instrument." + INST_SUFFIX[i];
+        String t = Component.translatable(key).getString();
+        if (t != null && !t.isEmpty() && !t.equals(key)) return t;
+        return (i < INST_CN.length) ? INST_CN[i] : INST_NAMES[i];
+    }
+
     private void save(boolean saveAs) {
         try {
             packToSong();
@@ -1205,6 +1241,7 @@ public class NoteBlockEditScreen extends Screen {
             if (ok) {
                 showMsg(Component.translatable("disc_jockey.editor.saved", out.getName())
                         .withStyle(ChatFormatting.GREEN));
+                writeTones(out);
                 SongLoader.loadSongs();
             } else {
                 showMsg(Component.translatable("disc_jockey.editor.save_failed_all")
@@ -1286,20 +1323,7 @@ public class NoteBlockEditScreen extends Screen {
         Main.LOGGER.info("[Editor] {}", c.getString());
     }
 
-    /** 从 GuiGraphicsExtractor 反射取鼠标坐标（26.4 未必有 mouseX()/mouseY()，取不到按 0 处理） */
-    private static int extractorInt(Object c, String name, int def) {
-        try {
-            java.lang.reflect.Method m = c.getClass().getMethod(name);
-            Object v = m.invoke(c);
-            if (v instanceof Number) return ((Number) v).intValue();
-        } catch (Throwable ignored) {}
-        for (java.lang.reflect.Method m : c.getClass().getMethods()) {
-            if (m.getName().equals(name) && m.getParameterCount() == 0 && m.getReturnType() == int.class) {
-                try { return (Integer) m.invoke(c); } catch (Throwable ignored) {}
-            }
-        }
-        return def;
-    }
+    public static void showMsg(String text) { showMsg(Component.literal(text)); }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor c, int mx, int my, float delta) {
@@ -1310,6 +1334,7 @@ public class NoteBlockEditScreen extends Screen {
         autoScrollEdge(mx, my);
 
         super.extractRenderState(c, mx, my, delta);
+        if (tonePickerOpen) drawTonePicker(c, mx, my);
 
         int ch = cellH(), cw = cellW();
         int rows = visibleRows(), ticks = visibleTicks();
@@ -1365,21 +1390,16 @@ public class NoteBlockEditScreen extends Screen {
             int x = gridX + (n.tick - scrollTick) * cw;
             int y = gridY + r * ch;
             boolean sel = selection.contains(n);
-            // ★ 按实际音色着色（原来只分黑键/白键的蓝/绿两色，看不出音色）
-            int col = sel ? 0xFFFFEB3B : instColor(n.instrument);
+            // ★ 按实际音色着色（原来只分黑键/白键的蓝/绿两色）
+            int col = sel ? 0xFFFFEB3B : (n.tone != null ? toneColor(n.tone) : instColor(n.instrument));
             int bw = Math.max(2, cw - 1);
             int bh = Math.max(2, ch - 1);
             c.fill(x, y, x + bw, y + bh, col);
-            // 格子够大时叠加乐器图标；贴图取不到就静默保持纯色，绝不开天窗
-            if (ICONS_ENABLED && !sel && bw >= ICON_MIN_CELL && bh >= ICON_MIN_CELL) {
-                Identifier tex = instTexture(n.instrument);
-                if (tex != null && resourceExists(n.instrument, tex)) {
-                    // 图标画满整个格子（不再内缩 2px），小格子下更容易看清材质纹理
-                    if (blitIcon(c, tex, x, y, bw, bh) && !iconDrawnLogged) {
-                        iconDrawnLogged = true;
-                        LOGGER.info("[Editor] \u2713 \u5df2\u7ed8\u5236\u97f3\u8272\u56fe\u6807\uff1a{}\uff0c\u5c3a\u5bf8={}x{}\uff08\u683c\u5b50={}x{}\uff09",
-                                tex, bw, bh, cw, ch);
-                    }
+            if (ICONS_ENABLED && !sel && n.tone == null && bw >= ICON_MIN_CELL && bh >= ICON_MIN_CELL) {
+                if (drawNoteIcon(c, n.instrument, x, y, bw, bh) && !iconDrawnLogged) {
+                    iconDrawnLogged = true;
+                    LOGGER.info("[Editor] \u2713 \u5df2\u7ed8\u5236\u97f3\u8272\u56fe\u6807\uff1ainst={} \uff0c\u5c3a\u5bf8={}x{}\uff08\u683c\u5b50={}x{}\uff09\uff0c\u8def\u7ebf={}",
+                            n.instrument, bw, bh, cw, ch, (spriteState == 1 ? "sprite" : "png"));
                 }
             }
         }
@@ -1464,25 +1484,16 @@ public class NoteBlockEditScreen extends Screen {
 
     private static final Set<Integer> WHITE_PC = Set.of(0, 2, 4, 5, 7, 9, 11);
 
-    /** 音色 → 色块颜色，越界返回 Harp 色 */
     private static int instColor(int instrument) {
         if (instrument >= 0 && instrument < INST_COLOR.length) return INST_COLOR[instrument];
         return INST_COLOR[0];
     }
 
-    /**
-     * 音色 → 项目自带贴图（assets/disc_jockey/textures/item/<名>.png）。
-     * Identifier 工厂方法名 26.3 / 26.4 不同（fromNamespaceAndPath / withDefaultNamespace /
-     * parse），三级反射兜底；全失败返回 null（调用方退回纯色，不崩溃）。
-     * 只尝试一次，失败后不再重复反射。
-     */
-
     // ==================== 贴图存在性校验 ====================
     //
     // 之前出现「黑紫棋盘」= MC 的 missing-texture，说明 blit 调用成功但
     // 资源包里找不到该 Identifier 对应的 png。这里在首次绘制前用
-    // ResourceManager 实际查一次；不存在就不画（保持纯色），
-    // 并把缺失的贴图名打进日志，方便定位是路径写错还是没打进 jar。
+    // ResourceManager 实际查一次；不存在就不画（保持纯色）。
 
     /** 每个音色的贴图可用状态：null=未查过，TRUE=可用，FALSE=缺失 */
     private final Boolean[] instTexOk = new Boolean[INST_TEX.length];
@@ -1490,20 +1501,17 @@ public class NoteBlockEditScreen extends Screen {
     private static volatile java.lang.reflect.Method rmGetter;
     private static volatile java.lang.reflect.Method resGetter;
     private static volatile boolean rmTried = false;
+
     /**
-     * \u63a2\u9488\u662f\u5426\u53ef\u4fe1\u3002\u5224\u636e\uff1aMC \u539f\u7248\u65b9\u5757\u8d34\u56fe\uff08minecraft:block/note_block\u3001stone\uff09\u5fc5\u5b9a\u5b58\u5728\uff0c
-     * \u82e5\u8fde\u5b83\u4eec\u90fd\u62a5\u201c\u7f3a\u5931\u201d\uff0c\u8bf4\u660e\u662f\u8d44\u6e90\u7ba1\u7406\u5668\u53cd\u5c04\u53d6\u9519\u4e86\uff0c
-     * \u6b64\u65f6\u4e0d\u518d\u7528\u63a2\u9488\u62e6\u622a\u7ed8\u5236\uff0c\u76f4\u63a5\u753b \u2014\u2014 \u907f\u514d\u628a\u672c\u6765\u80fd\u663e\u793a\u7684\u56fe\u6807\u8bef\u5224\u6210\u7f3a\u5931\u3002
+     * 探针是否可信。判据：MC 原版方块贴图（minecraft:textures/block/note_block、stone）必定存在，
+     * 若连它们都报「缺失」，说明是资源管理器反射取错了，
+     * 此时不再用探针拦截绘制，直接画 —— 避免把本来能显示的图标误判成缺失。
      */
     private static volatile boolean probeTrusted = true;
 
-    /**
-     * 运行时确认 assets/disc_jockey/textures/item/<名>.png 是否真的在资源包里。
-     * 只查一次，结果缓存；查不到 ResourceManager 时返回 true（按可用处理，
-     * 由 blit 自己兜底），避免因为反射失败而永远不画图标。
-     */
+    /** 运行时确认 assets/disc_jockey/textures/item/<名>.png 是否真的在资源包里。 */
     private boolean resourceExists(int instrument, Identifier id) {
-        // 探针不可信（连 MC 原版贴图都报缺失）时不再拦截，直接画，避免误判成缺失
+        // 探针不可信时不再拦截，直接画，避免误判成缺失
         if (!probeTrusted) return true;
         if (instrument >= 0 && instrument < instTexOk.length) {
             Boolean v = instTexOk[instrument];
@@ -1517,9 +1525,9 @@ public class NoteBlockEditScreen extends Screen {
                 if (rm != null && resGetter != null) {
                     Object r = resGetter.invoke(rm, id);
                     if (r instanceof java.util.Optional) {
-                        ok = ((java.util.Optional<?>) r).isPresent();   // 1.20.6+ 返回 Optional
+                        ok = ((java.util.Optional<?>) r).isPresent();
                     } else {
-                        ok = (r != null);                                // 旧版直接返回 Resource / 缺失返回 null
+                        ok = (r != null);
                     }
                 }
             }
@@ -1529,9 +1537,8 @@ public class NoteBlockEditScreen extends Screen {
         if (instrument >= 0 && instrument < instTexOk.length) {
             instTexOk[instrument] = ok;
             if (!ok) {
-                LOGGER.warn("[Editor] \u8d34\u56fe\u7f3a\u5931\uff08\u9000\u56de\u7eaf\u8272\uff09\uff1a{} "
-                                + "\u2192 assets/disc_jockey/textures/item/{}.png "
-                                + "\u4e0d\u5728\u8d44\u6e90\u5305\u91cc\uff0c\u8bf7\u786e\u8ba4\u5df2\u6253\u8fdb jar",
+                LOGGER.warn("[Editor] 贴图缺失（退回纯色）：{} "
+                                + "→ assets/disc_jockey/textures/item/{}.png 不在资源包里",
                         id, INST_TEX[instrument]);
             }
         }
@@ -1560,97 +1567,40 @@ public class NoteBlockEditScreen extends Screen {
             for (java.lang.reflect.Method m : rm.getClass().getMethods()) {
                 if (m.getName().equals("getResource") && m.getParameterCount() == 1) { resGetter = m; break; }
             }
-            LOGGER.info("[Editor] \u8d44\u6e90\u63a2\u9488\uff1aResourceManager={} | getResource={}",
-                    rm.getClass().getName(), (resGetter == null ? "\u672a\u627e\u5230" : resGetter.toString()));
-            probe("noteblock");
-            probe("stone");
+            LOGGER.info("[Editor] 资源探针：ResourceManager={} | getResource={}",
+                    rm.getClass().getName(), (resGetter == null ? "未找到" : resGetter.toString()));
             boolean v1 = vanillaProbe("note_block");
             boolean v2 = vanillaProbe("stone");
             if (!v1 && !v2) {
                 probeTrusted = false;
-                LOGGER.warn("[Editor] \u8fde MC \u539f\u7248\u8d34\u56fe\u90fd\u67e5\u4e0d\u5230\uff0c\u63a2\u9488\u4e0d\u53ef\u4fe1\uff0c\u6539\u4e3a\u76f4\u63a5\u7ed8\u5236\uff08\u4e0d\u518d\u62e6\u622a\uff09");
+                LOGGER.warn("[Editor] 连 MC 原版贴图都查不到，探针不可信，改为直接绘制（不再拦截）");
             }
-            dumpDjTextures();
+            dumpInstTexResolved();
         } catch (Throwable ignored) {}
     }
 
-    /** \u5217\u51fa\u8fd0\u884c\u65f6 disc_jockey \u547d\u540d\u7a7a\u95f4\u4e0b textures/ \u5f00\u5934\u7684\u8d44\u6e90\uff0c\u7528\u4e8e\u5b9a\u4f4d png \u5b9e\u9645\u8def\u5f84 */
-    private static void dumpDjTextures() {
-        try {
-            Object mc = mcInstance();
-            if (mc == null || rmGetter == null) return;
-            Object rm = rmGetter.invoke(mc);
-            if (rm == null) return;
-            java.lang.reflect.Method listM = null;
-            for (java.lang.reflect.Method m : rm.getClass().getMethods()) {
-                if (!m.getName().equals("listResources")) continue;
-                Class<?>[] ps = m.getParameterTypes();
-                if (ps.length == 2 && ps[0] == String.class && ps[1] == java.util.function.Predicate.class) {
-                    listM = m; break;
-                }
-            }
-            if (listM == null) {
-                LOGGER.info("[Editor] \u65e0 listResources(String,Predicate) \u91cd\u8f7d\uff0c\u8df3\u8fc7\u8d44\u6e90\u6e05\u5355\u679a\u4e3e");
-                return;
-            }
-            java.util.function.Predicate<Object> pred = o -> {
-                try {
-                    if (!(o instanceof Identifier)) return false;
-                    Identifier id = (Identifier) o;
-                    return "disc_jockey".equals(id.getNamespace()) && id.getPath().startsWith("textures/");
-                } catch (Throwable t) { return false; }
-            };
-            Object res = listM.invoke(rm, "textures/", pred);
-            if (res instanceof java.util.Map) {
-                java.util.Map<?, ?> map = (java.util.Map<?, ?>) res;
-                StringBuilder sb = new StringBuilder();
-                int i = 0;
-                for (Object k : map.keySet()) {
-                    if (i++ >= 40) break;
-                    sb.append("\n  ").append(k);
-                }
-                LOGGER.info("[Editor] disc_jockey \u547d\u540d\u7a7a\u95f4\u4e0b textures \u8d44\u6e90\u5171 {} \u6761{}",
-                        map.size(), (map.isEmpty()
-                                ? "\uff08\u5b8c\u5168\u4e3a\u7a7a\uff01png \u6ca1\u8fdb\u8d44\u6e90\u5305\uff09" : sb.toString()));
-            } else {
-                LOGGER.info("[Editor] listResources \u8fd4\u56de\u7c7b\u578b={}", (res == null ? "null" : res.getClass().getName()));
-            }
-        } catch (Throwable t) {
-            LOGGER.info("[Editor] \u8d44\u6e90\u6e05\u5355\u679a\u4e3e\u5931\u8d25\uff1a{}", t);
+    /** 打出 16 个音色最终解析到的贴图，方便核对有没有串台 */
+    private static void dumpInstTexResolved() {
+        StringBuilder sb = new StringBuilder("[DJ-EDIT] 音色图标实际解析：");
+        for (int i = 0; i < INST_TEX.length; i++) {
+            Identifier id = buildId("disc_jockey", "textures/item/" + INST_TEX[i] + ".png");
+            sb.append("\n  [").append(i).append("] ").append(INST_NAMES[i])
+              .append(" -> ").append(id == null ? "(Identifier 失败)" : id.toString());
         }
+        System.out.println(sb);
     }
 
-    /** \u53cd\u5c04\u9020 disc_jockey:<path> \u7684 Identifier\uff08\u517c\u5bb9 26.3 / 26.4 \u5de5\u5382\u65b9\u6cd5\u540d\u5dee\u5f02\uff09 */
+    /** 反射造 disc_jockey:<path> 的 Identifier（兼容 26.3 / 26.4 工厂方法名差异） */
     private static Identifier djId(String path) {
-        try {
-            Class<?> ic = Identifier.class;
-            try {
-                java.lang.reflect.Method m = ic.getMethod("fromNamespaceAndPath", String.class, String.class);
-                Object o = m.invoke(null, "disc_jockey", path);
-                if (o instanceof Identifier) return (Identifier) o;
-            } catch (Throwable ignored) {
-                try {
-                    java.lang.reflect.Method m = ic.getMethod("withDefaultNamespace", String.class);
-                    Object o = m.invoke(null, "disc_jockey:" + path);
-                    if (o instanceof Identifier) return (Identifier) o;
-                } catch (Throwable ignored2) {
-                    try {
-                        java.lang.reflect.Method m = ic.getMethod("parse", String.class);
-                        Object o = m.invoke(null, "disc_jockey:" + path);
-                        if (o instanceof Identifier) return (Identifier) o;
-                    } catch (Throwable ignored3) {}
-                }
-            }
-        } catch (Throwable ignored) {}
-        return null;
+        return buildId("disc_jockey", path);
     }
 
-    /** \u63a2 MC \u539f\u7248\u8d34\u56fe\u662f\u5426\u5b58\u5728\uff08\u539f\u7248\u8d44\u6e90\u5fc5\u5b9a\u5b58\u5728\uff0c\u7528\u6765\u6821\u9a8c\u63a2\u9488\u672c\u8eab\u662f\u5426\u53ef\u4fe1\uff09 */
+    /** 探 MC 原版贴图是否存在（原版资源必定存在，用来校验探针本身是否可信） */
     private static boolean vanillaProbe(String texName) {
         try {
             Identifier id = buildId("minecraft", "textures/block/" + texName + ".png");
             if (id == null) {
-                LOGGER.info("[Editor] \u539f\u7248\u63a2\u9488 {} \uff1aIdentifier \u521b\u5efa\u5931\u8d25", texName);
+                LOGGER.info("[Editor] 原版探针 {} ：Identifier 创建失败", texName);
                 return false;
             }
             Object mc = mcInstance();
@@ -1660,39 +1610,19 @@ public class NoteBlockEditScreen extends Screen {
             String verdict;
             if (r instanceof java.util.Optional) {
                 ok = ((java.util.Optional<?>) r).isPresent();
-                verdict = ok ? "\u5b58\u5728" : "\u7f3a\u5931(Optional.empty)";
+                verdict = ok ? "存在" : "缺失(Optional.empty)";
             } else if (r == null) {
                 ok = false;
-                verdict = "\u7f3a\u5931(null)";
+                verdict = "缺失(null)";
             } else {
                 ok = true;
-                verdict = "\u5b58\u5728(" + r.getClass().getSimpleName() + ")";
+                verdict = "存在(" + r.getClass().getSimpleName() + ")";
             }
-            LOGGER.info("[Editor] \u539f\u7248\u63a2\u9488 {} \u2192 {} \uff1a{}", texName, id, verdict);
+            LOGGER.info("[Editor] 原版探针 {} → {} ：{}", texName, id, verdict);
             return ok;
         } catch (Throwable t) {
-            LOGGER.info("[Editor] \u539f\u7248\u63a2\u9488 {} \u5f02\u5e38\uff1a{}", texName, t);
+            LOGGER.info("[Editor] 原版探针 {} 异常：{}", texName, t);
             return false;
-        }
-    }
-
-    /** \u4e00\u6b21\u6027\u63a2\u9488\uff1a\u76f4\u63a5\u67e5\u67d0\u4e2a\u8d34\u56fe\u80fd\u4e0d\u80fd\u53d6\u5230\uff0c\u7ed3\u679c\u6253\u5370\u5230\u65e5\u5fd7 */
-    private static void probe(String texName) {
-        try {
-            Identifier id = djId("textures/item/" + texName + ".png");
-            if (id == null) { LOGGER.info("[Editor] \u63a2\u9488 {}\uff1aIdentifier \u521b\u5efa\u5931\u8d25", texName); return; }
-            Object mc = mcInstance();
-            Object r = null;
-            if (mc != null && rmGetter != null && resGetter != null) {
-                r = resGetter.invoke(rmGetter.invoke(mc), id);
-            }
-            String verdict;
-            if (r instanceof java.util.Optional) verdict = ((java.util.Optional<?>) r).isPresent() ? "\u5b58\u5728" : "\u7f3a\u5931(Optional.empty)";
-            else if (r == null) verdict = "\u7f3a\u5931(null)";
-            else verdict = "\u5b58\u5728(" + r.getClass().getSimpleName() + ")";
-            LOGGER.info("[Editor] \u63a2\u9488 {} \u2192 {} \uff1a{}", texName, id, verdict);
-        } catch (Throwable t) {
-            LOGGER.info("[Editor] \u63a2\u9488 {} \u5f02\u5e38\uff1a{}", texName, t);
         }
     }
 
@@ -1706,7 +1636,7 @@ public class NoteBlockEditScreen extends Screen {
         return null;
     }
 
-    /** \u6309 namespace + path \u53cd\u5c04\u9020 Identifier\uff1a26.3 / 26.4 \u5de5\u5382\u65b9\u6cd5\u540d\u4e0d\u540c\uff0c\u4e09\u7ea7\u515c\u5e95 */
+    /** 按 namespace + path 反射造 Identifier：26.3 / 26.4 工厂方法名不同，三级兜底 */
     private static Identifier buildId(String ns, String path) {
         try {
             Class<?> ic = Identifier.class;
@@ -1731,11 +1661,6 @@ public class NoteBlockEditScreen extends Screen {
         return null;
     }
 
-    /**
-     * \u53ea\u63a2\u4e00\u6b21\u8d44\u6e90\u662f\u5426\u5b58\u5728\uff08\u4e0d\u6253\u65e5\u5fd7\u3001\u4e0d\u7f13\u5b58\uff09\u3002
-     * \u53cd\u5c04\u5931\u8d25\u65f6\u8fd4\u56de true\uff08\u6309\u53ef\u7528\u5904\u7406\uff0c\u7531 blit \u81ea\u5df2\u515c\u5e95\uff09\uff0c
-     * \u907f\u514d\u56e0\u4e3a\u53cd\u5c04\u95ee\u9898\u800c\u6c38\u8fdc\u4e0d\u753b\u56fe\u6807\u3002
-     */
     private static boolean probeResource(Identifier id) {
         if (!probeTrusted) return true;
         try {
@@ -1755,11 +1680,9 @@ public class NoteBlockEditScreen extends Screen {
     }
 
     /**
-     * \u53d6\u97f3\u8272\u56fe\u6807\uff0c\u4e24\u7ea7\u9009\u62e9\uff1a
-     *   \u2460 mod \u81ea\u5e26\u8d34\u56fe assets/disc_jockey/textures/item/<name>.png
-     *   \u2461 \u515c\u5e95 MC \u539f\u7248\u65b9\u5757\u8d34\u56fe assets/minecraft/textures/block/<name>.png
-     * \u539f\u7248\u8d44\u6e90\u4e00\u5b9a\u5b58\u5728\uff0c\u6240\u4ee5\u5373\u4f7f mod \u8d34\u56fe\u6ca1\u6253\u8fdb jar\uff0c
-     * \u56fe\u6807\u4e5f\u4e0d\u4f1a\u9000\u5316\u6210\u7eaf\u8272\u6216\u9ed1\u7d2b\u68cb\u76d8\u3002
+     * 取音色图标，两级选择：
+     *   ① mod 自带贴图 assets/disc_jockey/textures/item/<name>.png
+     *   ② 兜底 MC 原版方块贴图 assets/minecraft/textures/block/<name>.png
      */
     private Identifier instTexture(int instrument) {
         if (instrument < 0 || instrument >= INST_TEX.length) return null;
@@ -1782,14 +1705,14 @@ public class NoteBlockEditScreen extends Screen {
             instTexCache[instrument] = vid;
             if (!vanillaFallbackLogged) {
                 vanillaFallbackLogged = true;
-                LOGGER.info("[Editor] mod \u81ea\u5e26\u8d34\u56fe\u4e0d\u53ef\u7528\uff0c\u5df2\u5207\u6362\u4e3a MC \u539f\u7248\u65b9\u5757\u8d34\u56fe\uff08minecraft:block/...\uff09");
+                LOGGER.info("[Editor] mod 自带贴图不可用，已切换为 MC 原版方块贴图（minecraft:block/...）");
             }
             return vid;
         }
 
         instTexDead[instrument] = true;
         instTexTried = true;
-        LOGGER.warn("[Editor] \u56fe\u6807\u8d34\u56fe\u5747\u4e0d\u53ef\u7528\uff08instrument={}\uff09\uff0c\u9000\u56de\u7eaf\u8272", instrument);
+        LOGGER.warn("[Editor] 图标贴图均不可用（instrument={}），退回纯色", instrument);
         return null;
     }
 
@@ -1797,10 +1720,12 @@ public class NoteBlockEditScreen extends Screen {
     //
     // 26.x 的贴图 Identifier 是「全路径」形式：命名空间:textures/子目录/名.png
     //   证据：日志里 MC 自己打的图集名 minecraft:textures/atlas/blocks.png-atlas
-    // 之前写成 disc_jockey:item/noteblock（旧版省略 textures/ 与 .png 的写法），
-    // ResourceManager 查不到，blit 也拿不到已注册纹理，于是画成
-    // MISSING_TEXTURE（黑紫棋盘）。这里统一改全路径，并在 blit 前把 id
-    // 注册进 TextureManager（26.3 实测有 registerForNextReload / register 两个入口）。
+    //
+    // ★ 关键点：blit(Identifier) 要求贴图已完成 GPU 上传，而上传发生在
+    //   TextureManager.tick()（每帧一次）。所以「注册完同一帧立刻 blit」必然抛
+    //   IllegalStateException: Texture view does not exist ...
+    //   对策：① 打开界面时就注册（init 里 preloadInstTextures）
+    //        ② blit 失败不判死，下一帧继续重试（见 blitIcon）
 
     /** 反射拿 TextureManager 实例 */
     private static Object textureManager() {
@@ -1816,6 +1741,16 @@ public class NoteBlockEditScreen extends Screen {
         return null;
     }
 
+    /** 打开界面时把 16 张贴图交给 TextureManager，尽早开始上传 */
+    private void preloadInstTextures() {
+        for (int i = 0; i < INST_TEX.length; i++) {
+            try {
+                Identifier id = buildId("disc_jockey", "textures/item/" + INST_TEX[i] + ".png");
+                if (id != null) ensureTexture(i, id);
+            } catch (Throwable ignored) {}
+        }
+    }
+
     /** 让 TextureManager 认识这个贴图 id；失败也不影响后续 blit 尝试 */
     private void ensureTexture(int instrument, Identifier id) {
         if (!TEXTURE_REGISTER) return;
@@ -1827,83 +1762,309 @@ public class NoteBlockEditScreen extends Screen {
             Object tm = textureManager();
             if (tm == null) return;
             String used = null;
-            // ★ 先走「真加载」：register(id, SimpleTexture) 会立刻把贴图传上 GPU。
-            //   而 registerForNextReload(id) 只是登记「下次资源重载时才加载」，
-            //   本次会话内 getTexture 拿不到纹理 -> blit 抛异常 -> 图标只剩纯色。
-            try {
-                java.lang.reflect.Method regM = null;
-                for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
-                    if (m.getName().equals("register") && m.getParameterCount() == 2) { regM = m; break; }
+            // ① getTexture(id)：原版懒注册入口，找不到就自动 new SimpleTexture 并登记
+            for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
+                if (m.getName().equals("getTexture") && m.getParameterCount() == 1) {
+                    Object r = m.invoke(tm, id);
+                    if (r != null) { used = "getTexture"; break; }
                 }
-                if (regM != null) {
-                    Class<?> st = Class.forName("net.minecraft.client.renderer.texture.SimpleTexture");
-                    Object tex = st.getConstructor(Identifier.class).newInstance(id);
-                    regM.invoke(tm, id, tex);
-                    used = "register(SimpleTexture)";
-                }
-            } catch (Throwable t) {
-                LOGGER.info("[Editor] register(SimpleTexture) 不可用（{}），改用 registerForNextReload", t);
             }
             if (used == null) {
-                java.lang.reflect.Method reloadM = null;
                 for (java.lang.reflect.Method m : tm.getClass().getMethods()) {
-                    if (m.getName().equals("registerForNextReload") && m.getParameterCount() == 1) { reloadM = m; break; }
-                }
-                if (reloadM != null) {
-                    reloadM.invoke(tm, id);
-                    used = "registerForNextReload";
+                    if (m.getName().equals("register") && m.getParameterCount() == 2) {
+                        Class<?> st = Class.forName("net.minecraft.client.renderer.texture.SimpleTexture");
+                        Object tex = st.getConstructor(Identifier.class).newInstance(id);
+                        m.invoke(tm, id, tex);
+                        used = "register(SimpleTexture)";
+                        break;
+                    }
                 }
             }
             if (used != null && !texRegLogged) {
                 texRegLogged = true;
-                LOGGER.info("[Editor] \u8d34\u56fe\u5df2\u6ce8\u518c\u5230 TextureManager\uff08{}\uff09\uff1a{}", used, id);
+                LOGGER.info("[Editor] 贴图已注册到 TextureManager（{}）：{}", used, id);
             }
         } catch (Throwable t) {
             if (!texRegLogged) {
                 texRegLogged = true;
-                LOGGER.info("[Editor] \u8d34\u56fe\u6ce8\u518c\u5931\u8d25\uff08\u4ecd\u4f1a\u5c1d\u8bd5\u7ed8\u5236\uff09\uff1a{}", t);
+                LOGGER.info("[Editor] 贴图注册失败（仍会尝试绘制）：{}", t);
             }
         }
     }
 
-    // ==================== 图标绘制：按真实 blit 签名适配 ====================
+    // ==================== 图集 sprite 图标（26.3 / 26.4 通用，反射实现） ====================
     //
-    // 为什么不再直接用 BlitCompat.blit：
-    //   BlitCompat 的形参名是 (gfx, texture, x, y, u, v, w, h, tw, th)，
-    //   但 26.4 实测命中的真实方法是
+    // ★ 26.4 GUI 烂掉的真因（javap 实测确认）：
+    //   GuiGraphicsExtractor 上【带管线】的 blit 全是「像素 UV」签名，
+    //   没有 (管线, 贴图, x, y, w, h, u0, v0, uW, vH) 这种归一化重载，
+    //   所以只能退化到【不带管线】的
     //     blit(Identifier, int, int, int, int, float, float, float, float)
-    //   即 (texture, x, y, width, height, u0, v0, uWidth, vHeight) ——
-    //   后面 4 个是「0..1 归一化」的 float，不是像素 UV。
-    //   于是 BlitCompat 传的 u/v 落到了 width/height 上（=0），
-    //   调用不报错但什么都画不出来 —— 这正是之前只剩纯色块的原因。
+    //   26.4 是 Vulkan 后端，不带管线 = 没绑定渲染状态 → 画出未初始化纹理，
+    //   音符密集（上万）时整片糊成黑白黄斑。跟 UV 算错无关，跟后端也无关。
     //
-    // 这里自己按形参「类型」判定该用哪种实参排布：
-    //   · 末 4 位是 float  → 归一化：tex,x,y,w,h, 0f,0f,1f,1f
-    //   · 末 4 位是 int    → 像素  ：tex,x,y, 0,0,w,h, 16,16
-    // 命中后缓存 Method，之后零反射。
+    //   正解：MC 官方 sprite 路径（javap 逐条实测）
+    //     · 26.4 管线类已从 RenderPipelines 改名 GuiPipeline，常量 GuiPipeline.TEXTURED
+    //     · GuiGraphicsExtractor 自带 getSprite(SpriteId) —— 26.3 / 26.4 都有
+    //     · SpriteId 是 record：(atlasLocation, texture)，双参构造
+    //     · blitSprite(GuiPipeline, TextureAtlasSprite, x, y, w, h) 一定带管线
+    //     · 方块图集启动即上传完毕（2048x2048x4 = 带 4 级 mipmap），不存在纹理未就绪
+    //   sprite 拿不到就返回 false → 保持 16 色纯色，绝不画棋盘。
+
+    /** 16 种音色对应的方块图集 sprite 名（与 INST_TEX 一一对应） */
+    private static final String[] INST_SPRITE = {
+            "note_block", "oak_planks", "stone", "sand",
+            "glass", "white_wool", "clay", "gold_block",
+            "packed_ice", "bone_block_top", "iron_block", "soul_sand",
+            "pumpkin_side", "emerald_block", "hay_block_side", "glowstone"
+    };
+
+    /** 0=未探测 1=就绪 2=永久不可用 */
+    private volatile int spriteState = 0;
+    /** sprite 初始化/绘制连续失败次数；图集就绪前会重试，不会一次失败就永久禁用 */
+    private volatile int spriteRetry = 0;
+    /** 0=extractor.getSprite(SpriteId)  1=AtlasManager.getSprite(Identifier) */
+    private volatile int spriteMode = -1;
+
+    private volatile java.lang.reflect.Method exGetSprite;
+    private volatile java.lang.reflect.Constructor<?> spriteIdCtor;
+    private volatile java.lang.reflect.Method atlasGetSprite;
+    private volatile Object atlasBlocksId;
+    private volatile Object spriteAtlas;
+    private volatile Object spriteMissing;
+    private volatile java.lang.reflect.Method spriteBlit;
+    private volatile Object spritePipe;
+    private final Object[] spriteCache = new Object[INST_SPRITE.length];
+    private volatile boolean spriteDrawnLogged = false;
+    private volatile boolean spriteWarnLogged = false;
+
+    private boolean spriteFail(String why) {
+        spriteRetry++;
+        if (spriteRetry >= 240) spriteState = 2;   // 连续失败约 4 秒才放弃，避免启动竞态误判
+        if (!spriteWarnLogged) {
+            spriteWarnLogged = true;
+            LOGGER.warn("[Editor] 图集 sprite 路线不可用：{}", why);
+        }
+        return false;
+    }
+
+    /** 26.4 = GuiPipeline.TEXTURED；26.3 = RenderPipelines.GUI_TEXTURED */
+    private static Object resolveGuiPipeline(String[] out) {
+        String[][] cands = {
+                {"net.minecraft.client.gui.GuiPipeline", "TEXTURED"},
+                {"net.minecraft.client.gui.GuiPipeline", "TEXTURED_PREMULTIPLIED_ALPHA"},
+                {"net.minecraft.client.gui.GuiPipeline", "OPAQUE_TEXTURED_BACKGROUND"},
+                {"net.minecraft.client.renderer.RenderPipelines", "GUI_TEXTURED"},
+                {"net.minecraft.client.renderer.RenderPipelines", "GUI_TEXTURED_PREMULTIPLIED_ALPHA"}
+        };
+        for (String[] k : cands) {
+            try {
+                java.lang.reflect.Field f = Class.forName(k[0]).getField(k[1]);
+                f.setAccessible(true);
+                Object v = f.get(null);
+                if (v != null) { out[0] = k[0] + "." + k[1]; return v; }
+            } catch (Throwable ignored) {}
+        }
+        return null;
+    }
+
+    private Object newSpriteId(Object texId) {
+        if (spriteIdCtor == null || atlasBlocksId == null || texId == null) return null;
+        try { return spriteIdCtor.newInstance(atlasBlocksId, texId); } catch (Throwable t) { return null; }
+    }
+
+    /** 按当前模式取一个 sprite；两种命名（block/xxx 与 xxx）都试，命中缺失 sprite 视为失败 */
+    private Object fetchSprite(Object c, int inst) {
+        String name = INST_SPRITE[inst];
+        String[] paths = {"block/" + name, name};
+        try {
+            if (spriteMode == 0 && exGetSprite != null && c != null) {
+                for (String pth : paths) {
+                    Object sid = newSpriteId(buildId("minecraft", pth));
+                    if (sid == null) continue;
+                    Object sp = exGetSprite.invoke(c, sid);
+                    if (sp != null && !(spriteMissing != null && sp == spriteMissing)) return sp;
+                }
+            } else if (spriteMode == 1 && atlasGetSprite != null && spriteAtlas != null) {
+                for (String pth : paths) {
+                    Object tex = buildId("minecraft", pth);
+                    if (tex == null) continue;
+                    Object sp = atlasGetSprite.invoke(spriteAtlas, tex);
+                    if (sp != null && !(spriteMissing != null && sp == spriteMissing)) return sp;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    /** 初始化 sprite 路线（每步都记日志，便于定位）；失败则永久禁用 */
+    private boolean spriteEnsure(Object c) {
+        if (spriteState == 1) return true;
+        if (spriteState == 2) return false;   // 重试多次仍失败才真正放弃
+        // spriteState==0：图集可能尚未就绪（启动竞态），本帧再试一次
+        try {
+            String[] pipeName = new String[1];
+            Object pipe = resolveGuiPipeline(pipeName);
+            if (pipe == null) return spriteFail("找不到 GUI 纹理管线常量（GuiPipeline / RenderPipelines）");
+            spritePipe = pipe;
+
+            Class<?> spCls = Class.forName("net.minecraft.client.renderer.texture.TextureAtlasSprite");
+            for (java.lang.reflect.Method m : GuiGraphicsExtractor.class.getMethods()) {
+                if (!m.getName().equals("blitSprite")) continue;
+                Class<?>[] pp = m.getParameterTypes();
+                if (pp.length != 6) continue;
+                if (pp[1] != spCls) continue;
+                if (pp[2] != int.class || pp[3] != int.class || pp[4] != int.class || pp[5] != int.class) continue;
+                if (!pp[0].isInstance(pipe)) continue;
+                spriteBlit = m;
+                break;
+            }
+            if (spriteBlit == null) return spriteFail("找不到 blitSprite(管线, sprite, x, y, w, h)");
+
+            Class<?> atlasCls = Class.forName("net.minecraft.client.renderer.texture.TextureAtlas");
+            atlasBlocksId = atlasCls.getField("LOCATION_BLOCKS").get(null);
+            if (atlasBlocksId == null) return spriteFail("TextureAtlas.LOCATION_BLOCKS 为空");
+
+            try {
+                Class<?> sc = Class.forName("net.minecraft.client.resources.model.sprite.SpriteId");
+                spriteIdCtor = sc.getConstructor(Identifier.class, Identifier.class);
+            } catch (Throwable t) {
+                spriteIdCtor = null;
+                LOGGER.info("[Editor] sprite 探测：SpriteId 双参构造不可用（{}）", t.toString());
+            }
+
+            // 模式 0：extractor.getSprite(SpriteId) —— 官方一步到位路径
+            if (spriteIdCtor != null) {
+                for (java.lang.reflect.Method m : GuiGraphicsExtractor.class.getMethods()) {
+                    if (m.getName().equals("getSprite") && m.getParameterCount() == 1) { exGetSprite = m; break; }
+                }
+            }
+            if (exGetSprite != null) {
+                spriteMode = 0;
+                Object probe = fetchSprite(c, 0);
+                if (probe != null) {
+                    spriteCache[0] = probe;
+                    spriteState = 1; spriteRetry = 0;
+                    LOGGER.info("[Editor] ✓ 图集 sprite 路线就绪：管线={} | 取法=extractor.getSprite(SpriteId)", pipeName[0]);
+                    return true;
+                }
+                LOGGER.info("[Editor] sprite 探测：extractor 路径取不到 note_block，改用 AtlasManager");
+            } else {
+                LOGGER.info("[Editor] sprite 探测：extractor 无 getSprite(SpriteId)，改用 AtlasManager");
+            }
+
+            // 模式 1：Minecraft.getAtlasManager() → TextureAtlas.getSprite(Identifier)
+            Object mc = mcInstance();
+            Object am = null;
+            if (mc != null) {
+                for (java.lang.reflect.Method m : mc.getClass().getMethods()) {
+                    if (m.getName().equals("getAtlasManager") && m.getParameterCount() == 0) { am = m.invoke(mc); break; }
+                }
+            }
+            if (am != null) {
+                Object atlas = null;
+                for (java.lang.reflect.Method m : am.getClass().getMethods()) {
+                    if (m.getParameterCount() != 1) continue;
+                    if (m.getName().equals("getAtlasOrThrow") || m.getName().equals("getAtlas")) {
+                        atlas = m.invoke(am, atlasBlocksId);
+                        if (atlas != null) break;
+                    }
+                }
+                if (atlas != null) {
+                    java.lang.reflect.Method gs = null, ms = null;
+                    for (java.lang.reflect.Method m : atlas.getClass().getMethods()) {
+                        if (gs == null && m.getName().equals("getSprite") && m.getParameterCount() == 1) gs = m;
+                        if (ms == null && m.getName().equals("missingSprite") && m.getParameterCount() == 0) ms = m;
+                    }
+                    if (gs != null) {
+                        spriteAtlas = atlas;
+                        atlasGetSprite = gs;
+                        if (ms != null) { try { spriteMissing = ms.invoke(atlas); } catch (Throwable ignored) {} }
+                        spriteMode = 1;
+                        Object probe = fetchSprite(c, 0);
+                        if (probe != null) {
+                            spriteCache[0] = probe;
+                            spriteState = 1; spriteRetry = 0;
+                            LOGGER.info("[Editor] ✓ 图集 sprite 路线就绪：管线={} | 取法=AtlasManager.getSprite", pipeName[0]);
+                            return true;
+                        }
+                        return spriteFail("图集内没有 note_block sprite（block/note_block 与 note_block 都不命中）");
+                    }
+                }
+            }
+            return spriteFail("拿不到方块图集（getAtlasManager / getAtlasOrThrow 均不可用）");
+        } catch (Throwable t) {
+            return spriteFail(String.valueOf(t));
+        }
+    }
+
+    private boolean drawSpriteIcon(GuiGraphicsExtractor c, int instrument, int x, int y, int w, int h) {
+        if (spriteState != 1 || c == null) return false;
+        try {
+            Object sp = spriteCache[instrument];
+            if (sp == null) {
+                sp = fetchSprite(c, instrument);
+                if (sp == null) return false;
+                spriteCache[instrument] = sp;
+            }
+            spriteBlit.invoke(c, spritePipe, sp, x, y, w, h);
+            if (!spriteDrawnLogged) {
+                spriteDrawnLogged = true;
+                LOGGER.info("[Editor] ✓ 图集 sprite 图标已绘制：{}", INST_SPRITE[instrument]);
+            }
+            return true;
+        } catch (Throwable t) {
+            if (!spriteWarnLogged) {
+                spriteWarnLogged = true;
+                LOGGER.warn("[Editor] sprite 图标绘制失败：{}", t.toString());
+            }
+            spriteRetry++;
+            if (spriteRetry >= 240) spriteState = 2;   // 连续失败才放弃；否则下帧继续试
+            return false;
+        }
+    }
+
+
+    /**
+     * 26.3 图标入口：优先走【图集 sprite】路线。
+     *   ★ 方块图集（2048x2048x4）启动即上传完毕，不存在「纹理未就绪」，
+     *     所以不会像 png 路线那样 blit 抛 InvocationTargetException。
+     *   sprite 路线不可用才退回原来的 png blit（26.3 是 OpenGL，安全）。
+     */
+    private boolean drawNoteIcon(GuiGraphicsExtractor c, int instrument, int x, int y, int w, int h) {
+        if (!ICONS_ENABLED || c == null) return false;
+        if (spriteState != 2 && spriteEnsure(c)) {
+            if (drawSpriteIcon(c, instrument, x, y, w, h)) return true;
+        }
+        Identifier tex = instTexture(instrument);
+        if (tex == null || !resourceExists(instrument, tex)) return false;
+        return blitIcon(c, tex, x, y, w, h);
+    }
+
+    // ==================== 图标绘制 ====================
 
     private volatile java.lang.reflect.Method iconBlit;
     private volatile int iconBlitPlan = -1;
     private volatile Object iconBlitPipe;
-    private volatile boolean iconBlitTried = false;
-    private volatile boolean iconBlitWarned = false;
     private static volatile boolean iconDrawnLogged = false;
-
     /**
-     * 把 16x16 图标铺满 w x h；失败返回 false，调用方保持纯色。
-     *
-     * 不再猜签名：按参数【类型】自动排布。
-     *   - 找出 Identifier 参数下标 ti
-     *   - 其余参数里，数值型归为 8 个位置参数，对象型（RenderPipeline）填管线
-     *   - plan 0 像素 UV  ：x, y, u=0,      v=0,      w, h, tw=16, th=16
-     *     （对应签名 int,int,float,float,int,int,int,int —— 26.3 带管线）
-     *   - plan 1 归一化 UV：x, y, w,       h,       0,  0,  1,     1
-     *     （对应签名 int,int,int,int,float,float,float,float —— 26.4 无管线）
-     * 按 float 出现的位置挑 plan，挑错再退试另一种。
+     * ★ 选择尝试次数。26.x 贴图首帧尚未完成 GPU 上传，blit 会抛
+     *   "Texture view does not exist"，等 TextureManager.tick() 跑过一两帧就好了。
+     *   所以这里【不能一次判死】，必须允许多帧重试 —— 之前 iconBlitTried
+     *   一次性置位导致永久退回纯色，就是图标出不来的直接原因。
      */
-    private boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h)  {
-        if (c == null || tex == null) return false;
+    private volatile int iconBlitAttempts = 0;
+    private volatile boolean iconBlitWarned = false;
 
+    private static Throwable realCause(Throwable t) {
+        if (t instanceof java.lang.reflect.InvocationTargetException) {
+            Throwable target = ((java.lang.reflect.InvocationTargetException) t).getTargetException();
+            return target != null ? target : t;
+        }
+        return t;
+    }
+
+    /** 把 16x16 图标铺满 w x h；失败返回 false，调用方保持纯色。 */
+    private boolean blitIcon(GuiGraphicsExtractor c, Identifier tex, int x, int y, int w, int h) {
         java.lang.reflect.Method m = iconBlit;
         if (m != null && iconBlitPlan >= 0) {
             try {
@@ -1912,66 +2073,66 @@ public class NoteBlockEditScreen extends Screen {
             } catch (Throwable t) {
                 iconBlit = null;
                 iconBlitPlan = -1;
+                if (!iconBlitWarned) {
+                    iconBlitWarned = true;
+                    LOGGER.warn("[Editor] 图标 blit 调用失败（后续帧会重试）：{}", realCause(t));
+                }
             }
         }
-        if (iconBlitTried) return false;
-        iconBlitTried = true;
+        // 约 4 秒后彻底放弃，避免无限重试
+        if (iconBlitAttempts > 240) return false;
+        iconBlitAttempts++;
 
         Object pipe = null;
         try { pipe = BlitCompat.guiPipeline(); } catch (Throwable ignored) {}
 
+        Throwable last = null;
         StringBuilder diag = new StringBuilder();
-        StringBuilder errs = new StringBuilder();
+        for (java.lang.reflect.Method cand : GuiGraphicsExtractor.class.getMethods()) {
+            if (!"blit".equals(cand.getName())) continue;
+            diag.append(sig(cand)).append(' ');
+            Class<?>[] p = cand.getParameterTypes();
 
-        // \u7b2c 0 \u8f6e\uff1a\u53ea\u8bd5\u5e26\u7ba1\u7ebf\u7684\u91cd\u8f7d\uff1b\u7b2c 1 \u8f6e\uff1a\u624d\u9000\u56de\u65e0\u7ba1\u7ebf\u3002
-        for (int pass = 0; pass < 2 && iconBlit == null; pass++) {
-            for (java.lang.reflect.Method cand : GuiGraphicsExtractor.class.getMethods()) {
-                if (!"blit".equals(cand.getName())) continue;
-                Class<?>[] p = cand.getParameterTypes();
-                if (pass == 0) diag.append(sig(cand)).append(' ');
-
-                int ti = -1;
-                for (int k = 0; k < p.length; k++) {
-                    if (p[k] == Identifier.class || p[k].isAssignableFrom(Identifier.class)
-                            || Identifier.class.isAssignableFrom(p[k])) { ti = k; break; }
+            int ti = -1;
+            for (int i = 0; i < p.length; i++) {
+                if (p[i].isAssignableFrom(Identifier.class) || Identifier.class.isAssignableFrom(p[i])) {
+                    ti = i;
+                    break;
                 }
-                if (ti < 0) continue;
+            }
+            if (ti < 0) continue;
 
-                java.util.List<Integer> nums = new java.util.ArrayList<>();
-                java.util.List<Integer> pipes = new java.util.ArrayList<>();
-                for (int k = 0; k < p.length; k++) {
-                    if (k == ti) continue;
-                    if (isInt(p[k]) || isFloat(p[k])) nums.add(k);
-                    else pipes.add(k);
-                }
-                if (nums.size() != 8) continue;
-                if (!pipes.isEmpty() && pipe == null) continue;
-                if (pass == 0 && pipes.isEmpty()) continue;
-                if (pass == 1 && !pipes.isEmpty()) continue;
+            java.util.List<Integer> nums = new java.util.ArrayList<>();
+            java.util.List<Integer> pipes = new java.util.ArrayList<>();
+            for (int i = 0; i < p.length; i++) {
+                if (i == ti) continue;
+                if (isInt(p[i]) || isFloat(p[i])) nums.add(i);
+                else pipes.add(i);
+            }
+            if (nums.size() != 8) continue;
+            if (!pipes.isEmpty() && pipe == null) continue;
 
-                // float \u843d\u5728\u7b2c 2,3 \u4e2a\u6570\u503c\u4f4d -> \u50cf\u7d20 UV\uff1b\u843d\u5728\u672b\u5c3e 4 \u4f4d -> \u5f52\u4e00\u5316 UV
-                boolean pixFirst = isFloat(p[nums.get(2)]) || isFloat(p[nums.get(3)]);
-                int[] order = pixFirst ? new int[]{0, 1} : new int[]{1, 0};
-                for (int plan : order) {
-                    try {
-                        cand.invoke(c, fillArgs(cand, plan, pipe, tex, x, y, w, h));
-                        iconBlit = cand;
-                        iconBlitPlan = plan;
-                        iconBlitPipe = pipe;
-                        LOGGER.info("[Editor] \u2713 \u97f3\u8272\u56fe\u6807 blit \u5c31\u7eea\uff1a{}\uff0c\u6392\u5e03={}",
-                                sig(cand), plan == 0 ? "\u50cf\u7d20UV" : "\u5f52\u4e00\u5316UV");
-                        return true;
-                    } catch (Throwable t) {
-                        errs.append(sig(cand)).append("/plan").append(plan)
-                            .append(" -> ").append(t).append("; ");
-                    }
+            boolean pixFirst = isFloat(p[nums.get(2)]) || isFloat(p[nums.get(3)]);
+            int[] order = pixFirst ? new int[]{0, 1} : new int[]{1, 0};
+            for (int plan : order) {
+                try {
+                    cand.invoke(c, fillArgs(cand, plan, pipe, tex, x, y, w, h));
+                    iconBlit = cand;
+                    iconBlitPlan = plan;
+                    iconBlitPipe = pipe;
+                    iconBlitAttempts = 0;
+                    LOGGER.info("[Editor] ✓ 音色图标 blit 就绪：{}，排布={}",
+                            plan == 0 ? "像素UV" : "归一化UV", sig(cand));
+                    return true;
+                } catch (Throwable t) {
+                    last = realCause(t);
                 }
             }
         }
-
         if (!iconBlitWarned) {
             iconBlitWarned = true;
-            LOGGER.warn("[Editor] \u627e\u4e0d\u5230\u53ef\u7528 blit\uff08\u56fe\u6807\u9000\u56de\u7eaf\u8272\uff09\u3002\u5019\u9009\uff1a{} \u2225 \u5931\u8d25\u539f\u56e0\uff1a{}", diag, errs);
+            LOGGER.warn("[Editor] blit 尚未就绪（第 {} 次尝试，贴图可能还没上传完）：{} | 候选：{}",
+                    iconBlitAttempts, (last == null ? "无候选匹配" : last.toString()), diag);
         }
         return false;
     }
@@ -2046,22 +2207,369 @@ public class NoteBlockEditScreen extends Screen {
         int pc = ((midi % 12) + 12) % 12;
         return n[pc] + (midi / 12 - 1);
     }
-    private void togglePause() {
-        if (playing) {
-            resumeFromTick = Math.max(0, playheadTick);   // ① 先存进度
-            paused = true;
-            playing = false;
-            if (playThread != null) { playThread.interrupt(); playThread = null; }
-            pauseButton.setMessage(Component.literal("继播"));
-        } else if (paused) {
-            startPlayback(resumeFromTick);                 // ② 从存的进度续播
-        } else {
-            startPlayback(0);
-        }
-    }
+
     @Override
     public boolean isPauseScreen() { return false; }
 
     @Override
     public void onClose() { stopPlayback(); super.onClose(); }
+
+    //                        CustomTone 自定义音色
+    // ---------------------------------------------------------------------
+    //  面板：搜索全部已注册声音（原版 + pianolib 88 音 + 任何模组）
+    //  应用：点击条目 = 试听 + 应用到选中音符 + 关闭
+    //        左键 = 跟随音高；右键 = 原声（pitch=1.0）
+    //  持久化：<歌曲>.nbs.djtone.txt（sidecar），NBS 原文件一个字节不动
+    // =====================================================================
+
+    private boolean tonePickerOpen = false;
+    private String  toneQuery = "";
+    private int     toneScroll = 0;
+
+    /** 所有已注册声音的 id（懒加载，含模组） */
+    private static final List<String> ALL_SOUNDS = new ArrayList<>();
+    private static volatile boolean soundsLoaded = false;
+    private static final Map<String, SoundEvent> TONE_CACHE = new HashMap<>();
+
+    // ---------- 注册表反射（不依赖具体类名，编译期零风险） ----------
+
+    /** 找到声音注册表对象（BuiltInRegistries.SOUND_EVENT / Registry.SOUND_EVENT） */
+    private static Object soundRegistry() {
+        String[] cls = {
+            "net.minecraft.core.registries.BuiltInRegistries",
+            "net.minecraft.core.Registry"
+        };
+        for (String cn : cls) {
+            try {
+                Class<?> c = Class.forName(cn);
+                Field f = c.getField("SOUND_EVENT");
+                return f.get(null);
+            } catch (Throwable ignored) { }
+        }
+        LOGGER.warn("[DJ-EDIT] CustomTone: 找不到声音注册表");
+        return null;
+    }
+
+    /** 用字符串构造 Identifier（26.3 parse / 老版 fromNamespaceAndPath） */
+    private static Identifier newId(String s) {
+        try {
+            Method m = Identifier.class.getMethod("parse", String.class);
+            return (Identifier) m.invoke(null, s);
+        } catch (Throwable ignored) { }
+        try {
+            int c = s.indexOf(':');
+            String ns  = (c < 0) ? "minecraft" : s.substring(0, c);
+            String pth = (c < 0) ? s           : s.substring(c + 1);
+            Method m = Identifier.class.getMethod("fromNamespaceAndPath", String.class, String.class);
+            return (Identifier) m.invoke(null, ns, pth);
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    /** 从注册表按 id 取对象（get / getOptional / getValue 通吃） */
+    private static Object regGet(Object reg, Object id) {
+        if (reg == null || id == null) return null;
+        for (Method m : reg.getClass().getMethods()) {
+            String n = m.getName();
+            if (!n.equals("get") && !n.equals("getOptional") && !n.equals("getValue")) continue;
+            if (m.getParameterCount() != 1) continue;
+            Object r;
+            try { r = m.invoke(reg, id); } catch (Throwable t) { continue; }
+            if (r instanceof java.util.Optional) r = ((java.util.Optional<?>) r).orElse(null);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    /** 枚举注册表里所有 key 的 id 字符串 */
+    private static void collectSoundIds(Object reg, List<String> out) {
+        for (Method m : reg.getClass().getMethods()) {
+            String n = m.getName();
+            if (!(n.equals("keySet") || n.equals("entrySet") || n.equals("iterator")
+               || n.equals("holders") || n.equals("values"))) continue;
+            if (m.getParameterCount() != 0) continue;
+            Object r;
+            try { r = m.invoke(reg); } catch (Throwable t) { continue; }
+            if (r instanceof Iterable) {
+                for (Object o : (Iterable<?>) r) addKey(o, out);
+                return;
+            }
+            if (r instanceof java.util.Iterator) {
+                java.util.Iterator<?> it = (java.util.Iterator<?>) r;
+                while (it.hasNext()) addKey(it.next(), out);
+                return;
+            }
+        }
+    }
+
+    /** 从 key / entry / holder 里抽出 Identifier 字符串 */
+    private static void addKey(Object o, List<String> out) {
+        Object k = o;
+        if (o instanceof Map.Entry) k = ((Map.Entry<?, ?>) o).getKey();
+        if (k == null) return;
+        if (k instanceof Identifier) { out.add(k.toString()); return; }
+        for (String mn : new String[]{"location", "identifier", "unwrapKey", "key"}) {
+            try {
+                Method m = k.getClass().getMethod(mn);
+                Object r = m.invoke(k);
+                if (r instanceof Identifier) { out.add(r.toString()); return; }
+            } catch (Throwable ignored) { }
+        }
+    }
+
+    /** 懒加载全部声音 id（含模组） */
+    private static void ensureSounds() {
+        if (soundsLoaded) return;
+        synchronized (ALL_SOUNDS) {
+            if (soundsLoaded) return;
+            Object reg = soundRegistry();
+            if (reg != null) collectSoundIds(reg, ALL_SOUNDS);
+            try { ALL_SOUNDS.sort(null); } catch (Throwable ignored) { }
+            soundsLoaded = true;
+            System.out.println("[DJ-EDIT] CustomTone: 已加载 "
+                    + ALL_SOUNDS.size() + " 个声音事件（含模组）");
+        }
+    }
+
+    /** id -> SoundEvent（带缓存） */
+    private static SoundEvent soundById(String id) {
+        if (id == null || id.isEmpty()) return null;
+        SoundEvent c = TONE_CACHE.get(id);
+        if (c != null) return c;
+        Identifier rid = newId(id);
+        Object o = regGet(soundRegistry(), rid);
+        if (o instanceof SoundEvent) {
+            TONE_CACHE.put(id, (SoundEvent) o);
+            return (SoundEvent) o;
+        }
+        return null;
+    }
+
+    // ---------- 播放 ----------
+
+    /** 有自定义音色就播它，否则播乐器原音色 */
+    private void playToneOrInst(EditableNote n) {
+        if (n != null && n.tone != null && !n.tone.isEmpty()) {
+            Minecraft mc = Minecraft.getInstance();
+            SoundEvent se = soundById(n.tone);
+            if (mc != null && se != null) {
+                float pitch = n.toneNatural ? 1.0f : pitchFor(n.noteId);
+                final SoundEvent fse = se;
+                mc.execute(() -> mc.getSoundManager().play(
+                        SimpleSoundInstance.forUI(fse, pitch, 1.0f)));
+                return;
+            }
+        }
+        if (n != null) playNoteSound(n.noteId, n.instrument);
+    }
+
+    /** 与 playNoteSound 一致的音高折算 */
+    private static float pitchFor(int noteId) {
+        int k = noteId;
+        while (k > PLAYABLE_HIGH) k -= 12;
+        while (k < PLAYABLE_LOW)  k += 12;
+        return (float) Math.pow(2.0D, (k - 12) / 12.0D);
+    }
+
+    /** 自定义音色的显示色：由 id 哈希决定，同音色永远同色 */
+    private static int toneColor(String id) {
+        int h = id.hashCode();
+        h = (h ^ (h >>> 16)) * 0x45d9f3b;
+        h = h ^ (h >>> 16);
+        int r = 80 + ((h >>> 16) & 0x6F);
+        int g = 80 + ((h >>> 8)  & 0x6F);
+        int b = 80 + (h          & 0x6F);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    // ---------- 持久化（sidecar，不动 NBS） ----------
+
+    private File sidecarOf() {
+        if (song == null || song.fileName == null || song.fileName.isEmpty()) return null;
+        try { return new File(Main.songsFolder, song.fileName + ".djtone.txt"); }
+        catch (Throwable t) { return null; }
+    }
+
+    private void loadTones() {
+        File f = sidecarOf();
+        if (f == null || !f.isFile()) return;
+        try {
+            int cnt = 0;
+            for (String line : Files.readAllLines(f.toPath())) {
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                int eq = line.indexOf('=');
+                if (eq < 0) continue;
+                int c = line.indexOf(':');
+                if (c < 0 || c > eq) continue;
+                int tick, noteId;
+                try {
+                    tick   = Integer.parseInt(line.substring(0, c).trim());
+                    noteId = Integer.parseInt(line.substring(c + 1, eq).trim());
+                } catch (NumberFormatException nfe) { continue; }
+                String v = line.substring(eq + 1).trim();
+                int bar = v.indexOf('|');
+                String id  = (bar < 0) ? v : v.substring(0, bar);
+                boolean nat = (bar >= 0) && v.substring(bar + 1).trim().equals("1");
+                EditableNote n = noteIndex.get(key(tick, noteId));
+                if (n != null && !id.isEmpty()) { n.tone = id; n.toneNatural = nat; cnt++; }
+            }
+            if (cnt > 0) System.out.println("[DJ-EDIT] CustomTone: 已载入 " + cnt + " 条自定义音色");
+        } catch (Throwable t) {
+            LOGGER.warn("[DJ-EDIT] CustomTone: sidecar 载入失败 {}", t.getMessage());
+        }
+    }
+
+    private void writeTones(File nbsOut) {
+        try {
+            List<String> lines = new ArrayList<>();
+            lines.add("# Disc Jockey CustomTone sidecar");
+            for (EditableNote n : notes) {
+                if (n.tone == null || n.tone.isEmpty()) continue;
+                lines.add(n.tick + ":" + n.noteId + "=" + n.tone + "|" + (n.toneNatural ? "1" : "0"));
+            }
+            File f = (nbsOut != null && nbsOut.getParentFile() != null)
+                    ? new File(nbsOut.getParentFile(), nbsOut.getName() + ".djtone.txt")
+                    : sidecarOf();
+            if (f == null) return;
+            if (lines.size() <= 1) {
+                if (f.isFile()) f.delete();
+                return;
+            }
+            Files.write(f.toPath(), lines);
+            System.out.println("[DJ-EDIT] CustomTone: 已写入 " + (lines.size() - 1)
+                    + " 条自定义音色 -> " + f.getName());
+        } catch (Throwable t) {
+            LOGGER.warn("[DJ-EDIT] CustomTone: sidecar 写入失败 {}", t.getMessage());
+        }
+    }
+
+    // ---------- 面板交互 ----------
+
+    private int pickerX() { return Math.max(4, (width  - Math.min(460, width  - 20)) / 2); }
+    private int pickerY() { return Math.max(4, (height - Math.min(340, height - 20)) / 2); }
+    private int pickerW() { return Math.min(460, width  - 20); }
+    private int pickerH() { return Math.min(340, height - 20); }
+
+    private List<String> filteredTones() {
+        ensureSounds();
+        List<String> r = new ArrayList<>();
+        String q = (toneQuery == null) ? "" : toneQuery.trim().toLowerCase();
+        for (String s : ALL_SOUNDS) {
+            if (q.isEmpty() || s.toLowerCase().contains(q)) r.add(s);
+            if (r.size() >= 4000) break;
+        }
+        return r;
+    }
+
+    /** 返回 true = 已消费这次点击 */
+    private boolean tonePickerClick(double mx, double my, int button) {
+        int px = pickerX(), py = pickerY(), pw = pickerW(), ph = pickerH();
+        if (mx < px || mx > px + pw || my < py || my > py + ph) {
+            tonePickerOpen = false;
+            return true;
+        }
+        int listY = py + 34;
+        int listH = ph - 34 - 24;
+        if (my >= listY && my < listY + listH) {
+            List<String> items = filteredTones();
+            int idx = toneScroll + (int) ((my - listY) / 12);
+            if (idx >= 0 && idx < items.size()) applyTone(items.get(idx), button == 1);
+            return true;
+        }
+        return true;
+    }
+
+    private void applyTone(String id, boolean natural) {
+        List<EditableNote> sel = selectedList();
+        if (sel.isEmpty()) {
+            tonePickerOpen = false;
+            System.out.println("[DJ-EDIT] CustomTone: 没有选中音符");
+            return;
+        }
+        pushUndo();
+        for (EditableNote n : sel) { n.tone = id; n.toneNatural = natural; }
+        tonePickerOpen = false;
+        System.out.println("[DJ-EDIT] CustomTone: 应用 " + id
+                + (natural ? "（原声）" : "（跟随音高）") + " -> " + sel.size() + " 个音符");
+        playToneOrInst(sel.get(0));
+    }
+
+    /** 返回 true = 已消费这次按键 */
+    private boolean tonePickerKey(int code) {
+        // ESC=41  关闭
+        if (code == 41) { tonePickerOpen = false; return true; }
+        // Backspace=42
+        if (code == 42) {
+            if (!toneQuery.isEmpty()) toneQuery = toneQuery.substring(0, toneQuery.length() - 1);
+            toneScroll = 0;
+            return true;
+        }
+        // 上=82 下=81 PgUp=75 PgDn=78
+        if (code == 82) { if (toneScroll > 0) toneScroll--; return true; }
+        if (code == 81) { toneScroll++; return true; }
+        if (code == 75) { toneScroll = Math.max(0, toneScroll - 10); return true; }
+        if (code == 78) { toneScroll += 10; return true; }
+        String ch = sdlChar(code);
+        if (ch != null) {
+            if (toneQuery.length() < 64) toneQuery = toneQuery + ch;
+            toneScroll = 0;
+            return true;
+        }
+        return true;   // 面板打开时吞掉其它按键，避免误操作
+    }
+
+    /** SDL 扫描码 -> 可输入字符（用于搜索框） */
+    private static String sdlChar(int code) {
+        if (code >= 4 && code <= 29)  return String.valueOf((char) ('a' + (code - 4)));
+        if (code >= 30 && code <= 38) return String.valueOf((char) ('1' + (code - 30)));
+        if (code == 39) return "0";
+        if (code == 44) return " ";
+        if (code == 45) return "-";
+        if (code == 55) return ".";
+        if (code == 56) return "/";
+        if (code == 57) return ":";
+        return null;
+    }
+
+    /** 绘制选音面板（在 extractRenderState 末尾调用，覆盖在网格之上） */
+    private void drawTonePicker(GuiGraphicsExtractor c, int mx, int my) {
+        Minecraft mc = Minecraft.getInstance();
+        int px = pickerX(), py = pickerY(), pw = pickerW(), ph = pickerH();
+
+        c.fill(px, py, px + pw, py + ph, 0xF0101014);
+        c.fill(px, py, px + pw, py + 1, 0xFF60C0F0);
+        c.fill(px, py + ph - 1, px + pw, py + ph, 0xFF60C0F0);
+        c.fill(px, py, px + 1, py + ph, 0xFF60C0F0);
+        c.fill(px + pw - 1, py, px + pw, py + ph, 0xFF60C0F0);
+
+        String title = "选择音色（左键=跟随音高 / 右键=原声）  输入即搜索";
+        c.text(mc.font, title, px + 6, py + 6, 0xFFE0E0E0);
+
+        // 搜索框
+        c.fill(px + 6, py + 19, px + pw - 6, py + 32, 0xFF000000);
+        c.fill(px + 6, py + 19, px + pw - 6, py + 20, 0xFF606060);
+        c.text(mc.font, ">" + toneQuery + "_", px + 9, py + 22, 0xFF80FF80);
+
+        // 列表
+        List<String> items = filteredTones();
+        int listY = py + 34;
+        int listH = ph - 34 - 24;
+        int rows = listH / 12;
+        if (toneScroll > Math.max(0, items.size() - rows))
+            toneScroll = Math.max(0, items.size() - rows);
+
+        for (int i = 0; i < rows; i++) {
+            int idx = toneScroll + i;
+            if (idx >= items.size()) break;
+            int yy = listY + i * 12;
+            boolean hover = (mx >= px + 6 && mx <= px + pw - 6 && my >= yy && my < yy + 12);
+            if (hover) c.fill(px + 6, yy, px + pw - 6, yy + 11, 0xFF305080);
+            String s = items.get(idx);
+            if (s.length() > 62) s = s.substring(0, 62);
+            c.text(mc.font, s, px + 9, yy + 2, hover ? 0xFFFFFF80 : 0xFFB0B0B0);
+        }
+
+        c.text(mc.font, items.size() + " 个声音  |  已选 " + selection.size()
+                + " 个音符  |  ESC 关闭", px + 9, py + ph - 15, 0xFF909090);
+    }
 }
