@@ -205,6 +205,18 @@ public class Previewer implements Main.TickListener {
             int transposedNoteId = rawNoteId + Main.SONG_PLAYER.transpose;
             int noteId = foldToRange(transposedNoteId);
 
+            // ★ 自定义乐器（instrumentId >= vanillaInstrumentCount）：
+            //   NBS 第 4 段 file 字段存的就是 Minecraft 声音事件 id，直接播它
+            byte vcPv = (song != null && song.vanillaInstrumentCount > 0)
+                    ? song.vanillaInstrumentCount : (byte) 16;
+            if (Note.isCustom(vcPv & 0xFF, instrumentId & 0xFF)) {
+                playCustomInstrument(instrumentId & 0xFF, noteId);
+                Main.SPECTRUM.onNotePlayed(instrumentId & 0xFF, noteId);
+                i++;
+                if (i >= getNoteCount()) { if (!loopPreview) { stop(); } else { this.i = 0; this.tick = 0.0F; this.lyricsNextIndex = 0; } return; }
+                continue;
+            }
+
             // ★ 唯一改动：用 fromNbs 替代 NoteBlockInstrument.values()[instrumentId]
             int version = (song != null) ? (song.formatVersion & 0xFF) : 4;
             NoteBlockInstrument instrument = Note.fromNbs(version, instrumentId);
@@ -261,6 +273,60 @@ public class Previewer implements Main.TickListener {
     }
 
     
+
+    /** 播放自定义乐器：声音事件 id 存在 NBS 第 4 段的 file 字段里 */
+    private void playCustomInstrument(int instrumentId, int noteId) {
+        if (song == null) return;
+        Song.CustomInstrument ci = song.customInstrumentOf(instrumentId);
+        if (ci == null || ci.file == null || ci.file.isEmpty()) return;
+
+        Object ev = resolveSoundEvent(ci.file);
+        if (!(ev instanceof SoundEvent)) return;
+
+        float pitch = (ci.press == 1) ? 1.0f : (float) Math.pow(2.0D, (noteId - 12) / 12.0D);
+        Vec3 pos = Minecraft.getInstance().player != null
+                ? Minecraft.getInstance().player.position() : Vec3.ZERO;
+        playSoundSafe(null, pos, (SoundEvent) ev, SoundSource.RECORDS,
+                previewMute ? 0.0F : Math.min(previewVolume, 1.0f), pitch);
+    }
+
+    /** 反射解析 MC 声音事件，自动解 Optional / Holder 包装 */
+    private static Object resolveSoundEvent(String soundId) {
+        try {
+            net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.parse(soundId);
+            Class<?> regCls = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+            Object reg = regCls.getField("SOUND_EVENT").get(null);
+            for (java.lang.reflect.Method m : reg.getClass().getMethods()) {
+                if (m.getParameterCount() != 1) continue;
+                if (!m.getName().equals("get")) continue;
+                if (!m.getParameterTypes()[0].isAssignableFrom(id.getClass())) continue;
+                Object r = m.invoke(reg, id);
+                for (int d = 0; d < 4 && r != null; d++) {
+                    if (r instanceof java.util.Optional) {
+                        r = ((java.util.Optional<?>) r).orElse(null);
+                        continue;
+                    }
+                    Object v = tryUnwrap(r);
+                    if (v == r) break;
+                    r = v;
+                }
+                if (r instanceof SoundEvent) return r;
+            }
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    private static Object tryUnwrap(Object o) {
+        for (String mn : new String[]{"value", "get", "valueOrThrow"}) {
+            try {
+                java.lang.reflect.Method m = o.getClass().getMethod(mn);
+                Object v = m.invoke(o);
+                if (v != null) return v;
+            } catch (Throwable ignored) { }
+        }
+        return o;
+    }
+
     private void playSoundSafe(ClientLevel world, Vec3 pos, SoundEvent sound,
                                SoundSource source, float volume, float pitch) {
         if (sound == null) return;

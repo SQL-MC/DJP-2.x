@@ -59,6 +59,23 @@ public record Note(NoteBlockInstrument instrument, byte note) {
         NoteBlockInstrument.PLING,
     };
 
+
+    /** NBS_V4 原版乐器数量（Harp..Pling）。instrument >= 该值 即自定义乐器 */
+    public static final int VANILLA_COUNT_V4 = 16;
+
+    /** instrument 字节是否是自定义乐器（下标 = id - vanillaCount） */
+    public static boolean isCustom(int vanillaCount, int instrumentId) {
+        int vc = (vanillaCount > 0) ? (vanillaCount & 0xFF) : 10;
+        return (instrumentId & 0xFF) >= vc;
+    }
+
+    /** 自定义乐器下标；非自定义返回 -1 */
+    public static int customIndex(int vanillaCount, int instrumentId) {
+        if (!isCustom(vanillaCount, instrumentId)) return -1;
+        int vc = (vanillaCount > 0) ? (vanillaCount & 0xFF) : 10;
+        return (instrumentId & 0xFF) - vc;
+    }
+
     public static NoteBlockInstrument[] instrumentsForVersion(int version) {
         if (version >= 0 && version <= 3) return NBS_V0;
         return NBS_V4;

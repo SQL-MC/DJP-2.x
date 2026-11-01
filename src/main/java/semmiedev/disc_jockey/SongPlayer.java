@@ -151,6 +151,65 @@ public class SongPlayer implements Main.TickListener {
         return song.notes[idx];
     }
 
+
+    /** 直接播放自定义乐器（声音事件 id 存在 NBS 第 4 段的 file 字段里） */
+    private void playCustomInstrument(int instrumentId, int noteId) {
+        if (song == null) return;
+        Song.CustomInstrument ci = song.customInstrumentOf(instrumentId);
+        if (ci == null || ci.file == null || ci.file.isEmpty()) return;
+
+        Object ev = resolveSoundEvent(ci.file);
+        if (!(ev instanceof net.minecraft.sounds.SoundEvent)) return;
+
+        float pitch = (ci.press == 1)
+                ? 1.0f
+                : (float) Math.pow(2.0D, (noteId - 45) / 12.0D);
+
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            mc.getSoundManager().play(
+                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                            (net.minecraft.sounds.SoundEvent) ev, pitch));
+        } catch (Throwable ignored) { }
+    }
+
+    /** 反射解析 MC 声音事件，自动解 Optional / Holder 包装 */
+    private static Object resolveSoundEvent(String soundId) {
+        try {
+            net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.parse(soundId);
+            Class<?> regCls = Class.forName("net.minecraft.core.registries.BuiltInRegistries");
+            Object reg = regCls.getField("SOUND_EVENT").get(null);
+            for (java.lang.reflect.Method m : reg.getClass().getMethods()) {
+                if (m.getName() == null || !m.getName().equals("get")) continue;
+                if (m.getParameterCount() != 1) continue;
+                if (!m.getParameterTypes()[0].isAssignableFrom(id.getClass())) continue;
+                Object r = m.invoke(reg, id);
+                for (int d = 0; d < 4 && r != null; d++) {
+                    if (r instanceof java.util.Optional) {
+                        r = ((java.util.Optional<?>) r).orElse(null);
+                        continue;
+                    }
+                    Object v = tryUnwrap(r);
+                    if (v == r) break;
+                    r = v;
+                }
+                if (r instanceof net.minecraft.sounds.SoundEvent) return r;
+            }
+        } catch (Throwable ignored) { }
+        return null;
+    }
+
+    private static Object tryUnwrap(Object o) {
+        for (String mn : new String[]{"value", "get", "valueOrThrow"}) {
+            try {
+                java.lang.reflect.Method m = o.getClass().getMethod(mn);
+                Object v = m.invoke(o);
+                if (v != null) return v;
+            } catch (Throwable ignored) { }
+        }
+        return o;
+    }
+
     // ★ 唯一改动：用 fromNbs 替代 Note.INSTRUMENTS[instrumentId]
     private @Nullable BlockPos findNoteBlock(byte instrumentId, int noteId) {
         int version = (song != null) ? (song.formatVersion & 0xFF) : 4;
@@ -198,6 +257,17 @@ public class SongPlayer implements Main.TickListener {
             
             byte instrumentId = (byte) (note >> Note.INSTRUMENT_SHIFT);
             int transposedNoteId = (int) (note >> Note.NOTE_SHIFT) & 0xFF;
+
+            // ★ 自定义乐器（instrumentId >= vanillaInstrumentCount）：世界里没有对应音符盒，
+            //   NBS 第 4 段里存的是 Minecraft 声音事件 id，直接播它
+            byte vcSp = (song != null && song.vanillaInstrumentCount > 0)
+                    ? song.vanillaInstrumentCount : (byte) 16;
+            if (Note.isCustom(vcSp & 0xFF, instrumentId & 0xFF)) {
+                playCustomInstrument(instrumentId & 0xFF, transposedNoteId);
+                index++;
+                continue;
+            }
+
 
             
             BlockPos blockPos = findNoteBlock(instrumentId, transposedNoteId);
