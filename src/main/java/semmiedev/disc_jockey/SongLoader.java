@@ -187,41 +187,17 @@ public class SongLoader {
 
         song.uniqueNotes.clear();
         song.uniqueNotes.addAll(seenNotes);
-
-        // ---- NBS 第 4 段：自定义乐器 ----
-        // NBS 第3段 Layers：v4 必须跳过
+        // NBS section 3: Layers; count is in header (song.height), not a short here.
         try {
-            int layerCount = reader.readShort() & 0xFFFF;
-            StringBuilder ls = new StringBuilder();
+            int layerCount = song.height & 0xFFFF;
+            boolean v4Layer = (song.formatVersion & 0xFF) >= 4;
             for (int i = 0; i < layerCount; i++) {
-                String lname = reader.readString();
-                reader.readByte();
-                reader.readByte();
-                reader.readByte();
-                if (i < 3) ls.append("[").append(lname).append("]");
+                reader.readString();
+                if (v4Layer) { reader.readByte(); reader.readByte(); reader.readByte(); }
+                else { reader.readByte(); }
             }
-            System.out.println("[DJ] " + song.fileName + " Layers=" + layerCount + " " + ls);
-        } catch (Throwable t) {
-            System.out.println("[DJ] " + song.fileName + " Layers skip fail: " + t);
-        }
-
-            // NBS 第3段 Layers：v4 必须跳过
-        try {
-            int layerCount = reader.readShort() & 0xFFFF;
-            StringBuilder ls = new StringBuilder();
-            for (int i = 0; i < layerCount; i++) {
-                String lname = reader.readString();
-                reader.readByte();
-                reader.readByte();
-                reader.readByte();
-                if (i < 3) ls.append("[").append(lname).append("]");
-            }
-            System.out.println("[DJ] " + song.fileName + " Layers=" + layerCount + " " + ls);
-        } catch (Throwable t) {
-            System.out.println("[DJ] " + song.fileName + " Layers skip fail: " + t);
-        }
-
-    song.customInstruments.clear();
+        } catch (Throwable ignored) { }
+        song.customInstruments.clear();
         try {
             int ciCount = reader.readByte() & 0xFF;
             for (int i = 0; i < ciCount; i++) {
