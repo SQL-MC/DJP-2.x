@@ -262,6 +262,7 @@ public class DiscJockeyScreen extends Screen {
     private static Thread globalPlayThread = null;
     /** 正在广播的歌曲名（跨界面实例保留，重新打开界面时用于提示） */
     private static String globalPlaySongName = null;
+    private static volatile Song globalPlaySong = null;
 
     // ==================== 全局播放频谱（自算 + 推送官方双路） ====================
     //
@@ -1076,6 +1077,7 @@ public class DiscJockeyScreen extends Screen {
         globalPlaying = true;
         String name = (song.displayName != null) ? song.displayName : song.fileName;
         globalPlaySongName = name;
+        globalPlaySong = song;
         muteCommandFeedback();   // ★ 先关服务器命令反馈，杜绝 playsound 回显刷屏
         globalChat(2, "§a[DiscJockey] 开始全局广播：" + name + "（需要管理员权限）");
         globalChat(3, "§7[DiscJockey] 关闭菜单不会停止广播；重新打开 DJ 界面点同一按钮即可停止");
@@ -1121,6 +1123,7 @@ public class DiscJockeyScreen extends Screen {
             globalPlayThread = null;
         }
         globalPlaySongName = null;
+        globalPlaySong = null;
         resetGlobalLevels();          // ★ 停止时清空频谱，避免残留柱子
         restoreCommandFeedback();     // ★ 恢复服务器命令反馈
         globalChat(2, "§7[DiscJockey] 已停止全局广播");
@@ -1653,6 +1656,7 @@ public class DiscJockeyScreen extends Screen {
 
     /** 构造命令：让每个玩家在自己位置听到 */
     private static String buildPlaySound(int instrument, int noteId) {
+        String overrideSound = null; if (globalPlaySong != null) { try { Object c = globalPlaySong.customInstrumentOf(instrument); if (c != null) { java.lang.reflect.Field ff = c.getClass().getDeclaredField("file"); ff.setAccessible(true); Object v = ff.get(c); if (v instanceof String) { String s = (String) v; if (!s.isEmpty() && (s.startsWith("minecraft:") || s.indexOf(58) < 0)) overrideSound = s; } } } catch (Throwable ignored) { } }
         int i = (instrument >= 0 && instrument < NOTE_SOUND.length) ? instrument : 0;
         int k = noteId;
         while (k > 24) k -= 12;      // 八度折叠到 MC 音符盒可播区 0..24
@@ -1660,7 +1664,7 @@ public class DiscJockeyScreen extends Screen {
         float pitch = (float) Math.pow(2.0D, (k - 12) / 12.0D);
         String ps = String.format(java.util.Locale.US, "%.4f", pitch);
         String vs = String.format(java.util.Locale.US, "%.2f", GLOBAL_VOLUME);
-        return "execute as @a at @s run playsound " + NOTE_SOUND[i]
+        return "execute as @a at @s run playsound " + (overrideSound != null ? overrideSound : NOTE_SOUND[i])
                 + " master @s ~ ~ ~ " + vs + " " + ps;
     }
 

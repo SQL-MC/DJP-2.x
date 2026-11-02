@@ -2062,6 +2062,8 @@ public class NoteBlockEditScreen extends Screen {
 
     private boolean drawSpriteIcon(GuiGraphicsExtractor c, int instrument, int x, int y, int w, int h) {
         if (spriteState != 1 || c == null) return false;
+        if (instrument < 0 || instrument >= INST_SPRITE.length) return false;
+        if (spriteCache == null || instrument >= spriteCache.length) return false;
         try {
             Object sp = spriteCache[instrument];
             if (sp == null) {
