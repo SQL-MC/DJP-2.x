@@ -33,25 +33,17 @@ public class SongLoader {
                 File[] files = Main.songsFolder.listFiles();
                 if (files != null) {
                     for (File file : files) {
-                        // 只解析 .nbs：目录里同时放着 .lrc 歌词、.mid 等文件，
-                        // 不加过滤会把它们当成 NBS 读取，必然 EOFException 刷屏
+                        // 只解析 .nbs：目录里同时放着 .lrc 歌词、.djtone.txt 等文件，
+                        // 不过滤会把它们当 NBS 读取，必然 EOFException 刷屏
                         if (!file.isFile()) continue;
                         String lowerName = file.getName().toLowerCase();
-                        if (!lowerName.endsWith(".nbs")) {
-                            Main.LOGGER.debug("[DJ] 跳过非 NBS 文件: {}", file.getName());
-                            continue;
-                        }
-                        if (file.length() == 0) {
-                            Main.LOGGER.warn("[DJ] 跳过空文件（0 字节，请重新导出）: {}", file.getName());
-                            continue;
-                        }
-
+                        if (!lowerName.endsWith(".nbs")) continue;
+                        if (file.length() == 0) continue;
                         Song song = null;
                         try {
                             song = loadSong(file);
                         } catch (Exception exception) {
-                            Main.LOGGER.warn("[DJ] 无法解析 {} ({} 字节，文件已损坏或不完整，请用 Note Block Studio 重新导出): {}",
-                                    file.getName(), file.length(), String.valueOf(exception));
+                            Main.LOGGER.error("Unable to read or parse song {}", file.getName(), exception);
                         }
                         if (song != null) SONGS.add(song);
                     }
@@ -67,14 +59,15 @@ public class SongLoader {
                         )
                 );
 
-                if (showToast && Minecraft.getInstance().font != null)
-                    SystemToast.add(
-                            Minecraft.getInstance().gui.toastManager(),
-                            SystemToast.SystemToastId.PACK_LOAD_FAILURE,
-                            Main.NAME,
-                            Component.translatable("disc_jockey.loading_done")
-                    );
-                showToast = true;
+                if (showToast) Minecraft.getInstance().execute(() -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.font != null) {
+                        SystemToast.add(mc.gui.toastManager(),
+                                SystemToast.SystemToastId.PACK_LOAD_FAILURE,
+                                Main.NAME,
+                                Component.translatable("disc_jockey.loading_done"));
+                    }
+                });
             } catch (Exception e) {
                 Main.LOGGER.error("Failed to load songs", e);
             } finally {
@@ -167,7 +160,7 @@ public class SongLoader {
                 // 自定义乐器（instrumentId >= vanillaInstrumentCount）没有对应的
                 // NoteBlockInstrument，塞进 uniqueNotes 会误显示成竖琴，故跳过
                 int vc = (song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
-                if ((instrumentId & 0xFF) < vc) {
+                if ((instrumentId & 0xFF) < vc || ((instrumentId & 0xFF) >= 16 && (instrumentId & 0xFF) <= 19)) { // DJ_COPPER_20
                     Note note = new Note(
                             Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
                             (byte) noteId

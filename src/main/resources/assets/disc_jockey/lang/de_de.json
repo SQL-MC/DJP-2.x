@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Speichern fehlgeschlagen (beide Methoden nicht verfügbar)",
   "disc_jockey.editor.stop": "■ STOPP",
   "disc_jockey.screen.record_noteblock_song": "NBS aufnehmen",
-  "disc_jockey.screen.record_noteblock_song.stop": "Aufnahme stoppen"
+  "disc_jockey.screen.record_noteblock_song.stop": "Aufnahme stoppen",
+  "disc_jockey.editor.track": "Spur %s",
+  "disc_jockey.editor.track_current": "> Spur %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Spur loschen",
+  "disc_jockey.editor.speed": "Geschwindigkeit",
+  "disc_jockey.editor.tone": "Klangfarbe",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Spur %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Alle anzeigen",
+  "disc_jockey.editor.layer_mode": "Spurebenen",
+  "disc_jockey.editor.track_all": "Alle Spuren",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
 
@@ -56,16 +57,23 @@ public record Note(NoteBlockInstrument instrument, byte note) {
         NoteBlockInstrument.BIT,
         NoteBlockInstrument.BANJO,
         NoteBlockInstrument.PLING,
+        NoteBlockInstrument.TRUMPET,
+        NoteBlockInstrument.TRUMPET_EXPOSED,
+        NoteBlockInstrument.TRUMPET_WEATHERED,
+        NoteBlockInstrument.TRUMPET_OXIDIZED,
+        // DJ_TRUMPET_20
     };
 
 
-    /** NBS_V4 原版乐器数量（Harp..Pling）。instrument >= 该值 即自定义乐器 */
-    public static final int VANILLA_COUNT_V4 = 16;
+    /** NBS_V4 原版乐器数量（Harp..Oxidized Trumpet = 20）。instrument >= 该值 即自定义乐器 */
+    public static final int VANILLA_COUNT_V4 = 20;
 
     /** instrument 字节是否是自定义乐器（下标 = id - vanillaCount） */
     public static boolean isCustom(int vanillaCount, int instrumentId) {
         int vc = (vanillaCount > 0) ? (vanillaCount & 0xFF) : 10;
-        return (instrumentId & 0xFF) >= vc;
+        int id = instrumentId & 0xFF;
+        if (id >= 16 && id <= 19) return false; // DJ_COPPER_20: built-in trumpets
+        return id >= vc;
     }
 
     /** 自定义乐器下标；非自定义返回 -1 */
@@ -81,6 +89,9 @@ public record Note(NoteBlockInstrument instrument, byte note) {
     }
 
     public static NoteBlockInstrument fromNbs(int version, int instrumentId) {
+        int id = instrumentId & 0xFF;
+        if (id >= 16 && id <= 19) return NBS_V4[id]; // DJ_COPPER_20: v0-v3 table has only 10
+        if (instrumentId >= 16 && instrumentId <= 19) return NBS_V4[instrumentId];
         NoteBlockInstrument[] table = instrumentsForVersion(version);
         if (instrumentId < 0 || instrumentId >= table.length) {
             return NoteBlockInstrument.HARP;
@@ -120,7 +131,7 @@ public record Note(NoteBlockInstrument instrument, byte note) {
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.BASS, Blocks.OAK_PLANKS);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.FLUTE, Blocks.CLAY);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.BELL, Blocks.GOLD_BLOCK);
-        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.GUITAR, Blocks.WOOL.white());
+        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.GUITAR, (net.minecraft.world.level.block.Block) Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.WHITE));
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.CHIME, Blocks.PACKED_ICE);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.XYLOPHONE, Blocks.BONE_BLOCK);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.IRON_XYLOPHONE, Blocks.IRON_BLOCK);
@@ -129,9 +140,9 @@ public record Note(NoteBlockInstrument instrument, byte note) {
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.BIT, Blocks.EMERALD_BLOCK);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.BANJO, Blocks.HAY_BLOCK);
         INSTRUMENT_BLOCKS.put(NoteBlockInstrument.PLING, Blocks.GLOWSTONE);
-        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET, Blocks.COPPER_BLOCK.weathering().unaffected());
-        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_EXPOSED, Blocks.COPPER_BLOCK.weathering().exposed());
-        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_WEATHERED, Blocks.COPPER_BLOCK.weathering().weathered());
-        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_OXIDIZED, Blocks.COPPER_BLOCK.weathering().oxidized());
+        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET, (net.minecraft.world.level.block.Block) Blocks.COPPER_BLOCK.weathering().unaffected());
+        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_EXPOSED, (net.minecraft.world.level.block.Block) Blocks.COPPER_BLOCK.weathering().exposed());
+        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_WEATHERED, (net.minecraft.world.level.block.Block) Blocks.COPPER_BLOCK.weathering().weathered());
+        INSTRUMENT_BLOCKS.put(NoteBlockInstrument.TRUMPET_OXIDIZED, (net.minecraft.world.level.block.Block) Blocks.COPPER_BLOCK.weathering().oxidized());
     }
 }

@@ -262,7 +262,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
             // ★ 自定义乐器（instrumentId >= vanillaInstrumentCount）：世界里没有对应音符盒，
             //   NBS 第 4 段里存的是 Minecraft 声音事件 id，直接播它
             byte vcSp = (song != null && song.vanillaInstrumentCount > 0)
-                    ? song.vanillaInstrumentCount : (byte) 16;
+                    ? song.vanillaInstrumentCount : (byte) 20;
             if (Note.isCustom(vcSp & 0xFF, instrumentId & 0xFF)) {
                 playCustomInstrument(instrumentId & 0xFF, transposedNoteId);
                 index++;

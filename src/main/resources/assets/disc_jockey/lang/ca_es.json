@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "No s'ha pogut desar (cap dels dos mètodes està disponible)",
   "disc_jockey.editor.stop": "■ ATURA",
   "disc_jockey.screen.record_noteblock_song": "Grava NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Atura la gravació"
+  "disc_jockey.screen.record_noteblock_song.stop": "Atura la gravació",
+  "disc_jockey.editor.track": "Pista %s",
+  "disc_jockey.editor.track_current": "> Pista %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Suprimeix la pista",
+  "disc_jockey.editor.speed": "Velocitat",
+  "disc_jockey.editor.tone": "To",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Pista %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Mostra-ho tot",
+  "disc_jockey.editor.layer_mode": "Capes de pistes",
+  "disc_jockey.editor.track_all": "Totes les pistes",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

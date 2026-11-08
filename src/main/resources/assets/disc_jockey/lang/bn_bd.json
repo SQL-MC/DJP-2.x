@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "সংরক্ষণ ব্যর্থ (উভয় পদ্ধতি অনুপলব্ধ)",
   "disc_jockey.editor.stop": "■ থামান",
   "disc_jockey.screen.record_noteblock_song": "NBS রেকর্ড করুন",
-  "disc_jockey.screen.record_noteblock_song.stop": "রেকর্ডিং বন্ধ করুন"
+  "disc_jockey.screen.record_noteblock_song.stop": "রেকর্ডিং বন্ধ করুন",
+  "disc_jockey.editor.track": "\u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995 %s",
+  "disc_jockey.editor.track_current": "> \u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995 \u09ae\u09c1\u099b\u09c1\u09a8",
+  "disc_jockey.editor.speed": "\u0997\u09a4\u09bf",
+  "disc_jockey.editor.tone": "\u09b8\u09cd\u09ac\u09b0",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u09b8\u09ac \u09a6\u09c7\u0996\u09be\u09a8",
+  "disc_jockey.editor.layer_mode": "\u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995 \u09b8\u09cd\u09a4\u09b0",
+  "disc_jockey.editor.track_all": "\u09b8\u09ac \u099f\u09cd\u09b0\u09cd\u09af\u09be\u0995",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

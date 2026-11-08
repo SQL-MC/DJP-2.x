@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "فشل الحفظ (كلتا الطريقتين غير متاحتين)",
   "disc_jockey.editor.stop": "■ إيقاف",
   "disc_jockey.screen.record_noteblock_song": "تسجيل NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "إيقاف التسجيل"
+  "disc_jockey.screen.record_noteblock_song.stop": "إيقاف التسجيل",
+  "disc_jockey.editor.track": "\u0627\u0644\u0645\u0633\u0627\u0631 %s",
+  "disc_jockey.editor.track_current": "> \u0627\u0644\u0645\u0633\u0627\u0631 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u062d\u0630\u0641 \u0627\u0644\u0645\u0633\u0627\u0631",
+  "disc_jockey.editor.speed": "\u0627\u0644\u0633\u0631\u0639\u0629",
+  "disc_jockey.editor.tone": "\u0627\u0644\u0646\u063a\u0645\u0629",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u0627\u0644\u0645\u0633\u0627\u0631 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u0639\u0631\u0636 \u0627\u0644\u0643\u0644",
+  "disc_jockey.editor.layer_mode": "\u0637\u0628\u0642\u0627\u062a \u0627\u0644\u0645\u0633\u0627\u0631\u0627\u062a",
+  "disc_jockey.editor.track_all": "\u0643\u0644 \u0627\u0644\u0645\u0633\u0627\u0631\u0627\u062a",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

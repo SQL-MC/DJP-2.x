@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Чување није успело (обе методе су недоступне)",
   "disc_jockey.editor.stop": "■ ЗАУСТАВИ",
   "disc_jockey.screen.record_noteblock_song": "Сними NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Заустави снимање"
+  "disc_jockey.screen.record_noteblock_song.stop": "Заустави снимање",
+  "disc_jockey.editor.track": "\u0422\u0440\u0430\u0433 %s",
+  "disc_jockey.editor.track_current": "> \u0422\u0440\u0430\u0433 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u041e\u0431\u0440\u0438\u0448\u0438 \u0442\u0440\u0430\u0433",
+  "disc_jockey.editor.speed": "\u0411\u0440\u0437\u0438\u043d\u0430",
+  "disc_jockey.editor.tone": "\u0411\u043e\u0458\u0430 \u0442\u043e\u043d\u0430",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u0422\u0440\u0430\u0433 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u041f\u0440\u0438\u043a\u0430\u0436\u0438 \u0441\u0432\u0435",
+  "disc_jockey.editor.layer_mode": "\u0421\u043b\u043e\u0458\u0435\u0432\u0438 \u0442\u0440\u0430\u0433\u0430",
+  "disc_jockey.editor.track_all": "\u0421\u0432\u0438 \u0442\u0440\u0430\u0433\u043e\u0432\u0438",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

@@ -17,7 +17,7 @@ import semmiedev.disc_jockey.gui.SongListWidget;
 public class Song {
 
     /** NBS_V4 固定：原版乐器数量（Harp..Pling = 16） */
-    public static final int VANILLA_INST_COUNT = 16;
+    public static final int VANILLA_INST_COUNT = 20;
 
 
     /**
@@ -50,7 +50,9 @@ public class Song {
     /** instrument 字节是否是自定义乐器 */
     public boolean isCustomInstrument(int instrumentId) {
         int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
-        return (instrumentId & 0xFF) >= vc;
+        int id = instrumentId & 0xFF;
+        if (id >= 16 && id <= 19) return false; // DJ_COPPER_20
+        return id >= vc;
     }
 
     /** 取 instrument 字节对应的自定义乐器，非自定义或越界返回 null */
@@ -146,7 +148,7 @@ public class Song {
         if (searchableFileName == null) searchableFileName = "";
         if (searchableName == null) searchableName = "";
 
-        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;
+        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = (byte) VANILLA_INST_COUNT;
         if (formatVersion == 0) formatVersion = 0;
         if (height <= 0) height = 1;
         if (tempo <= 0) tempo = 1000;
@@ -293,15 +295,15 @@ public class Song {
 
             int headerLength = Math.max(1, computeMaxTick(all));
 
-            // ★ NBS v4 新格式头：0 + version(4) + vanillaInstrumentCount(16) + length
+            // ★ NBS v4 新格式头：0 + version(4) + vanillaInstrumentCount(20) + length
             byte version = 4;
-            byte vanillaCount = (byte) VANILLA_INST_COUNT;   // NBS_V4 固定 16 个原版乐器
+            byte vanillaCount = (byte) VANILLA_INST_COUNT;   // NBS_V4 固定 20 个原版乐器
             this.formatVersion = version;
             this.vanillaInstrumentCount = vanillaCount;
 
             writeShortLE(raf, 0);                 // 新格式标记
             writeByte(raf, version & 0xFF);       // formatVersion = 4
-            writeByte(raf, vanillaCount & 0xFF);  // vanillaInstrumentCount = 16
+            writeByte(raf, vanillaCount & 0xFF);  // vanillaInstrumentCount = 20
             writeShortLE(raf, headerLength);
             writeShortLE(raf, this.height & 0xFFFF);
             writeNbsStringLE(raf, this.name);

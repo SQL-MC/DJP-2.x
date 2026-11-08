@@ -247,5 +247,21 @@
   "disc_jockey.editor.save_failed_all": "保存失败（两种途径均不可用）",
   "disc_jockey.editor.stop": "■ 停止",
   "disc_jockey.screen.record_noteblock_song": "录制NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "停止录制"
+  "disc_jockey.screen.record_noteblock_song.stop": "停止录制",
+  "disc_jockey.editor.track": "\u8f68\u9053 %s",
+  "disc_jockey.editor.track_current": "> \u8f68\u9053 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u5220\u8f68",
+  "disc_jockey.editor.speed": "\u901f\u5ea6\u500d\u7387",
+  "disc_jockey.editor.tone": "\u97f3\u8272",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u8f68\u9053 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u663e\u793a\u5168\u90e8",
+  "disc_jockey.editor.layer_mode": "\u8f68\u9053\u5206\u5c42",
+  "disc_jockey.editor.track_all": "\u5168\u90e8\u8f68\u9053",
+  "disc_jockey.editor.instrument.trumpet": "\u94dc\u5757\u5c0f\u53f7",
+  "disc_jockey.editor.instrument.trumpet_exposed": "\u6591\u9a73\u94dc\u5c0f\u53f7",
+  "disc_jockey.editor.instrument.trumpet_weathered": "\u9508\u8680\u94dc\u5c0f\u53f7",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "\u6c27\u5316\u94dc\u5c0f\u53f7"
 }

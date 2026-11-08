@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "השמירה נכשלה (שתי השיטות אינן זמינות)",
   "disc_jockey.editor.stop": "■ עצור",
   "disc_jockey.screen.record_noteblock_song": "הקלט NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "עצור הקלטה"
+  "disc_jockey.screen.record_noteblock_song.stop": "עצור הקלטה",
+  "disc_jockey.editor.track": "\u05e8\u05e6\u05d5\u05e2\u05d4 %s",
+  "disc_jockey.editor.track_current": "> \u05e8\u05e6\u05d5\u05e2\u05d4 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u05de\u05d7\u05e7 \u05e8\u05e6\u05d5\u05e2\u05d4",
+  "disc_jockey.editor.speed": "\u05de\u05d4\u05d9\u05e8\u05d5\u05ea",
+  "disc_jockey.editor.tone": "\u05d2\u05d5\u05d5\u05df",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u05e8\u05e6\u05d5\u05e2\u05d4 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u05d4\u05e6\u05d2 \u05d4\u05db\u05dc",
+  "disc_jockey.editor.layer_mode": "\u05e9\u05db\u05d1\u05d5\u05ea \u05e8\u05e6\u05d5\u05e2\u05d5\u05ea",
+  "disc_jockey.editor.track_all": "\u05db\u05dc \u05d4\u05e8\u05e6\u05d5\u05e2\u05d5\u05ea",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

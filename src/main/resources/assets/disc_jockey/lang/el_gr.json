@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Αποτυχία αποθήκευσης (και οι δύο μέθοδοι μη διαθέσιμες)",
   "disc_jockey.editor.stop": "■ ΔΙΑΚΟΠΗ",
   "disc_jockey.screen.record_noteblock_song": "Εγγραφή NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Διακοπή εγγραφής"
+  "disc_jockey.screen.record_noteblock_song.stop": "Διακοπή εγγραφής",
+  "disc_jockey.editor.track": "\u039a\u03bf\u03bc\u03bc\u03ac\u03c4\u03b9 %s",
+  "disc_jockey.editor.track_current": "> \u039a\u03bf\u03bc\u03bc\u03ac\u03c4\u03b9 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\u0394\u03b9\u03b1\u03b3\u03c1\u03b1\u03c6\u03ae \u03ba\u03bf\u03bc\u03bc\u03b1\u03c4\u03b9\u03bf\u03cd",
+  "disc_jockey.editor.speed": "\u03a4\u03b1\u03c7\u03cd\u03c4\u03b7\u03c4\u03b1",
+  "disc_jockey.editor.tone": "\u0397\u03c7\u03cc\u03c7\u03c1\u03c9\u03bc\u03b1",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\u039a\u03bf\u03bc\u03bc\u03ac\u03c4\u03b9 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\u03a0\u03c1\u03bf\u03b2\u03bf\u03bb\u03ae \u03cc\u03bb\u03c9\u03bd",
+  "disc_jockey.editor.layer_mode": "\u0395\u03c0\u03af\u03c0\u03b5\u03b4\u03b1 \u03ba\u03bf\u03bc\u03bc\u03b1\u03c4\u03b9\u03ce\u03bd",
+  "disc_jockey.editor.track_all": "\u038c\u03bb\u03b1 \u03c4\u03b1 \u03ba\u03bf\u03bc\u03bc\u03ac\u03c4\u03b9\u03b1",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }
