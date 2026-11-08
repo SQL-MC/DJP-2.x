@@ -1022,8 +1022,8 @@ public class PianoKeyboardScreen extends Screen {
                 keyState.put("K"+key, now);
             }
 
-            boolean ml = minecraft.mouseHandler.isLeftPressed();
-            if (ml && !wasMouseDown) click(minecraft.mouseHandler.xpos(), minecraft.mouseHandler.ypos());
+            boolean ml = djMouseLeft(minecraft.mouseHandler);
+            if (ml && !wasMouseDown) click(djMouseAbs(minecraft.mouseHandler, true), djMouseAbs(minecraft.mouseHandler, false));
             if (!ml) {
                 Map<Integer, Boolean> keep = new HashMap<>();
                 keep.put(-39, pressed.getOrDefault(-39, false));
@@ -1729,5 +1729,32 @@ public class PianoKeyboardScreen extends Screen {
         MIDI_PLAY.stop();
         pressed.clear();
         super.onClose();
+    }
+    private boolean djMouseLeft(Object h) {
+        if (h == null) return false;
+        for (String n : new String[]{"isLeftPressed","isLeftDown","leftDown","isPressed"}) {
+            try { Object v = h.getClass().getMethod(n).invoke(h); if (v instanceof Boolean) return (Boolean) v; } catch (Throwable ignored) {}
+        }
+        for (java.lang.reflect.Method m : h.getClass().getMethods()) {
+            if (m.getParameterCount() == 0 && m.getReturnType() == boolean.class) {
+                String n = m.getName().toLowerCase();
+                if (n.contains("left") || n.contains("press")) {
+                    try { Object v = m.invoke(h); if (v instanceof Boolean) return (Boolean) v; } catch (Throwable ignored) {}
+                }
+            }
+        }
+        try { Object v = h.getClass().getMethod("isPressed", int.class).invoke(h, 0); if (v instanceof Boolean) return (Boolean) v; } catch (Throwable ignored) {}
+        for (String n : new String[]{"leftDown","isLeftPressed","leftPressed"}) {
+            try { Object v = h.getClass().getField(n).get(h); if (v instanceof Boolean) return (Boolean) v; } catch (Throwable ignored) {}
+        }
+        return false;
+    }
+    private double djMouseAbs(Object h, boolean xAxis) {
+        if (h == null) return 0;
+        String[] ms = xAxis ? new String[]{"xpos","x","getX","getMouseX"} : new String[]{"ypos","y","getY","getMouseY"};
+        String[] fs = xAxis ? new String[]{"xpos","x","mouseX"} : new String[]{"ypos","y","mouseY"};
+        for (String n : ms) { try { Object v = h.getClass().getMethod(n).invoke(h); if (v instanceof Number) return ((Number) v).doubleValue(); } catch (Throwable ignored) {} }
+        for (String n : fs) { try { Object v = h.getClass().getField(n).get(h); if (v instanceof Number) return ((Number) v).doubleValue(); } catch (Throwable ignored) {} }
+        return 0;
     }
 }

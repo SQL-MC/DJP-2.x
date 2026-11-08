@@ -56,16 +56,22 @@ public record Note(NoteBlockInstrument instrument, byte note) {
         NoteBlockInstrument.BIT,
         NoteBlockInstrument.BANJO,
         NoteBlockInstrument.PLING,
+        NoteBlockInstrument.TRUMPET,
+        NoteBlockInstrument.TRUMPET_EXPOSED,
+        NoteBlockInstrument.TRUMPET_WEATHERED,
+        NoteBlockInstrument.TRUMPET_OXIDIZED,
     };
 
 
     /** NBS_V4 原版乐器数量（Harp..Pling）。instrument >= 该值 即自定义乐器 */
-    public static final int VANILLA_COUNT_V4 = 16;
+    public static final int VANILLA_COUNT_V4 = 20;
 
     /** instrument 字节是否是自定义乐器（下标 = id - vanillaCount） */
     public static boolean isCustom(int vanillaCount, int instrumentId) {
+        int id = instrumentId & 0xFF;
+        if (id >= 16 && id <= 19) return false;
         int vc = (vanillaCount > 0) ? (vanillaCount & 0xFF) : 10;
-        return (instrumentId & 0xFF) >= vc;
+        return id >= vc;
     }
 
     /** 自定义乐器下标；非自定义返回 -1 */
@@ -81,6 +87,7 @@ public record Note(NoteBlockInstrument instrument, byte note) {
     }
 
     public static NoteBlockInstrument fromNbs(int version, int instrumentId) {
+        if (instrumentId >= 16 && instrumentId <= 19) return NBS_V4[instrumentId];
         NoteBlockInstrument[] table = instrumentsForVersion(version);
         if (instrumentId < 0 || instrumentId >= table.length) {
             return NoteBlockInstrument.HARP;

@@ -59,13 +59,15 @@ public class SongLoader {
                         )
                 );
 
-                if (showToast && Minecraft.getInstance().font != null)
-                    SystemToast.add(
-                            Minecraft.getInstance().gui.toastManager(),
-                            SystemToast.SystemToastId.PACK_LOAD_FAILURE,
-                            Main.NAME,
-                            Component.translatable("disc_jockey.loading_done")
-                    );
+                if (showToast) Minecraft.getInstance().execute(() -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.font != null) {
+                        SystemToast.add(mc.gui.toastManager(),
+                                SystemToast.SystemToastId.PACK_LOAD_FAILURE,
+                                Main.NAME,
+                                Component.translatable("disc_jockey.loading_done"));
+                    }
+                });
                 showToast = true;
             } catch (Exception e) {
                 Main.LOGGER.error("Failed to load songs", e);
@@ -159,7 +161,7 @@ public class SongLoader {
                 // 自定义乐器（instrumentId >= vanillaInstrumentCount）没有对应的
                 // NoteBlockInstrument，塞进 uniqueNotes 会误显示成竖琴，故跳过
                 int vc = (song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
-                if ((instrumentId & 0xFF) < vc) {
+                if ((instrumentId & 0xFF) < vc || ((instrumentId & 0xFF) >= 16 && (instrumentId & 0xFF) <= 19)) {
                     Note note = new Note(
                             Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
                             (byte) noteId

@@ -215,7 +215,7 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
             // ★ 自定义乐器（instrumentId >= vanillaInstrumentCount）：
             //   NBS 第 4 段 file 字段存的就是 Minecraft 声音事件 id，直接播它
             byte vcPv = (song != null && song.vanillaInstrumentCount > 0)
-                    ? song.vanillaInstrumentCount : (byte) 16;
+                    ? song.vanillaInstrumentCount : (byte) 20;
             if (Note.isCustom(vcPv & 0xFF, instrumentId & 0xFF)) {
                 playCustomInstrument(instrumentId & 0xFF, noteId);
                 Main.SPECTRUM.onNotePlayed(instrumentId & 0xFF, noteId);

@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Sparning misslyckades (båda metoderna otillgängliga)",
   "disc_jockey.editor.stop": "■ STOPP",
   "disc_jockey.screen.record_noteblock_song": "Spela in NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Stoppa inspelning"
+  "disc_jockey.screen.record_noteblock_song.stop": "Stoppa inspelning",
+  "disc_jockey.editor.track": "Spar %s",
+  "disc_jockey.editor.track_current": "> Spar %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Ta bort spar",
+  "disc_jockey.editor.speed": "Hastighet",
+  "disc_jockey.editor.tone": "Klang",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Spar %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Visa alla",
+  "disc_jockey.editor.layer_mode": "Sparlager",
+  "disc_jockey.editor.track_all": "Alla spar",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Shranjevanje ni uspelo (obe metodi nista na voljo)",
   "disc_jockey.editor.stop": "■ USTAVI",
   "disc_jockey.screen.record_noteblock_song": "Posnemi NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Ustavi snemanje"
+  "disc_jockey.screen.record_noteblock_song.stop": "Ustavi snemanje",
+  "disc_jockey.editor.track": "Sled %s",
+  "disc_jockey.editor.track_current": "> Sled %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Izbrisi sled",
+  "disc_jockey.editor.speed": "Hitrost",
+  "disc_jockey.editor.tone": "Barva zvoka",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Sled %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Prikazi vse",
+  "disc_jockey.editor.layer_mode": "Plasti sledi",
+  "disc_jockey.editor.track_all": "Vsi sledi",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

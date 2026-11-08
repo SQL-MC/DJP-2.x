@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Lagring mislyktes (begge metoder utilgjengelige)",
   "disc_jockey.editor.stop": "■ STOPP",
   "disc_jockey.screen.record_noteblock_song": "Ta opp NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Stopp opptak"
+  "disc_jockey.screen.record_noteblock_song.stop": "Stopp opptak",
+  "disc_jockey.editor.track": "Spor %s",
+  "disc_jockey.editor.track_current": "> Spor %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Slett spor",
+  "disc_jockey.editor.speed": "Hastighet",
+  "disc_jockey.editor.tone": "Klang",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Spor %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Vis alle",
+  "disc_jockey.editor.layer_mode": "Sporlag",
+  "disc_jockey.editor.track_all": "Alle spor",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }
