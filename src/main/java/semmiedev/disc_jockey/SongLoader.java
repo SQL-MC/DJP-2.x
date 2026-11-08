@@ -163,7 +163,7 @@ public class SongLoader {
                 // 自定义乐器（instrumentId >= vanillaInstrumentCount）没有对应的
                 // NoteBlockInstrument，塞进 uniqueNotes 会误显示成竖琴，故跳过
                 int vc = (song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
-                if ((instrumentId & 0xFF) < vc) {
+                if ((instrumentId & 0xFF) < vc || ((instrumentId & 0xFF) >= 16 && (instrumentId & 0xFF) <= 19)) {
                     Note note = new Note(
                             Note.fromNbs(song.formatVersion & 0xFF, instrumentId),
                             (byte) noteId

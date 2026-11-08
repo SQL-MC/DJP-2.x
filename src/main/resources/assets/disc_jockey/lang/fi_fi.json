@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "Tallennus epäonnistui (kumpikaan menetelmä ei ole käytettävissä)",
   "disc_jockey.editor.stop": "■ PYSÄYTÄ",
   "disc_jockey.screen.record_noteblock_song": "Nauhoita NBS",
-  "disc_jockey.screen.record_noteblock_song.stop": "Lopeta nauhoitus"
+  "disc_jockey.screen.record_noteblock_song.stop": "Lopeta nauhoitus",
+  "disc_jockey.editor.track": "Raita %s",
+  "disc_jockey.editor.track_current": "> Raita %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "Poista raita",
+  "disc_jockey.editor.speed": "Nopeus",
+  "disc_jockey.editor.tone": "Savy",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "Raita %1$s / %2$s",
+  "disc_jockey.editor.show_all": "Nayta kaikki",
+  "disc_jockey.editor.layer_mode": "Raitakerrokset",
+  "disc_jockey.editor.track_all": "Kaikki raidat",
+  "disc_jockey.editor.instrument.trumpet": "Trumpet",
+  "disc_jockey.editor.instrument.trumpet_exposed": "Exposed Trumpet",
+  "disc_jockey.editor.instrument.trumpet_weathered": "Weathered Trumpet",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "Oxidized Trumpet"
 }

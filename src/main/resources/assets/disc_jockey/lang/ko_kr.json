@@ -251,5 +251,21 @@
   "disc_jockey.editor.save_failed_all": "저장 실패 (두 방법 모두 사용 불가)",
   "disc_jockey.editor.stop": "■ 정지",
   "disc_jockey.screen.record_noteblock_song": "NBS 녹음",
-  "disc_jockey.screen.record_noteblock_song.stop": "녹음 중지"
+  "disc_jockey.screen.record_noteblock_song.stop": "녹음 중지",
+  "disc_jockey.editor.track": "\ud2b8\ub799 %s",
+  "disc_jockey.editor.track_current": "> \ud2b8\ub799 %s",
+  "disc_jockey.editor.track_add": "+",
+  "disc_jockey.editor.track_del": "\ud2b8\ub799 \uc0ad\uc81c",
+  "disc_jockey.editor.speed": "\uc18d\ub3c4",
+  "disc_jockey.editor.tone": "\uc74c\uc0c9",
+  "disc_jockey.editor.track_prev": "\u25c0",
+  "disc_jockey.editor.track_next": "\u25b6",
+  "disc_jockey.editor.track_status": "\ud2b8\ub799 %1$s / %2$s",
+  "disc_jockey.editor.show_all": "\ubaa8\ub450 \ubcf4\uae30",
+  "disc_jockey.editor.layer_mode": "\ud2b8\ub799 \ub808\uc774\uc5b4",
+  "disc_jockey.editor.track_all": "\ubaa8\ub4e0 \ud2b8\ub799",
+  "disc_jockey.editor.instrument.trumpet": "\ud2b8\ub7fc\ud3ab",
+  "disc_jockey.editor.instrument.trumpet_exposed": "\ub178\ucd9c \ud2b8\ub7fc\ud3ab",
+  "disc_jockey.editor.instrument.trumpet_weathered": "\ubd80\uc2dd \ud2b8\ub7fc\ud3ab",
+  "disc_jockey.editor.instrument.trumpet_oxidized": "\uc0b0\ud654 \ud2b8\ub7fc\ud3ab"
 }

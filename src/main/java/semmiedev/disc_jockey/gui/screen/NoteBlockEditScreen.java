@@ -68,12 +68,14 @@ public class NoteBlockEditScreen extends Screen {
     private static final String[] INST_NAMES = {
             "Harp", "Bass", "BDrum", "Snare", "Click", "Guitar", "Flute", "Bell",
             "Chime", "Xylo", "IronXyl", "CowBell", "Didger", "Bit", "Banjo", "Pling"
+            , "Trumpet", "TrumpetExposed", "TrumpetWeathered", "TrumpetOxidized"
     };
 
     private static final String[] INST_SUFFIX = {
             "harp", "bass", "basedrum", "snare", "hat", "guitar", "flute", "bell",
             "chime", "xylophone", "iron_xylophone", "cow_bell", "didgeridoo",
             "bit", "banjo", "pling"
+            , "trumpet", "trumpet_exposed", "trumpet_weathered", "trumpet_oxidized"
     };
 
     /**
@@ -97,6 +99,7 @@ public class NoteBlockEditScreen extends Screen {
             "电子音",     // 13 Bit        bit
             "班卓琴",     // 14 Banjo
             "拨弦"        // 15 Pling
+            , "\u94dc\u5757\u5c0f\u53f7", "\u6591\u9a73\u94dc\u5c0f\u53f7", "\u9508\u8680\u94dc\u5c0f\u53f7", "\u6c27\u5316\u94dc\u5c0f\u53f7"
     };
 
     /**
@@ -121,6 +124,7 @@ public class NoteBlockEditScreen extends Screen {
             "emerald_block",   // 13 Bit       绿宝石块
             "hay_block_side",  // 14 Banjo     干草捆
             "glowstone"        // 15 Pling     萤石
+            , "copper_block", "exposed_copper", "weathered_copper", "oxidized_copper"
     };
 
     /**
@@ -145,6 +149,7 @@ public class NoteBlockEditScreen extends Screen {
             0xFF2ECC71, // 13 Bit       绿宝石块
             0xFFC8A34A, // 14 Banjo     干草捆
             0xFFEAD36B  // 15 Pling     萤石
+            , 0xFFB87333, 0xFFA97142, 0xFF6E8B74, 0xFF3F7F7F
     };
 
     /** 格子达到这个尺寸才叠加图标（16x16 贴图的最小需求） */
@@ -177,6 +182,7 @@ public class NoteBlockEditScreen extends Screen {
             "emerald_block",   // 13 Bit       绿宝石块
             "hay_block_side",  // 14 Banjo
             "glowstone"        // 15 Pling
+            , "copper_block", "exposed_copper", "weathered_copper", "oxidized_copper"
     };
 
     /** 兜底也失败过，不再重复探测 */
@@ -234,6 +240,11 @@ public class NoteBlockEditScreen extends Screen {
     private static boolean diagDone = false;
 
     private EditBox nameBox;
+    private EditBox speedBox;
+    private int curLayer = 0;
+    private boolean djLayerMode = false; private Button djModeButton;
+    private int trackCount = 1;
+    private Button trackLabel;
     private Button playButton;
     private Button instButton;
 
@@ -306,7 +317,7 @@ public class NoteBlockEditScreen extends Screen {
             int noteId     = Note.extractNoteId(p);
             EditableNote n = new EditableNote(tick, layer, instrument, noteId);
             notes.add(n);
-            noteIndex.put(key(tick, noteId), n);
+            noteIndex.put(key(tick, layer, noteId), n);
         }
         notes.sort(Comparator.comparingInt(n -> n.tick));
         loadTones();
@@ -330,7 +341,7 @@ public class NoteBlockEditScreen extends Screen {
         song.notes = arr;
         song.foldedNotes = null;
         song.length = (short) Math.max(0, Math.min(Short.MAX_VALUE, maxTick + 1));
-        song.height = (short) Math.max(1, Math.min(Short.MAX_VALUE, maxLayer + 1));
+        song.height = (short) Math.max(1, Math.min(Short.MAX_VALUE, Math.max(trackCount, maxLayer + 1)));
         try { NoteClamper.clearFoldedNotes(song); } catch (Throwable ignored) {}
         rebuildUniqueNotes();
     }
@@ -348,7 +359,7 @@ public class NoteBlockEditScreen extends Screen {
         }
     }
 
-    private static long key(int tick, int noteId) { return ((long) tick) * 200L + (noteId + 100); }
+    private static long key(int tick, int layer, int noteId) { return (((long) tick) * 200L + (noteId + 100)) * 65536L + (layer & 0xFFFFL); }
 
     private int maxTick() {
         int m = 0;
@@ -386,7 +397,7 @@ public class NoteBlockEditScreen extends Screen {
             if (s.tones != null && k < s.tones.length) n.tone = s.tones[k];
             if (s.nat   != null && k < s.nat.length)   n.toneNatural = s.nat[k];
             notes.add(n);
-            noteIndex.put(key(n.tick, n.noteId), n);
+            noteIndex.put(key(n.tick, n.layer, n.noteId), n);
         }
         notes.sort(Comparator.comparingInt(x -> x.tick));
 }
@@ -420,7 +431,7 @@ public class NoteBlockEditScreen extends Screen {
 
     private void selectAll() {
         selection.clear();
-        selection.addAll(notes);
+        for (EditableNote n : notes) if (n.layer == curLayer) selection.add(n);
         System.out.println("[DJ-EDIT] SELECT ALL -> " + selection.size());
     }
 
@@ -428,7 +439,7 @@ public class NoteBlockEditScreen extends Screen {
         if (!additive) selection.clear();
         int cnt = 0;
         for (EditableNote n : notes) {
-            if (n.tick >= t0 && n.tick <= t1 && n.noteId >= n0 && n.noteId <= n1) {
+            if (n.layer == curLayer && n.tick >= t0 && n.tick <= t1 && n.noteId >= n0 && n.noteId <= n1) {
                 selection.add(n);
                 cnt++;
             }
@@ -455,7 +466,7 @@ public class NoteBlockEditScreen extends Screen {
     }
 
     private void toggleNoteAt(int tick, int noteId) {
-        Long k = key(tick, noteId);
+        Long k = key(tick, curLayer, noteId);
         EditableNote exist = noteIndex.get(k);
         if (exist != null) {
             pushUndo();
@@ -465,7 +476,7 @@ public class NoteBlockEditScreen extends Screen {
             System.out.println("[DJ-EDIT] DEL tick=" + tick + " " + noteName(noteId));
         } else {
             pushUndo();
-            EditableNote n = new EditableNote(tick, nextFreeLayer(tick), curInstrument, noteId);
+            EditableNote n = new EditableNote(tick, curLayer, curInstrument, noteId);
             notes.add(n);
             noteIndex.put(k, n);
             System.out.println("[DJ-EDIT] ADD tick=" + tick + " " + noteName(noteId)
@@ -505,9 +516,9 @@ public class NoteBlockEditScreen extends Screen {
             if (nt > Short.MAX_VALUE) continue;
             int noteId = c[1];
             if (noteId < MIN_NOTE || noteId > MAX_NOTE) continue;
-            Long k = key(nt, noteId);
+            Long k = key(nt, curLayer, noteId);
             if (noteIndex.containsKey(k)) continue;
-            EditableNote n = new EditableNote(nt, nextFreeLayer(nt), c[2], noteId);
+            EditableNote n = new EditableNote(nt, curLayer, c[2], noteId);
             notes.add(n);
             noteIndex.put(k, n);
             added++;
@@ -530,7 +541,7 @@ public class NoteBlockEditScreen extends Screen {
         pushUndo();
         for (EditableNote n : sel) {
             notes.remove(n);
-            noteIndex.remove(key(n.tick, n.noteId));
+            noteIndex.remove(key(n.tick, n.layer, n.noteId));
         }
         selection.clear();
         System.out.println("[DJ-EDIT] DELETE SELECTION -> " + sel.size() + " 个");
@@ -540,12 +551,12 @@ public class NoteBlockEditScreen extends Screen {
         List<EditableNote> sel = selectedList();
         if (sel.isEmpty() || dt == 0) return;
         pushUndo();
-        for (EditableNote n : sel) { notes.remove(n); noteIndex.remove(key(n.tick, n.noteId)); }
+        for (EditableNote n : sel) { notes.remove(n); noteIndex.remove(key(n.tick, n.layer, n.noteId)); }
         for (EditableNote n : sel) {
             int nt = Math.max(0, Math.min(Short.MAX_VALUE, n.tick + dt));
             n.tick = nt;
             notes.add(n);
-            noteIndex.put(key(n.tick, n.noteId), n);
+            noteIndex.put(key(n.tick, n.layer, n.noteId), n);
         }
         notes.sort(Comparator.comparingInt(x -> x.tick));
         System.out.println("[DJ-EDIT] MOVE " + (dt > 0 ? "+" : "") + dt + " tick -> " + sel.size() + " 个");
@@ -555,14 +566,14 @@ public class NoteBlockEditScreen extends Screen {
         List<EditableNote> sel = selectedList();
         if (sel.isEmpty() || dn == 0) return;
         pushUndo();
-        for (EditableNote n : sel) { notes.remove(n); noteIndex.remove(key(n.tick, n.noteId)); }
+        for (EditableNote n : sel) { notes.remove(n); noteIndex.remove(key(n.tick, n.layer, n.noteId)); }
         for (EditableNote n : sel) {
             int nn = n.noteId + dn;
             if (nn < MIN_NOTE) nn = MIN_NOTE;
             if (nn > MAX_NOTE) nn = MAX_NOTE;
             n.noteId = nn;
             notes.add(n);
-            noteIndex.put(key(n.tick, n.noteId), n);
+            noteIndex.put(key(n.tick, n.layer, n.noteId), n);
         }
         notes.sort(Comparator.comparingInt(x -> x.tick));
         System.out.println("[DJ-EDIT] TRANSPOSE " + (dn > 0 ? "+" : "") + dn + " -> " + sel.size() + " 个");
@@ -570,6 +581,8 @@ public class NoteBlockEditScreen extends Screen {
 
     @Override
     protected void init() {
+        trackCount = Math.max(1, (int) (song.height & 0xFFFF));
+        curLayer = Math.min(curLayer, trackCount - 1);
         gridX = KEYBOARD_W + 4;
         gridY = TOOLBAR_H;
         gridW = width - gridX - 6;
@@ -621,8 +634,31 @@ public class NoteBlockEditScreen extends Screen {
         }).pos(x, 6).size(40, 18).build());
         x += 42;
 
+        speedBox = new EditBox(font, x, 6, 60, 18, Component.translatable("disc_jockey.editor.speed"));
+        speedBox.setMaxLength(8);
+        speedBox.setValue(String.format("%.4f", Main.PREVIEW_SPEED));
+        speedBox.setResponder(this::djApplySpeed);
+        addRenderableWidget(speedBox);
+        x += 62;
+
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.track_prev"), b -> djSetLayer(curLayer - 1)).pos(x, 6).size(20, 18).build());
+        x += 22;
+        trackLabel = Button.builder(Component.translatable("disc_jockey.editor.track_status", 1, 1), b -> djSetLayer(curLayer)).pos(x, 6).size(64, 18).build();
+        addRenderableWidget(trackLabel);
+        x += 66;
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.track_next"), b -> djSetLayer(curLayer + 1)).pos(x, 6).size(20, 18).build());
+        x += 22;
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.track_add"), b -> djAddTrack()).pos(x, 6).size(20, 18).build());
+        x += 22;
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.track_del"), b -> djDelTrack()).pos(x, 6).size(20, 18).build());
+        x += 22;
+        djModeButton = Button.builder(Component.translatable("disc_jockey.editor.layer_mode"), b -> djToggleLayerMode()).pos(x, 6).size(48, 18).build();
+        addRenderableWidget(djModeButton);
+        x += 50;
+        djRefreshTracks();
+
         // ★ 自定义音色入口：贴窗口右边缘放置，任何窗口宽度都不会被挤出屏幕
-        addRenderableWidget(Button.builder(Component.literal("\u97f3\u8272"), b -> {
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.tone"), b -> {
             toneQuery = ""; toneScroll = 0; tonePickerOpen = !tonePickerOpen;
             if (tonePickerOpen && selection.isEmpty())
                 System.out.println("[DJ-EDIT] CustomTone: 面板已打开，但还没选中音符（右键点音符=加入选择）");
@@ -649,9 +685,31 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(playButton);
         bx += 54;
 
-        instButton = Button.builder(Component.literal(instName(curInstrument)), b -> {
+        instButton = Button.builder(djInstComp(curInstrument), b -> {
             curInstrument = (curInstrument + 1) % INST_NAMES.length;
-            b.setMessage(Component.literal(instName(curInstrument)));
+            b.setMessage(djInstComp(curInstrument));
+            int djInst = curInstrument;
+            if (djInst >= INST_SUFFIX.length) djInst = 0;
+            java.util.Set<Long> ks = new java.util.HashSet<>();
+            for (EditableNote r : selection) ks.add(key(r.tick, r.layer, r.noteId));
+            System.out.println("[DJ-EDIT] INST sel=" + selection.size()
+                    + " keys=" + ks.size() + " -> " + instName(djInst));
+            if (!ks.isEmpty()) {
+                java.util.List<EditableNote> tg = new java.util.ArrayList<>();
+                for (EditableNote n : notes) {
+                    if (ks.contains(key(n.tick, n.layer, n.noteId))) tg.add(n);
+                }
+                if (!tg.isEmpty()) {
+                    pushUndo();
+                    for (EditableNote n : tg) {
+                        n.instrument = djInst;
+                        n.tone = null;
+                        n.toneNatural = true;
+                    }
+                    System.out.println("[DJ-EDIT] INST -> " + instName(djInst)
+                            + " / " + tg.size() + " notes");
+                }
+            }
         }).pos(bx, y2).size(76, 18).build();
         addRenderableWidget(instButton);
         bx += 78;
@@ -686,6 +744,25 @@ public class NoteBlockEditScreen extends Screen {
         preloadInstTextures();
         initInstSounds();
         initInstKeys();
+        addRenderableWidget(Button.builder(Component.literal("Pitch -"), b -> {
+            java.util.Set<String> ks = new java.util.HashSet<>();
+            for (EditableNote r : selection) ks.add(r.tick + "/" + r.layer + "/" + r.noteId);
+            selection.clear();
+            for (EditableNote n : notes) {
+                if (ks.contains(n.tick + "/" + n.layer + "/" + n.noteId)) selection.add(n);
+            }
+            transposeSelection(-1);
+        }).pos(bx, y2).size(38, 18).build());
+
+        addRenderableWidget(Button.builder(Component.literal("Pitch +"), b -> {
+            java.util.Set<String> ks = new java.util.HashSet<>();
+            for (EditableNote r : selection) ks.add(r.tick + "/" + r.layer + "/" + r.noteId);
+            selection.clear();
+            for (EditableNote n : notes) {
+                if (ks.contains(n.tick + "/" + n.layer + "/" + n.noteId)) selection.add(n);
+            }
+            transposeSelection(1);
+        }).pos(bx + 40, y2).size(38, 18).build());
     }
 
     private void close() {
@@ -797,6 +874,20 @@ public class NoteBlockEditScreen extends Screen {
 
     // ==================== 输入 ====================
 
+    private double djGuiMouse(Minecraft mc, Object click, boolean xAxis) {
+        String[] ms = xAxis ? new String[]{"xpos","x","getX","getMouseX"} : new String[]{"ypos","y","getY","getMouseY"};
+        String[] fs = xAxis ? new String[]{"xpos","x","mouseX"} : new String[]{"ypos","y","mouseY"};
+        Object h = mc.mouseHandler;
+        if (h != null) {
+            for (String n : ms) { try { Object v = h.getClass().getMethod(n).invoke(h); if (v instanceof Number) return xAxis ? toGuiX(((Number) v).doubleValue()) : toGuiY(((Number) v).doubleValue()); } catch (Throwable ignored) {} }
+            for (String n : fs) { try { Object v = h.getClass().getField(n).get(h); if (v instanceof Number) return xAxis ? toGuiX(((Number) v).doubleValue()) : toGuiY(((Number) v).doubleValue()); } catch (Throwable ignored) {} }
+        }
+        if (click != null) {
+            for (String n : ms) { try { Object v = click.getClass().getMethod(n).invoke(click); if (v instanceof Number) return ((Number) v).doubleValue(); } catch (Throwable ignored) {} }
+            for (String n : fs) { try { Object v = click.getClass().getField(n).get(click); if (v instanceof Number) return ((Number) v).doubleValue(); } catch (Throwable ignored) {} }
+        }
+        return 0;
+    }
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (super.mouseClicked(click, doubled)) return true;
@@ -804,8 +895,8 @@ public class NoteBlockEditScreen extends Screen {
         if (nameBox != null) nameBox.setFocused(false);
 
         Minecraft mc = Minecraft.getInstance();
-        double mx = toGuiX(mc.mouseHandler.xpos());
-        double my = toGuiY(mc.mouseHandler.ypos());
+        double mx = djGuiMouse(mc, click, true);
+        double my = djGuiMouse(mc, click, false);
         int button = click.button();
         if (tonePickerOpen && tonePickerClick(mx, my, button)) return true;
 
@@ -825,7 +916,7 @@ public class NoteBlockEditScreen extends Screen {
             return true;
         }
 
-        Long k = key(tick, noteId);
+        Long k = key(tick, curLayer, noteId);
         EditableNote exist = noteIndex.get(k);
 
         if (button == 1 && ctrlHeld && exist != null) {
@@ -1052,6 +1143,8 @@ public class NoteBlockEditScreen extends Screen {
                 + " ctrl=" + ctrl + " shift=" + shift);
 
         if (tonePickerOpen && tonePickerKey(code)) return true;
+        if ((code == SD_BACKSPACE || code == GL_BACKSPACE || code == SD_DELETE || code == GL_DELETE) && ((nameBox != null && nameBox.isFocused()) || (speedBox != null && speedBox.isFocused()))) return super.keyPressed(evt);
+        if (((nameBox != null && nameBox.isFocused()) || (speedBox != null && speedBox.isFocused())) && !ctrl && (code == SD_LEFT || code == GL_LEFT || code == SD_RIGHT || code == GL_RIGHT || code == SD_UP || code == GL_UP || code == SD_DOWN || code == GL_DOWN || code == SD_BACKSPACE || code == GL_BACKSPACE || code == SD_DELETE || code == GL_DELETE)) return super.keyPressed(evt);
         if (code != 0 && tryHotkey(code, ctrl)) return true;
 
         return super.keyPressed(evt);
@@ -1074,7 +1167,6 @@ public class NoteBlockEditScreen extends Screen {
         if (notes.isEmpty()) return;
         final List<EditableNote> snapshot = new ArrayList<>(notes);
         final int end = maxTick() + 2;
-        final long tickMs = Math.max(1, 100000L / Math.max(1, song.tempo));
         final int from = Math.max(0, startTick);
 
         paused = false;
@@ -1086,7 +1178,7 @@ public class NoteBlockEditScreen extends Screen {
             for (int t = from; t <= end && playing; t++) {
                 playheadTick = t;
                 List<EditableNote> at = new ArrayList<>();
-                for (EditableNote n : snapshot) if (n.tick == t) at.add(n);
+                for (EditableNote n : snapshot) if (n.tick == t && (!djLayerMode || n.layer == curLayer)) at.add(n);
                 if (!at.isEmpty()) {
                     Minecraft.getInstance().execute(() -> {
                         for (EditableNote n : at) playToneOrInst(n);
@@ -1094,7 +1186,8 @@ public class NoteBlockEditScreen extends Screen {
                 }
                 if (t < scrollTick || t >= scrollTick + visibleTicks())
                     scrollTick = Math.max(0, t - visibleTicks() / 4);
-                try { Thread.sleep(tickMs); } catch (InterruptedException e) { break; }
+                long ms = Math.max(1, (long) (100000L / (double) Math.max(1, song.tempo) / Math.max(0.05f, Main.PREVIEW_SPEED)));
+                try { Thread.sleep(ms); } catch (InterruptedException e) { break; }
             }
             if (paused) return;
             playing = false;
@@ -1132,6 +1225,66 @@ public class NoteBlockEditScreen extends Screen {
         }
     }
 
+    /** 与 /discjockey speed 同源：写两个运行时变量 + 防漏音 cap */
+    private void djApplySpeed(String s) {
+        try {
+            float v = Float.parseFloat(s.trim());
+            if (v < 0.0001f || v > 15.0f) return;
+            Main.PREVIEW_SPEED = v;
+            if (Main.SONG_PLAYER != null) Main.SONG_PLAYER.speed = v;
+            try {
+                java.lang.reflect.Method m = Class.forName("semmiedev.disc_jockey.DiscjockeyCommand")
+                        .getDeclaredMethod("setPreviewerSpeedCap", float.class);
+                m.setAccessible(true);
+                m.invoke(null, v);
+            } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {}
+    }
+
+    /** 刷新轨道显示：只改文字，不碰 visible，不新增自定义绘制 */
+    private void djRefreshTracks() {
+        if (trackLabel != null)
+            trackLabel.setMessage(djLayerMode ? Component.translatable("disc_jockey.editor.track_status", curLayer + 1, trackCount) : Component.translatable("disc_jockey.editor.show_all"));
+    }
+
+    private void djToggleLayerMode() {
+        djLayerMode = !djLayerMode;
+        selection.clear();
+        if (djModeButton != null) djModeButton.setMessage(Component.translatable(djLayerMode ? "disc_jockey.editor.show_all" : "disc_jockey.editor.layer_mode"));
+        djRefreshTracks();
+    }
+
+    private void djSetLayer(int l) {
+        if (!djLayerMode) return;
+        curLayer = Math.max(0, Math.min(trackCount - 1, l));
+        selection.clear();
+        djRefreshTracks();
+    }
+
+    private void djAddTrack() {
+        if (!djLayerMode) return;
+        trackCount = Math.min(Short.MAX_VALUE, trackCount + 1);
+        curLayer = trackCount - 1;
+        song.height = (short) trackCount;
+        djRefreshTracks();
+    }
+
+    private void djDelTrack() {
+        if (!djLayerMode) return;
+        if (trackCount <= 1) return;
+        pushUndo();
+        notes.removeIf(n -> n.layer == curLayer);
+        for (EditableNote n : notes) if (n.layer > curLayer) n.layer--;
+        noteIndex.clear();
+        selection.clear();
+        for (EditableNote n : notes) noteIndex.put(key(n.tick, n.layer, n.noteId), n);
+        trackCount--;
+        curLayer = Math.min(curLayer, trackCount - 1);
+        song.height = (short) trackCount;
+        packToSong();
+        djRefreshTracks();
+    }
+
     private void playNoteSound(int noteId, int instrument) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
@@ -1155,7 +1308,7 @@ public class NoteBlockEditScreen extends Screen {
 
         StringBuilder sb = new StringBuilder("[DJ-EDIT] instrument table (NBS_V4):");
         for (int i = 0; i < arr.length; i++) {
-            sb.append("\n  [").append(i).append("] ").append(INST_NAMES[i])
+            sb.append("\n  [").append(i).append("] ").append(instName(i))
               .append(" -> ").append(arr[i] == null
                     ? "NULL (fallback Harp)" : arr[i].location().toString());
         }
@@ -1216,7 +1369,7 @@ public class NoteBlockEditScreen extends Screen {
 
         StringBuilder sb = new StringBuilder("[DJ-EDIT] instrument keys:");
         for (int i = 0; i < arr.length; i++) {
-            sb.append("\n  [").append(i).append("] ").append(INST_NAMES[i])
+            sb.append("\n  [").append(i).append("] ").append(instName(i))
               .append(" -> ").append(arr[i] == null ? "(none, use literal)" : arr[i]);
         }
         System.out.println(sb);
@@ -1242,12 +1395,18 @@ public class NoteBlockEditScreen extends Screen {
         return null;
     }
 
+    /** 乐器按钮持有活的 translatable Component，重载语言包会刷新 */
+    private static Component djInstComp(int i) {
+        if (i < 0 || i >= INST_SUFFIX.length) i = 0;
+        return Component.translatable("disc_jockey.editor.instrument." + INST_SUFFIX[i]);
+    }
+
     private static String instName(int i) {
         if (i < 0 || i >= INST_SUFFIX.length) return INST_NAMES[0];
         String key = "disc_jockey.editor.instrument." + INST_SUFFIX[i];
         String t = Component.translatable(key).getString();
         if (t != null && !t.isEmpty() && !t.equals(key)) return t;
-        return (i < INST_CN.length) ? INST_CN[i] : INST_NAMES[i];
+        return djInstComp(i).getString();
     }
 
     private void save(boolean saveAs) {
@@ -1445,6 +1604,7 @@ public class NoteBlockEditScreen extends Screen {
         }
 
         for (EditableNote n : notes) {
+            if (djLayerMode && n.layer != curLayer) continue;
             if (n.tick < scrollTick || n.tick >= scrollTick + ticks) continue;
             int r = noteToRow(n.noteId);
             if (r < 0) continue;
@@ -1510,19 +1670,19 @@ public class NoteBlockEditScreen extends Screen {
 
         drawKeyboard(c, ch, rows);
 
-        String st = "notes=" + notes.size()
+        String stHead = "notes=" + notes.size()
                 + " | ticks=" + (maxTick() + 1)
                 + " | tempo=" + song.tempo + "(" + String.format("%.1f", song.tempo / 100.0) + " tps)"
                 + " | tick@" + scrollTick
                 + " | row@" + scrollRow
                 + " | zoom=" + zoom
-                + " | instr=" + instName(curInstrument)
-                + " | sel=" + selection.size()
+                + " | instr=";
+        String stTail = " | sel=" + selection.size()
                 + " | clip=" + clipboard.size()
                 + (ctrlHeld ? " | CTRL" : "")
                 + (boxSelecting ? " | ▧BOX(边缘滚动)" : "")
                 + (playing ? " | ▶PLAYING" : "");
-        c.text(font, Component.literal(st), gridX, height - 16, 0xFFAAAAAA, false);
+        c.text(font, Component.literal(stHead).append(djInstComp(curInstrument)).append(Component.literal(stTail)), gridX, height - 16, 0xFFAAAAAA, false);
     
         if (tonePickerOpen) drawTonePicker(c, mx, my);
 }
@@ -1647,7 +1807,7 @@ public class NoteBlockEditScreen extends Screen {
         StringBuilder sb = new StringBuilder("[DJ-EDIT] 音色图标实际解析：");
         for (int i = 0; i < INST_TEX.length; i++) {
             Identifier id = buildId("disc_jockey", "textures/item/" + INST_TEX[i] + ".png");
-            sb.append("\n  [").append(i).append("] ").append(INST_NAMES[i])
+            sb.append("\n  [").append(i).append("] ").append(instName(i))
               .append(" -> ").append(id == null ? "(Identifier 失败)" : id.toString());
         }
         System.out.println(sb);
@@ -1879,6 +2039,7 @@ public class NoteBlockEditScreen extends Screen {
             "glass", "white_wool", "clay", "gold_block",
             "packed_ice", "bone_block_top", "iron_block", "soul_sand",
             "pumpkin_side", "emerald_block", "hay_block_side", "glowstone"
+            , "copper_block", "exposed_copper", "weathered_copper", "oxidized_copper"
     };
 
     /** 0=未探测 1=就绪 2=永久不可用 */
@@ -2414,7 +2575,16 @@ public class NoteBlockEditScreen extends Screen {
     private void playToneOrInst(EditableNote n) {
         // ★ 优先按 NBS 自定义乐器取声音（instrument >= vanillaInstrumentCount）
         if (n != null && song != null) {
-            Song.CustomInstrument ci = song.customInstrumentOf(n.instrument);
+                    {
+            int _vc = (song != null && song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
+            int _sz = (song != null && song.customInstruments != null) ? song.customInstruments.size() : -1;
+            System.out.println("[DJ-EDIT] DIAG inst=" + (n != null ? n.instrument : -999)
+                + " vc=" + _vc + " ciSize=" + _sz
+                + " isCustom=" + Note.isCustom(_vc, (n != null ? n.instrument : 0) & 0xFF)
+                + " tone=" + (n != null ? String.valueOf(n.tone) : "null"));
+        }
+            Song.CustomInstrument ci = ((n.instrument & 0xFF) >= 16 && (n.instrument & 0xFF) <= 19)
+                    ? null : song.customInstrumentOf(n.instrument);
             if (ci != null && ci.file != null && !ci.file.isEmpty()) {
                 Minecraft mc = Minecraft.getInstance();
                 SoundEvent se = soundById(ci.file);
@@ -2475,7 +2645,16 @@ public class NoteBlockEditScreen extends Screen {
         if (song == null || song.customInstruments == null || song.customInstruments.isEmpty()) return;
         int cnt = 0;
         for (EditableNote n : notes) {
-            Song.CustomInstrument ci = song.customInstrumentOf(n.instrument);
+                    {
+            int _vc = (song != null && song.vanillaInstrumentCount > 0) ? (song.vanillaInstrumentCount & 0xFF) : 10;
+            int _sz = (song != null && song.customInstruments != null) ? song.customInstruments.size() : -1;
+            System.out.println("[DJ-EDIT] DIAG inst=" + (n != null ? n.instrument : -999)
+                + " vc=" + _vc + " ciSize=" + _sz
+                + " isCustom=" + Note.isCustom(_vc, (n != null ? n.instrument : 0) & 0xFF)
+                + " tone=" + (n != null ? String.valueOf(n.tone) : "null"));
+        }
+            Song.CustomInstrument ci = ((n.instrument & 0xFF) >= 16 && (n.instrument & 0xFF) <= 19)
+                    ? null : song.customInstrumentOf(n.instrument);
             if (ci == null) continue;
             n.tone = ci.file;
             n.toneNatural = (ci.press == 0);
@@ -2570,7 +2749,10 @@ public class NoteBlockEditScreen extends Screen {
             System.out.println("[DJ-EDIT] CustomTone: 自定义乐器数量已达上限，无法应用");
             return;
         }
-        for (EditableNote n : sel) { n.instrument = instId; n.tone = id; n.toneNatural = natural; }
+        for (EditableNote n : sel) { int _reg = (song != null) ? song.addOrGetCustomInstrument(id, natural ? 0 : 1) : -1;
+            if (_reg >= 0) { n.instrument = _reg; System.out.println("[DJ-EDIT] DIAG apply -> instrument=" + _reg + " (" + id + ")"); }
+            else { n.instrument = instId; }
+            n.tone = id; n.toneNatural = natural; }
         tonePickerOpen = false;
         System.out.println("[DJ-EDIT] CustomTone: 应用 " + id
                 + (natural ? "（原声）" : "（跟随音高）") + " -> " + sel.size() + " 个音符");
@@ -2580,9 +2762,9 @@ public class NoteBlockEditScreen extends Screen {
     /** 返回 true = 已消费这次按键 */
     private boolean tonePickerKey(int code) {
         // ESC=41  关闭
-        if (code == 41) { tonePickerOpen = false; return true; }
+        if (code == 41 || code == 256) { tonePickerOpen = false; return true; }
         // Backspace=42
-        if (code == 42) {
+        if (code == 42 || code == 259) {
             if (!toneQuery.isEmpty()) toneQuery = toneQuery.substring(0, toneQuery.length() - 1);
             toneScroll = 0;
             return true;

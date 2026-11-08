@@ -17,7 +17,7 @@ import semmiedev.disc_jockey.gui.SongListWidget;
 public class Song {
 
     /** NBS_V4 固定：原版乐器数量（Harp..Pling = 16） */
-    public static final int VANILLA_INST_COUNT = 16;
+    public static final int VANILLA_INST_COUNT = 20;
 
 
     /**
@@ -49,8 +49,10 @@ public class Song {
 
     /** instrument 字节是否是自定义乐器 */
     public boolean isCustomInstrument(int instrumentId) {
+        int id = instrumentId & 0xFF;
+        if (id >= 16 && id <= 19) return false;
         int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
-        return (instrumentId & 0xFF) >= vc;
+        return id >= vc;
     }
 
     /** 取 instrument 字节对应的自定义乐器，非自定义或越界返回 null */
@@ -146,7 +148,7 @@ public class Song {
         if (searchableFileName == null) searchableFileName = "";
         if (searchableName == null) searchableName = "";
 
-        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 10;
+        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 20;
         if (formatVersion == 0) formatVersion = 0;
         if (height <= 0) height = 1;
         if (tempo <= 0) tempo = 1000;
