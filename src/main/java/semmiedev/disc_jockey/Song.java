@@ -16,7 +16,7 @@ import semmiedev.disc_jockey.gui.SongListWidget;
 
 public class Song {
 
-    /** NBS_V4 固定：原版乐器数量（Harp..Pling = 16） */
+    /** NBS_V4 固定：原版乐器数量（Harp..Oxidized Trumpet = 20） */
     public static final int VANILLA_INST_COUNT = 20;
 
 
@@ -49,9 +49,9 @@ public class Song {
 
     /** instrument 字节是否是自定义乐器 */
     public boolean isCustomInstrument(int instrumentId) {
-        int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
         int id = instrumentId & 0xFF;
-        if (id >= 16 && id <= 19) return false; // DJ_COPPER_20
+        if (id >= 16 && id <= 19) return false;
+        int vc = (vanillaInstrumentCount > 0) ? (vanillaInstrumentCount & 0xFF) : 10;
         return id >= vc;
     }
 
@@ -148,7 +148,7 @@ public class Song {
         if (searchableFileName == null) searchableFileName = "";
         if (searchableName == null) searchableName = "";
 
-        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = (byte) VANILLA_INST_COUNT;
+        if (vanillaInstrumentCount == 0) vanillaInstrumentCount = 20;
         if (formatVersion == 0) formatVersion = 0;
         if (height <= 0) height = 1;
         if (tempo <= 0) tempo = 1000;
@@ -285,8 +285,6 @@ public class Song {
             all.sort(Comparator.comparingInt((NoteData n) -> n.tick)
                     .thenComparingInt(n -> n.layer));
 
-            // 若 height < maxLayer+1，DJ/GML 按 height 建的乐器表对高 layer 音符越界
-            // → blocks_set_instruments 收到 undefined → 崩溃 "REAL argument incorrect type undefined"。
             int maxLayer = computeMaxLayer(all);
             int neededHeight = maxLayer + 1;
             if ((this.height & 0xFFFF) < neededHeight) {
@@ -295,15 +293,14 @@ public class Song {
 
             int headerLength = Math.max(1, computeMaxTick(all));
 
-            // ★ NBS v4 新格式头：0 + version(4) + vanillaInstrumentCount(20) + length
             byte version = 4;
-            byte vanillaCount = (byte) VANILLA_INST_COUNT;   // NBS_V4 固定 20 个原版乐器
+            byte vanillaCount = (byte) VANILLA_INST_COUNT;
             this.formatVersion = version;
             this.vanillaInstrumentCount = vanillaCount;
 
-            writeShortLE(raf, 0);                 // 新格式标记
-            writeByte(raf, version & 0xFF);       // formatVersion = 4
-            writeByte(raf, vanillaCount & 0xFF);  // vanillaInstrumentCount = 20
+            writeShortLE(raf, 0);
+            writeByte(raf, version & 0xFF);
+            writeByte(raf, vanillaCount & 0xFF);
             writeShortLE(raf, headerLength);
             writeShortLE(raf, this.height & 0xFFFF);
             writeNbsStringLE(raf, this.name);
@@ -320,15 +317,12 @@ public class Song {
             writeIntLE(raf, this.blocksAdded);
             writeIntLE(raf, this.blocksRemoved);
             writeNbsStringLE(raf, this.importFileName);
-            // ★ v4 头尾字段
             writeByte(raf, this.loop);
             writeByte(raf, this.maxLoopCount);
             writeShortLE(raf, this.loopStartTick & 0xFFFF);
 
             writeNotesV4(raf, all, headerLength);
             writeLayersV4(raf, this.height & 0xFFFF);
-
-            // ★ NBS 第 4 段：自定义乐器（NoteBlockStudio 读的就是这里）
             writeCustomInstruments(raf);
         }
     }
@@ -356,12 +350,11 @@ public class Song {
                 writeByte(raf, n.instrument & 0xFF);
                 writeByte(raf, noteIdToRaw(n.noteId));
             }
-            writeShortLE(raf, 0);
         }
-        writeShortLE(raf, 0);
     }
 
     /** v4 音符：instrument(1) + key(1) + velocity(1) + panning(1) + pitch(2) */
+    /** v4 note: instrument(1) + key(1) + velocity(1) + panning(1) + pitch(2) */
     private static void writeNotesV4(RandomAccessFile raf, List<NoteData> all, int headerLength) throws IOException {
         if (all.isEmpty()) { writeShortLE(raf, 0); return; }
 
@@ -377,16 +370,20 @@ public class Song {
             writeShortLE(raf, (t - lastTick) & 0xFFFF);
             lastTick = t;
 
-            layerList.sort(Comparator.comparingInt(n -> n.layer));
+            layerList.sort(Comparator.comparingInt((NoteData n) -> n.layer)
+                    .thenComparingInt(n -> n.noteId));
             int lastLayer = -1;
             for (NoteData n : layerList) {
-                writeShortLE(raf, (n.layer - lastLayer) & 0xFFFF);
+                int layerJump = (n.layer - lastLayer) & 0xFFFF;
+                // 0 is the end-of-tick sentinel; never emit it for a real note
+                if (layerJump == 0) layerJump = 1;
+                writeShortLE(raf, layerJump);
                 lastLayer = n.layer;
                 writeByte(raf, n.instrument & 0xFF);
                 writeByte(raf, noteIdToRaw(n.noteId));
-                writeByte(raf, 100);          // velocity
-                writeByte(raf, 100);          // panning（100 = 居中）
-                writeShortLE(raf, 0);         // pitch 微调 = 0
+                writeByte(raf, 100);
+                writeByte(raf, 100);
+                writeShortLE(raf, 0);
             }
             writeShortLE(raf, 0);
         }
@@ -396,6 +393,8 @@ public class Song {
     /** v4 图层：name + lock(1) + volume(1) + stereo(1) */
     private static void writeLayersV4(RandomAccessFile raf, int layerCount) throws IOException {
         if (layerCount < 1) layerCount = 1;
+        if (layerCount > 512) layerCount = 512;   // DJ_LAYER_CAP
+        if (layerCount > 512) layerCount = 512;   // DJ_SONG_FIX_B: hard cap
         for (int i = 0; i < layerCount; i++) {
             writeNbsStringLE(raf, "Grand Piano");
             writeByte(raf, 0);      // lock
@@ -470,6 +469,11 @@ public class Song {
             int instrument = (int) ((packed >>> 32) & 0xFFL);
 
             int noteId     = Note.extractNoteId(packed);
+            // DJ_FROMPACKED_FIX
+            tick       = (int) (packed & 0xFFFFL);
+            layer      = (int) ((packed >>> 16) & 0xFFFFL);
+            instrument = (int) ((packed >>> 32) & 0xFFL);
+            noteId     = Note.extractNoteId(packed);
             return new NoteData(tick, layer, instrument, noteId);
         }
     }
