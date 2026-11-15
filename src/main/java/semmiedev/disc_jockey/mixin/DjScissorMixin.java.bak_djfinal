@@ -1,0 +1,30 @@
+package semmiedev.disc_jockey.mixin;
+
+import net.minecraft.client.gui.render.GuiRenderer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import semmiedev.disc_jockey.DjScissorFlag;
+
+/**
+ * 26.4-snapshot-8: FrontendRenderPass.enableScissor 对 0 尺寸裁剪区直接抛
+ * "Scissor size must be >0"。DJ 界面打开期间成对跳过 enable/disable，
+ * 保持渲染状态机一致；编辑器自行计算可见网格范围，不依赖框架裁剪。
+ */
+@Mixin(GuiRenderer.class)
+public class DjScissorMixin {
+    private static boolean djLogged = false;
+
+    @Inject(method = "enableScissor", at = @At("HEAD"), cancellable = true)
+    private void djSkipEnableScissor(CallbackInfo ci) {
+        if (!DjScissorFlag.ACTIVE) return;
+        if (!djLogged) { djLogged = true; System.out.println("[DJ_SCISSOR_MIXIN] active - scissor skipped"); }
+        ci.cancel();
+    }
+
+    @Inject(method = "disableScissor", at = @At("HEAD"), cancellable = true, require = 0)
+    private void djSkipDisableScissor(CallbackInfo ci) {
+        if (DjScissorFlag.ACTIVE) ci.cancel();
+    }
+}

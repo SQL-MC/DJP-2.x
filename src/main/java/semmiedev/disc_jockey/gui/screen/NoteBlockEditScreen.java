@@ -773,6 +773,17 @@ public class NoteBlockEditScreen extends Screen {
             }
             transposeSelection(1);
         }).pos(bx + 40, y2).size(38, 18).build());
+        addRenderableWidget(Button.builder(Component.literal("Redstone"), b -> {
+            try {
+                packToSong();
+                java.io.File f = semmiedev.disc_jockey.RedstoneTrackExporter.exportSong(song);
+                showMsg(Component.literal("已铺成立方体音轨 · 石头按钮按一下重播")
+                        .withStyle(ChatFormatting.GREEN));
+            } catch (Throwable t) {
+                showMsg(Component.literal("Redstone failed: " + t.getMessage())
+                        .withStyle(ChatFormatting.RED));
+            }
+        }).pos(bx + 80, y2).size(58, 18).build());
     }
 
     private void close() {
@@ -905,8 +916,8 @@ public class NoteBlockEditScreen extends Screen {
         if (nameBox != null) nameBox.setFocused(false);
 
         Minecraft mc = Minecraft.getInstance();
-        double mx = djGuiMouse(mc, click, true);
-        double my = djGuiMouse(mc, click, false);
+        double mx = click.x();
+        double my = click.y();
         int button = click.button();
 
         if (tonePickerOpen) { tonePickerClick(mx, my, button); return true; }
@@ -1552,6 +1563,7 @@ public class NoteBlockEditScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor c) {
+        if (this.width <= 0 || this.height <= 0) { super.extractRenderState(c); return; }   // DJ_SCISSOR_GUARD
         int mx = c.mouseX();
         int my = c.mouseY();
         float delta = c.partialTicks();
@@ -1567,12 +1579,12 @@ public class NoteBlockEditScreen extends Screen {
         int ch = cellH(), cw = cellW();
         int rows = visibleRows(), ticks = visibleTicks();
 
-        c.fill(gridX, gridY, gridX + gridW, gridY + gridH, 0xFF101014);
+        djFill3(c, gridX, gridY, gridX + gridW, gridY + gridH, 0xFF101014);   // DJ_FILL3
 
         for (int t = 0; t < ticks; t++) {
             int abs = scrollTick + t;
             int x = gridX + t * cw;
-            c.fill(x, gridY, x + 1, gridY + gridH, (abs % 4 == 0) ? 0xFF3A3A44 : 0xFF22222A);
+            djFill3(c, x, gridY, x + 1, gridY + gridH, (abs % 4 == 0) ? 0xFF3A3A44 : 0xFF22222A);   // DJ_FILL3
         }
 
         for (int r = 0; r < rows; r++) {
@@ -1581,7 +1593,7 @@ public class NoteBlockEditScreen extends Screen {
             int y = gridY + r * ch;
             if (isBlackKey(noteId)) c.fill(gridX, y, gridX + gridW, y + ch, 0x33000000);
             if (noteId >= PLAYABLE_LOW && noteId <= PLAYABLE_HIGH)
-                c.fill(gridX, y, gridX + gridW, y + ch, 0x1400FF88);
+                djFill3(c, gridX, y, gridX + gridW, y + ch, 0x1400FF88);   // DJ_FILL3
         }
 
         hoverTick = -1;
@@ -1607,7 +1619,7 @@ public class NoteBlockEditScreen extends Screen {
             int hr = noteToRow(hoverNote);
             if (hr >= 0) {
                 int hy = gridY + hr * ch;
-                c.fill(hx, hy, hx + Math.max(2, cw - 1), hy + Math.max(2, ch - 1), 0x40FFFFFF);
+                djFill3(c, hx, hy, hx + Math.max(2, cw - 1), hy + Math.max(2, ch - 1), 0x40FFFFFF);   // DJ_FILL3
             }
         }
 
@@ -1623,7 +1635,7 @@ public class NoteBlockEditScreen extends Screen {
             int col = sel ? 0xFFFFEB3B : (n.tone != null ? toneColor(n.tone) : instColor(n.instrument));
             int bw = Math.max(2, cw - 1);
             int bh = Math.max(2, ch - 1);
-            c.fill(x, y, x + bw, y + bh, col);
+            djFill3(c, x, y, x + bw, y + bh, col);   // DJ_FILL3
             if (!sel && n.tone == null && bw >= ICON_MIN_CELL && bh >= ICON_MIN_CELL) {
                 if (drawNoteIcon(c, n.instrument, x, y, bw, bh) && !iconDrawnLogged) {
                     iconDrawnLogged = true;
@@ -1643,7 +1655,7 @@ public class NoteBlockEditScreen extends Screen {
                 int r0 = noteToRow(n0);
                 if (r0 >= 0) {
                     int y0 = gridY + r0 * ch;
-                    c.fill(x0, y0, x0 + Math.max(2, cw - 1), y0 + Math.max(2, ch - 1), 0x80FFFFFF);
+                    djFill3(c, x0, y0, x0 + Math.max(2, cw - 1), y0 + Math.max(2, ch - 1), 0x80FFFFFF);   // DJ_FILL3
                 }
             } else {
                 int x0 = gridX + (t0 - scrollTick) * cw;
@@ -1654,26 +1666,26 @@ public class NoteBlockEditScreen extends Screen {
                 int y0 = gridY + rTop * ch;
                 int y1 = gridY + (rBot + 1) * ch;
 
-                c.fill(x0, y0, x1, y1, 0x30FFFF00);
-                c.fill(x0, y0, x1, y0 + 1, 0xFFFFEB3B);
-                c.fill(x0, y1 - 1, x1, y1, 0xFFFFEB3B);
-                c.fill(x0, y0, x0 + 1, y1, 0xFFFFEB3B);
-                c.fill(x1 - 1, y0, x1, y1, 0xFFFFEB3B);
+                djFill3(c, x0, y0, x1, y1, 0x30FFFF00);   // DJ_FILL3
+                djFill3(c, x0, y0, x1, y0 + 1, 0xFFFFEB3B);   // DJ_FILL3
+                djFill3(c, x0, y1 - 1, x1, y1, 0xFFFFEB3B);   // DJ_FILL3
+                djFill3(c, x0, y0, x0 + 1, y1, 0xFFFFEB3B);   // DJ_FILL3
+                djFill3(c, x1 - 1, y0, x1, y1, 0xFFFFEB3B);   // DJ_FILL3
             }
         }
 
         // 边缘自动滚动提示条
         if (boxSelecting) {
             int tint = 0x30FFFF00;
-            c.fill(gridX, gridY, gridX + gridW, gridY + 3, tint);
-            c.fill(gridX, gridY + gridH - 3, gridX + gridW, gridY + gridH, tint);
-            c.fill(gridX, gridY, gridX + 3, gridY + gridH, tint);
-            c.fill(gridX + gridW - 3, gridY, gridX + gridW, gridY + gridH, tint);
+            djFill3(c, gridX, gridY, gridX + gridW, gridY + 3, tint);   // DJ_FILL3
+            djFill3(c, gridX, gridY + gridH - 3, gridX + gridW, gridY + gridH, tint);   // DJ_FILL3
+            djFill3(c, gridX, gridY, gridX + 3, gridY + gridH, tint);   // DJ_FILL3
+            djFill3(c, gridX + gridW - 3, gridY, gridX + gridW, gridY + gridH, tint);   // DJ_FILL3
         }
 
         if (playheadTick >= scrollTick && playheadTick < scrollTick + ticks) {
             int x = gridX + (playheadTick - scrollTick) * cw;
-            c.fill(x, gridY, x + 2, gridY + gridH, 0xFFFFEB3B);
+            djFill3(c, x, gridY, x + 2, gridY + gridH, 0xFFFFEB3B);   // DJ_FILL3
         }
 
         drawKeyboard(c, ch, rows);
@@ -1692,6 +1704,32 @@ public class NoteBlockEditScreen extends Screen {
                 + (playing ? " | ▶PLAYING" : "");
         c.text(font, Component.literal(st), gridX, height - 16, 0xFFAAAAAA, false);
         if (tonePickerOpen) drawTonePicker(c);
+    }
+
+    private static boolean djFill3Logged = false;   // DJ_FILL3
+    private static void djFill3(GuiGraphicsExtractor c, int x1, int y1, int x2, int y2, int color) {
+        if (x2 <= x1 || y2 <= y1) {
+            if (!djFill3Logged) { djFill3Logged = true;
+                System.out.println("[DJ_FILL3] zero rect x1=" + x1 + " y1=" + y1 + " x2=" + x2 + " y2=" + y2 + " w=" + (x2-x1) + " h=" + (y2-y1)); }
+            return;
+        }
+        c.fill(x1, y1, x2, y2, color);
+    }
+
+    private static boolean djScissorLogged = false;   // DJ_SCISSOR_V2
+    /** 26.4-snapshot-8: 0 尺寸矩形会被 GuiRenderer.enableScissor 拒绝，clamp 到至少 1x1 */
+    private static void djFillV2(GuiGraphicsExtractor c, int gx, int gy, int gw, int gh, int color) {
+        if (!djScissorLogged) {
+            djScissorLogged = true;
+            System.out.println("[DJ_SCISSOR_V2] bg gw=" + gw + " gh=" + gh + " gx=" + gx + " gy=" + gy);
+        }
+        c.fill(gx, gy, gx + Math.max(1, gw), gy + Math.max(1, gh), color);
+    }
+
+    /** 26.4 snapshot-8: 0 尺寸矩形会让 GuiRenderer.enableScissor 抛异常，跳过不提交 */
+    private static void djSafeFill(GuiGraphicsExtractor c, int x1, int y1, int x2, int y2, int color) {
+        if (x2 <= x1 || y2 <= y1) return;
+        c.fill(x1, y1, x2, y2, color);
     }
 
     private void drawKeyboard(GuiGraphicsExtractor c, int ch, int rows) {
