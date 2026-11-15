@@ -763,6 +763,17 @@ public class NoteBlockEditScreen extends Screen {
             }
             transposeSelection(1);
         }).pos(bx + 40, y2).size(38, 18).build());
+        addRenderableWidget(Button.builder(Component.literal("Redstone"), b -> {
+            try {
+                packToSong();
+                java.io.File f = semmiedev.disc_jockey.RedstoneTrackExporter.exportSong(song);
+                showMsg(Component.literal("已铺成立方体音轨 · 石头按钮按一下重播")
+                        .withStyle(ChatFormatting.GREEN));
+            } catch (Throwable t) {
+                showMsg(Component.literal("Redstone failed: " + t.getMessage())
+                        .withStyle(ChatFormatting.RED));
+            }
+        }).pos(bx + 80, y2).size(58, 18).build());
     }
 
     private void close() {
@@ -895,8 +906,8 @@ public class NoteBlockEditScreen extends Screen {
         if (nameBox != null) nameBox.setFocused(false);
 
         Minecraft mc = Minecraft.getInstance();
-        double mx = djGuiMouse(mc, click, true);
-        double my = djGuiMouse(mc, click, false);
+        double mx = click.x();
+        double my = click.y();
         int button = click.button();
         if (tonePickerOpen && tonePickerClick(mx, my, button)) return true;
 
