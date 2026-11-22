@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey;
+// DJ_GUI23
 
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
@@ -106,11 +107,11 @@ public class DiscjockeyCommand {
 
                                     
                                     src.sendFeedback(
-                                            Component.literal("§7[Disc Jockey] §f依赖库 §ePianoLib§f：为 DJP 提供 88 个钢琴音符")
+                                            Component.translatable("disc_jockey.lit.fc245cbaa8")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
                                     );
                                     src.sendFeedback(
-                                            Component.literal("§7→ §nhttps://www.curseforge.com/minecraft/mc-mods/pianolib")
+                                            Component.translatable("disc_jockey.lit.70769ccf97")
                                                     .withStyle(net.minecraft.ChatFormatting.GRAY)
                                     );
 
@@ -383,7 +384,7 @@ public class DiscjockeyCommand {
 
                                             if (Main.SONG_PLAYER.song == null) {
                                                 ctx.getSource().sendFeedback(
-                                                        Component.literal("§7[Disc Jockey] §fTranspose set. Will apply on next play/preview.")
+                                                        Component.translatable("disc_jockey.lit.c8dbb2d4fa")
                                                 );
                                             }
 
@@ -960,7 +961,7 @@ public class DiscjockeyCommand {
                 ? Main.config.modrinthProjectId
                 : "disc-jockey-plus";
 
-        source.sendFeedback(Component.literal("§7[Disc Jockey] §f正在检查 Modrinth 更新..."));
+        source.sendFeedback(Component.translatable("disc_jockey.lit.4bfc1f5d58"));
 
         CompletableFuture.runAsync(() -> {
             HttpURLConnection conn = null;
@@ -1004,7 +1005,7 @@ public class DiscjockeyCommand {
                 final String finalLatest = latest;
                 Minecraft.getInstance().execute(() -> {
                     if (finalLatest == null) {
-                        source.sendError(Component.literal("§c[Disc Jockey] §f解析 Modrinth 响应失败（未找到 version_number）。"));
+                        source.sendError(Component.translatable("disc_jockey.lit.62058b9239"));
                         return;
                     }
                     String cur = stripV(Main.VERSION);
@@ -1017,9 +1018,9 @@ public class DiscjockeyCommand {
                     } else if (cmp < 0) {
                         
                         source.sendFeedback(Component.literal("§a[Disc Jockey] §f本地版本（§a" + cur + "§f）已领先于 Modrinth 最新版（§7" + lat + "§f）。"));
-                        source.sendFeedback(Component.literal("§7Modrinth 版本可能仍在审核中；Disc Jockey 最新稳定版 / PianoLib 依赖请前往 CurseForge 查看："));
-                        source.sendFeedback(Component.literal("§nhttps://www.curseforge.com/minecraft/mc-mods/disc-jockey-plus"));
-                        source.sendFeedback(Component.literal("§7PianoLib（DJP 依赖库）：§nhttps://www.curseforge.com/minecraft/mc-mods/pianolib"));
+                        source.sendFeedback(Component.translatable("disc_jockey.lit.a716cc38ca"));
+                        source.sendFeedback(Component.translatable("disc_jockey.lit.28e9593eed"));
+                        source.sendFeedback(Component.translatable("disc_jockey.lit.6d5b2e8c9c"));
                     } else {
                         
                         source.sendFeedback(Component.literal("§a[Disc Jockey] §f已是最新版本（§a" + cur + "§f）。"));

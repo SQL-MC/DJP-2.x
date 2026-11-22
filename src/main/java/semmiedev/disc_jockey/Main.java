@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey;
+// DJ_GUI23
 
 import net.minecraft.world.item.Item;        // Item, Item.Properties
 import net.minecraft.core.Registry;           // Registry.register
@@ -50,7 +51,7 @@ import java.util.function.Consumer;
 
 public class Main implements ClientModInitializer {
     public static final String MOD_ID = "disc_jockey";
-    public static final Component NAME = Component.literal("Disc Jockey");
+    public static final Component NAME = Component.translatable("disc_jockey.lit.6aa95a749d");
 
     public static final Logger LOGGER = LogManager.getLogger("Disc Jockey");
     public static final ArrayList<ClientTickEvents.StartLevelTick> TICK_LISTENERS = new ArrayList<>();
@@ -445,7 +446,7 @@ public class Main implements ClientModInitializer {
             if (!sentWelcome) {
                 sentWelcome = true;
                 client.gui.chatListener().handleSystemMessage(
-                        Component.literal("§a[Disc Jockey] §fPress §eJ §fto open Music Console")
+                        Component.translatable("disc_jockey.lit.75277de896")
                                 .withStyle(ChatFormatting.BOLD),
                         false
                 );
@@ -671,7 +672,7 @@ public class Main implements ClientModInitializer {
             Minecraft mc = Minecraft.getInstance();
             int h = getScreenHeight(mc);
 
-            Button djBtn = Button.builder(Component.literal("♪"), btn -> {
+            Button djBtn = Button.builder(Component.translatable("disc_jockey.lit.6f2d8e1eb1"), btn -> {
                 try {
                     java.lang.reflect.Constructor<?> ctor =
                             semmiedev.disc_jockey.gui.screen.DiscJockeyScreen.class.getConstructor(Screen.class);

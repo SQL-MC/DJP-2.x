@@ -141,15 +141,56 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
             INSTANCE.prevWorld = null; 
         }
 
+        paused = false;
         running = true;
     }
 
     
+    /** DJ_GUI7: pause/resume without losing song, tick or note index. */
+    public static boolean paused = false;
+
+    public static void pause() {
+        if (INSTANCE.song == null) return;
+        paused = true;
+        running = false;
+    }
+
+    public static void resume() {
+        if (INSTANCE.song == null) return;
+        paused = false;
+        running = true;
+    }
+
+    /** DJ_GUI7: seek while previewing (works while paused too). */
+    /** DJ_GUI10: seek like playback - do NOT jump i to the target index.
+     *  Keeping i makes tickAndPlay() walk EVERY note between the old
+     *  position and t (sound + spectrum), like SongPlayer.tickPlayback().
+     *  Backward seeks rewind i so the passed notes are replayed too. */
+    public static void seekToSeconds(double seconds) {
+        Song s = INSTANCE.song;
+        if (s == null || s.notes == null || s.notes.length == 0) return;
+        double ms = seconds * 1000.0D;
+        if (ms < 0) ms = 0;
+        float t = (float) s.millisecondsToTicks((long) ms);
+        float old = INSTANCE.tick;
+        INSTANCE.tick = t;
+        if (t < old) INSTANCE.i = 0;
+        INSTANCE.lyricsNextIndex = 0;
+        if (s.lyrics != null) {
+            long songMillis = (long) (t / 20.0F * 1000);
+            while (INSTANCE.lyricsNextIndex < s.lyrics.size()
+                    && s.lyrics.line(INSTANCE.lyricsNextIndex).timeMs() <= songMillis) {
+                INSTANCE.lyricsNextIndex++;
+            }
+        }
+    }
+
     public static void stop() {
-        if (!running) return;
+        if (!running && !paused) return;
 
         LOGGER.info("[DJ] Preview stop");
         running = false;
+        paused = false;
         INSTANCE.i = 0;
         INSTANCE.tick = 0.0F;
         INSTANCE.song = null;
@@ -201,6 +242,11 @@ public class Previewer implements ClientTickEvents.StartLevelTick {
         
         advanceLyrics();
 
+        if (i >= getNoteCount()) {
+            if (!loopPreview) { stop(); }
+            else { this.i = 0; this.tick = 0.0F; this.lyricsNextIndex = 0; }
+            return;
+        }
         while (i < getNoteCount()) {
             long note = getNote(i);
 
