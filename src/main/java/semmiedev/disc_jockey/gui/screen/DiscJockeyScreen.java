@@ -1,4 +1,6 @@
 package semmiedev.disc_jockey.gui.screen;
+// DJ_GUI23
+// DJ_GUI9
 
 import semmiedev.disc_jockey.gui.screen.spectrum.SpectrumRendererManager;
 import me.shedaniel.autoconfig.AutoConfigClient;
@@ -85,7 +87,7 @@ public class DiscJockeyScreen extends Screen {
 
             if (nbsFiles.isEmpty()) {
                 minecraft.execute(() -> minecraft.gui.chatListener().handleSystemMessage(
-                        Component.literal("§c[DiscJockey] GitHub 仓库未找到 .nbs 文件"), false));
+                        Component.translatable("disc_jockey.lit.387ed4b252"), false));
                 return;
             }
 
@@ -316,6 +318,13 @@ public class DiscJockeyScreen extends Screen {
     private static final Object LEVEL_LOCK = new Object();
 
     private SongListWidget songListWidget;
+
+    // ---- DJ_GUI2: 跨 26.3 / 26.4 通用控件状态整理（自适应补丁注入） ----
+    private Button djLyricsPanelButton, djToolsPanelButton;
+    private Button editButton, exportMidiButton, exportWavButton, downloadNbsButton, importMidiButton;
+    private StringWidget midiPathHint;
+    private boolean djLyricsOpen = false, djToolsOpen = false;
+    private volatile boolean djWavExporting = false;
     private Button playButton, previewButton;
     private boolean shouldFilter;
     private String query = "";
@@ -334,7 +343,7 @@ public class DiscJockeyScreen extends Screen {
         Song playing = Main.SONG_PLAYER.song;
         if (playing == null || playing.lyrics == null) {
             this.minecraft.gui.chatListener().handleSystemMessage(
-                    Component.literal("§c[DiscJockey] 当前歌曲无歌词"), false);
+                    Component.translatable("disc_jockey.lit.270010db7c"), false);
             return;
         }
         long newOffset = playing.lyrics.offsetMillis() + delta;
@@ -343,7 +352,7 @@ public class DiscJockeyScreen extends Screen {
         } catch (IOException e) {
             Main.LOGGER.warn("[DJ] 歌词偏移写入失败：{}", e.getMessage());
             this.minecraft.gui.chatListener().handleSystemMessage(
-                    Component.literal("§c[DiscJockey] 歌词偏移保存失败"), false);
+                    Component.translatable("disc_jockey.lit.a5dce73134"), false);
             return;
         }
         saveConfig();
@@ -354,7 +363,135 @@ public class DiscJockeyScreen extends Screen {
     }
 
 
+
+    // ==================== DJ_GUI2 通用控件状态 ====================
+    // 26.3 的 active/visible 是 public，26.4 改成 protected；
+    // 26.3 用官方 CycleButton，26.4 用自定义 CycleBtn（有 .button()）。
+    // 以下全部走反射，不依赖字段可见性、不依赖按钮具体类型，四个分支同一份代码。
+    private static Object djStaticField(String n) {
+        try {
+            java.lang.reflect.Field f = Main.class.getDeclaredField(n);
+            f.setAccessible(true);
+            return f.get(null);
+        } catch (Throwable ignored) { return null; }
+    }
+    private static Object djObjField(Object o, String n) {
+        if (o == null) return null;
+        try {
+            for (Class<?> c = o.getClass(); c != null; c = c.getSuperclass()) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(n);
+                    f.setAccessible(true);
+                    return f.get(o);
+                } catch (NoSuchFieldException ignored) {}
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+    private static boolean djBoolField(Object o, String n) {
+        Object v = djObjField(o, n);
+        return v instanceof Boolean ? (Boolean) v : v != null;
+    }
+    private static Object djWidget(Object w) {
+        if (w == null) return null;
+        try { return w.getClass().getMethod("button").invoke(w); }
+        catch (Throwable ignored) { return w; }
+    }
+    private static void djSet(Object w, String field, boolean v) {
+        Object t = djWidget(w);
+        if (t == null) return;
+        try {
+            for (Class<?> c = t.getClass(); c != null; c = c.getSuperclass()) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField(field);
+                    f.setAccessible(true);
+                    f.setBoolean(t, v);
+                    return;
+                } catch (NoSuchFieldException ignored) {}
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /** 每帧由 refreshOffsetDisplay() 带动；未选中 / 未播放 / 无歌词时统一置灰，面板统一显隐。 */
+    private void djRefreshControls() {
+        Object sel = null;
+        try { sel = songListWidget.getClass().getMethod("getSelected").invoke(songListWidget); }
+        catch (Throwable ignored) {}
+        // DJ_GUI5: one authoritative selection. AbstractSelectionList.replaceEntries()
+        // clears the widget's internal selected reference but NOT SongEntry.selected,
+        // which is a persistent flag on the global SongLoader.SONGS list. That mismatch
+        // leaves stale white frames that cannot be clicked, and allows two frames at once.
+        // Self-heal: if the widget lost its reference but exactly one entry is flagged,
+        // restore it; then clear every other flag and keep only the real selection.
+        try {
+            SongListWidget.SongEntry djFlagged = null;
+            int djFlagCount = 0;
+            for (Song s : SongLoader.SONGS) {
+                if (s != null && s.entry != null && s.entry.selected) { djFlagged = s.entry; djFlagCount++; }
+            }
+            if (sel == null && djFlagCount == 1 && djFlagged != null) {
+                try { songListWidget.setSelected(djFlagged); sel = djFlagged; } catch (Throwable ignored) {}
+            }
+            if (sel == null && djFlagCount > 1) {
+                for (Song s : SongLoader.SONGS) {
+                    if (s != null && s.entry != null) s.entry.selected = false;
+                }
+            }
+            for (Song s : SongLoader.SONGS) {
+                if (s != null && s.entry != null && s.entry != sel) s.entry.selected = false;
+            }
+            if (sel instanceof SongListWidget.SongEntry) ((SongListWidget.SongEntry) sel).selected = true;
+        } catch (Throwable ignored) {}
+        boolean hasSong = sel != null && djObjField(sel, "song") != null;
+        Object sp = djStaticField("SONG_PLAYER");
+        Object pv = djStaticField("PREVIEWER");
+        Object cur = djObjField(sp, "song");
+        boolean playing = cur != null || djBoolField(sp, "running");
+        boolean previewing = djBoolField(pv, "running");
+        boolean hasLyrics = cur != null && djObjField(cur, "lyrics") != null;
+
+        // 依赖「已选中」
+        djSet(playButton, "active", hasSong || playing);
+        djSet(previewButton, "active", hasSong || previewing);
+        djSet(editButton, "active", hasSong);
+        djSet(exportMidiButton, "active", hasSong);
+        djSet(exportWavButton, "active", hasSong && !djWavExporting);
+        djSet(globalPlayButton, "active", hasSong || djBoolField(this, "globalPlaying"));
+        // 依赖「正在播放」
+        djSet(playPauseButton, "active", playing || songNoteCount(Main.PREVIEWER.getInstance().getSong()) > 0);
+        djSet(stopButton, "active", playing || songNoteCount(Main.PREVIEWER.getInstance().getSong()) > 0);
+
+        // 歌词面板
+        djSet(lyricsToggleButton, "visible", djLyricsOpen);
+        djSet(lyricsOutputButton, "visible", djLyricsOpen);
+        djSet(lyricsOffsetMinusButton, "visible", djLyricsOpen);
+        djSet(lyricsOffsetEditBox, "visible", djLyricsOpen);
+        djSet(lyricsOffsetPlusButton, "visible", djLyricsOpen);
+        djSet(lyricsOffsetMinusButton, "active", djLyricsOpen && hasLyrics);
+        djSet(lyricsOffsetEditBox, "active", djLyricsOpen && hasLyrics);
+        djSet(lyricsOffsetPlusButton, "active", djLyricsOpen && hasLyrics);
+        if (!djLyricsOpen && lyricsOffsetEditBox != null) {
+            try {
+                java.lang.reflect.Method m = lyricsOffsetEditBox.getClass().getMethod("setFocused", boolean.class);
+                m.invoke(lyricsOffsetEditBox, false);
+            } catch (Throwable ignored) {}
+        }
+
+        // 工具面板
+        djSet(downloadNbsButton, "visible", djToolsOpen);
+        djSet(exportWavButton, "visible", djToolsOpen);
+        djSet(exportMidiButton, "visible", djToolsOpen);
+        djSet(importMidiButton, "visible", djToolsOpen);
+        djSet(midiPathHint, "visible", djToolsOpen);
+
+        if (djLyricsPanelButton != null)
+            djLyricsPanelButton.setMessage(Component.translatable(djLyricsOpen ? "disc_jockey.screen.lyrics.panel.open2" : "disc_jockey.screen.lyrics.panel.open"));
+        if (djToolsPanelButton != null)
+            djToolsPanelButton.setMessage(Component.translatable(djToolsOpen ? "disc_jockey.screen.tools.panel.open2" : "disc_jockey.screen.tools.panel.open"));
+    }
+
     private void refreshOffsetDisplay() {
+        djRefreshControls();
         if (lyricsOffsetEditBox == null) return;
         if (lyricsOffsetEditBox.isFocused()) return;   
         Song playing = Main.SONG_PLAYER.song;
@@ -406,7 +543,7 @@ public class DiscJockeyScreen extends Screen {
             if (minecraft.gameMode != null
                     && minecraft.gameMode.getPlayerMode() == net.minecraft.world.level.GameType.CREATIVE) {
                 minecraft.gui.chatListener().handleSystemMessage(
-                        Component.literal("§c[DiscJockey] 创造模式无法播放，请切换到生存模式"), false);
+                        Component.translatable("disc_jockey.lit.82c56c972a"), false);
                 return;
             }
             Main.SONG_PLAYER.start(e.song);
@@ -427,7 +564,7 @@ public class DiscJockeyScreen extends Screen {
                 b -> minecraft.execute(() -> {
                     if (minecraft.player == null || minecraft.level == null) {
                         minecraft.gui.chatListener().handleSystemMessage(
-                                Component.literal("§c[DiscJockey] player/level 尚未就绪"),
+                                Component.translatable("disc_jockey.lit.aedc860d93"),
                                 false
                         );
                         return;
@@ -504,8 +641,13 @@ public class DiscJockeyScreen extends Screen {
             playPauseButton = new CycleBtn<Boolean>(
                     (width / 4) - 25, 32 + 20 + 20 + 30 + 5, 20, 20,
                     new Boolean[]{true, false}, Main.SONG_PLAYER.running,
-                    v -> Component.literal(v ? "⏸" : "▶"),
+                    v -> Component.translatable(v ? "disc_jockey.lit.c623fcd0df" : "disc_jockey.lit.dff521d468"),
                     (cb, v) -> {
+                        Song djPv = Main.PREVIEWER.getInstance().getSong();
+                        if (djPv != null && songNoteCount(djPv) > 0) {
+                            if (v) Main.PREVIEWER.resume(); else Main.PREVIEWER.pause();
+                            return;
+                        }
                         if (v && Main.SONG_PLAYER.song != null && Main.SONG_PLAYER.didSongReachEnd)
                             Main.SONG_PLAYER.start(Main.SONG_PLAYER.song);
                         else Main.SONG_PLAYER.running = v;
@@ -515,14 +657,20 @@ public class DiscJockeyScreen extends Screen {
         }
         if (playPauseButton != null) addRenderableWidget(playPauseButton.button());
 
-        stopButton = Button.builder(Component.literal("⏹"), b -> Main.SONG_PLAYER.stop())
+        stopButton = Button.builder(Component.translatable("disc_jockey.screen.stop.icon"), b -> {
+                    if (songNoteCount(Main.PREVIEWER.getInstance().getSong()) > 0) {
+                        Main.PREVIEWER.stop();
+                        return;
+                    }
+                    Main.SONG_PLAYER.stop();
+                })
                 .pos((width / 4) + 5, 32 + 20 + 20 + 30 + 5)
                 .size(20, 20)
                 .build();
         addRenderableWidget(stopButton);
 
-        int lx = 115;
-        int ly = height - 79;
+        int lx = 10;
+        int ly = 32 + 20 + 20 + 30 + 5 + 24;   // DJ_GUI5: lyrics row moved up next to pause/stop, away from the spectrum
 
         
         try {
@@ -530,7 +678,7 @@ public class DiscJockeyScreen extends Screen {
                     lx, ly, 72, 18,
                     new Boolean[]{true, false}, Main.config.lyricsChatOutput,
                     v -> Component.translatable(Main.MOD_ID + ".screen.lyrics")
-                            .append(Component.literal(v ? " ✓" : " ✗")),
+                            .append(Component.translatable(v ? "disc_jockey.lit.6fb07d2e67" : "disc_jockey.lit.04b2768529")),
                     (cb, v) -> {
                         Main.config.lyricsChatOutput = v;
                         saveConfig();
@@ -560,7 +708,7 @@ public class DiscJockeyScreen extends Screen {
 
         
         lyricsOffsetMinusButton = Button.builder(
-                        Component.literal("-"),
+                        Component.translatable("disc_jockey.lit.336d5ebc54"),
                         b -> adjustLyricsOffset(-500))
                 .bounds(lx + 140, ly, 18, 18).build();
         addRenderableWidget(lyricsOffsetMinusButton);
@@ -588,7 +736,7 @@ public class DiscJockeyScreen extends Screen {
 
         
         lyricsOffsetPlusButton = Button.builder(
-                        Component.literal("+"),
+                        Component.translatable("disc_jockey.lit.26b17225b6"),
                         b -> adjustLyricsOffset(+500))
                 .bounds(lx + 220, ly, 18, 18).build();
         addRenderableWidget(lyricsOffsetPlusButton);
@@ -610,13 +758,13 @@ public class DiscJockeyScreen extends Screen {
                     minecraft.gui.chatListener().handleSystemMessage(
                             Component.translatable(Main.MOD_ID + ".screen.refresh_songs.done"), false);
                 })
-                .bounds(lx + 138, ly + 22, 90, 18)
+                .bounds(lx + 240, ly, 90, 18)
                 .tooltip(Tooltip.create(
                         Component.translatable(Main.MOD_ID + ".screen.refresh_songs.tooltip")))
                 .build();
         addRenderableWidget(refreshSongsButton);
         
-        Button exportMidiButton = Button.builder(
+        exportMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.export_midi"),
                 btn -> {
                     SongListWidget.SongEntry entry = songListWidget.getSelected();
@@ -655,38 +803,39 @@ public class DiscJockeyScreen extends Screen {
                         );
                     }
                 }
-        ).pos(115, height - 30).size(100, 20).build();
+        ).pos(10, height - 55).size(100, 20).build();
         addRenderableWidget(exportMidiButton);
 
 
-        Button downloadNbsButton = Button.builder(
+        downloadNbsButton = Button.builder(
                 Component.translatable(Main.MOD_ID + ".button.download_nbs"),
                 btn -> downloadNbsFromGithub()
-        ).pos(10, height - 55)
+        ).pos(325, height - 30)
          .size(100, 20)
          .tooltip(Tooltip.create(Component.translatable(Main.MOD_ID + ".button.download_nbs.tooltip")))
          .build();
         addRenderableWidget(downloadNbsButton);
         
-        Button exportWavButton = Button.builder(
+        exportWavButton = Button.builder(
                 Component.translatable(Main.MOD_ID + ".button.wav_out"),
                 btn -> {
                     SongListWidget.SongEntry entry = songListWidget.getSelected();
                     if (entry == null || entry.song == null) {
                         minecraft.gui.chatListener().handleSystemMessage(
-                                Component.literal("·"),
+                                Component.translatable("disc_jockey.lit.176848afab"),
                                 false
                         );
                         return;
                     }
                     final Song song = entry.song;
-                    setBoolField(btn, "active", false);   
+                    setBoolField(btn, "active", false);
+                        djWavExporting = true;   
                     new Thread(() -> {
                         try {
                             NbsToWavExporter.exportSong(song);   // → config/disc_jockey/wav/<名>.wav
                             minecraft.execute(() ->
                                     minecraft.gui.chatListener().handleSystemMessage(
-                                            Component.literal("O.K."),
+                                            Component.translatable("disc_jockey.lit.fee4b4a9c4"),
                                             false
                                     )
                             );
@@ -694,18 +843,18 @@ public class DiscJockeyScreen extends Screen {
                             Main.LOGGER.error("WAV export failed", ex);
                             minecraft.execute(() ->
                                     minecraft.gui.chatListener().handleSystemMessage(
-                                            Component.literal("Try again"),
+                                            Component.translatable("disc_jockey.lit.f915a95e60"),
                                             false
                                     )
                             );
                         } finally {
-                            minecraft.execute(() -> setBoolField(btn, "active", true));  
+                            minecraft.execute(() -> djWavExporting = false);  
                         }
                     }, "DJ-WAV-Export").start();
                 }
         ).pos(115, height - 55).size(100, 20).build();
         addRenderableWidget(exportWavButton);
-        Button editButton = Button.builder(
+        editButton = Button.builder(
                 Component.translatable("disc_jockey.screen.edit"),
                 btn -> {
                     SongListWidget.SongEntry e = songListWidget.getSelected();
@@ -784,7 +933,7 @@ public class DiscJockeyScreen extends Screen {
 
         
         Button pianoButton = Button.builder(
-                Component.literal("🎹 🎶→"),
+                Component.translatable("disc_jockey.lit.5bf43f5717"),
                 btn -> {
                     try {
                         PianoKeyboardScreen piano = new PianoKeyboardScreen(this);
@@ -793,11 +942,11 @@ public class DiscJockeyScreen extends Screen {
                         Main.LOGGER.error("Failed to open Piano Keyboard screen", t);
                     }
                 }
-        ).pos(325, height - 30).size(100, 20).build();
+        ).pos(115, height - 30).size(100, 20).build();
         addRenderableWidget(pianoButton);
 
         
-        Button importMidiButton = Button.builder(
+        importMidiButton = Button.builder(
                 Component.translatable("disc_jockey.screen.import_midi"),
                 btn -> {
                     try {
@@ -806,7 +955,7 @@ public class DiscJockeyScreen extends Screen {
                     } catch (Throwable t) {
                         Main.LOGGER.error("Failed to open MIDI selector screen", t);
                         minecraft.gui.chatListener().handleSystemMessage(
-                                Component.literal("§c[DiscJockey] 无法打开 MIDI 选择界面：")
+                                Component.translatable("disc_jockey.lit.8bb43f9c2d")
                                         .append(t.getMessage()),
                                 false
                         );
@@ -823,7 +972,7 @@ public class DiscJockeyScreen extends Screen {
             displayPath = "..." + displayPath.substring(displayPath.length() - 23);
         }
 
-        StringWidget midiPathHint = new StringWidget(
+        midiPathHint = new StringWidget(
                 width - 110,
                 27,
                 100,
@@ -836,6 +985,19 @@ public class DiscJockeyScreen extends Screen {
         setBoolField(midiPathHint, "visible", true);
         midiPathHint.setTooltip(Tooltip.create(Component.literal(fullPath)));
         addRenderableWidget(midiPathHint);
+
+        // DJ_GUI2: 两个折叠开关（不挪动任何原有坐标）
+        djLyricsPanelButton = Button.builder(
+                Component.translatable(djLyricsOpen ? "disc_jockey.screen.lyrics.panel.open2" : "disc_jockey.screen.lyrics.panel.open"),
+                b -> { djLyricsOpen = !djLyricsOpen; djRefreshControls(); })
+                .bounds(lx, ly - 22, 60, 20).build();   // DJ_GUI6: panel toggle directly above lyrics toggle
+        addRenderableWidget(djLyricsPanelButton);
+        djToolsPanelButton = Button.builder(
+                Component.translatable(djToolsOpen ? "disc_jockey.screen.tools.panel.open2" : "disc_jockey.screen.tools.panel.open"),
+                b -> { djToolsOpen = !djToolsOpen; djRefreshControls(); })
+                .bounds(75, 5, 60, 20).build();
+        addRenderableWidget(djToolsPanelButton);
+        djRefreshControls();
     }
 
     /**
@@ -1208,7 +1370,7 @@ public class DiscJockeyScreen extends Screen {
             int x = (width - w) / 2;
             for (int i = 0; i < fields.size(); i++) {
                 final int idx = i;
-                Button.Builder bb = Button.builder(Component.literal(""), btn -> cycleField(idx))
+                Button.Builder bb = Button.builder(Component.translatable("disc_jockey.lit.d41d8cd98f"), btn -> cycleField(idx))
                         .pos(x, 0).size(w, 20);
                 Tooltip tt = fieldTooltip(fields.get(i));
                 if (tt != null) bb.tooltip(tt);
@@ -1253,7 +1415,7 @@ public class DiscJockeyScreen extends Screen {
             }
             return Component.empty()
                     .append(fieldName(f))
-                    .append(Component.literal(" : "))
+                    .append(Component.translatable("disc_jockey.lit.f910c9ffb6"))
                     .append(Component.literal(val));
         }
 
@@ -1285,7 +1447,7 @@ public class DiscJockeyScreen extends Screen {
             for (String k : ks) {
                 if (hasKey(k)) return Component.translatable(k);
             }
-            return Component.literal("Disc Jockey Config");
+            return Component.translatable("disc_jockey.lit.8b327d6b13");
         }
 
         /** 字段显示名：优先 text.autoconfig.<modid>.option.<字段名> */
@@ -2459,11 +2621,13 @@ public class DiscJockeyScreen extends Screen {
         refreshOffsetDisplay();
         songState.setMessage(getPlaybackStateText());
         timeBar.update();
-        playPauseButton.setValue(Main.SONG_PLAYER.running);
+        Song djPv2 = Main.PREVIEWER.getInstance().getSong();
+        boolean djPv2Live = djPv2 != null && songNoteCount(djPv2) > 0;
+        playPauseButton.setValue(djPv2Live ? (Main.PREVIEWER.running && !Main.PREVIEWER.paused) : Main.SONG_PLAYER.running);
         Song song = null;
         if (Main.SONG_PLAYER.running) {
             song = Main.SONG_PLAYER.getSong();
-        } else if (Main.PREVIEWER.isRunning()) {
+        } else if (Main.PREVIEWER.isRunning() || Main.PREVIEWER.paused) {
             song = Main.PREVIEWER.getInstance().getSong();
         }
         songTitle.setMessage(
@@ -2487,7 +2651,7 @@ public class DiscJockeyScreen extends Screen {
 
         // ★ 不能只看 running：全局播放会把它置 true 以打开频谱闸门，
         //   必须同时判断 song != null，才算"真的在预览"。
-        boolean previewActive = Main.PREVIEWER.running
+        boolean previewActive = (Main.PREVIEWER.running || Main.PREVIEWER.paused)
                 && songNoteCount(Main.PREVIEWER.getInstance().getSong()) > 0
                 && !globalPlaying;
         previewButton.setMessage(previewActive ? PREVIEW_STOP : PREVIEW);

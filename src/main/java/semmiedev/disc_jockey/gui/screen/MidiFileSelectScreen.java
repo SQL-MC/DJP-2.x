@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey.gui.screen;
+// DJ_GUI23
 
 import semmiedev.disc_jockey.Main;
 import semmiedev.disc_jockey.MidiToNbsImporter;
@@ -27,7 +28,7 @@ public class MidiFileSelectScreen extends Screen {
     @Override
     protected void init() {
         this.addRenderableWidget(
-                Button.builder(Component.literal("← Back"), btn ->
+                Button.builder(Component.translatable("disc_jockey.lit.fa9309cd5b"), btn ->
                         Minecraft.getInstance().gui.setScreen(parent)
                 )
                         .bounds(10, 10, 80, 20)

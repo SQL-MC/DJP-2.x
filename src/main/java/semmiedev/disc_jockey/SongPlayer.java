@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey;
+// DJ_GUI23
 import net.minecraft.world.item.component.SwingAnimation;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
@@ -138,7 +139,7 @@ public class SongPlayer implements ClientTickEvents.StartLevelTick {
             Main.LOGGER.info("Sleep timer triggered — stopping");
             stop();
             Minecraft.getInstance().gui.chatListener().handleSystemMessage(
-                    Component.literal("⏰ 定时停止：已到时间，播放已停止"), false);
+                    Component.translatable("disc_jockey.lit.2567cc7e8e"), false);
             sleepEndTimeMs = -1;
         }
     }
