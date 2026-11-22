@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey.gui.screen;
+// DJ_GUI23
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -41,7 +42,7 @@ public class SongDetailScreen extends Screen {
     }
 
     public SongDetailScreen(Screen parent, Song song) {
-        super(Component.literal("Song Details"));
+        super(Component.translatable("disc_jockey.lit.acc60f122c"));
         this.parent = parent;
         this.song = song;
     }
@@ -84,7 +85,7 @@ public class SongDetailScreen extends Screen {
 
         int px = (width - PANEL_W) / 2;
         int py = (height - PANEL_H) / 2;
-        addRenderableWidget(Button.builder(Component.literal("Back"), b -> goBack())
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.0557fa923d"), b -> goBack())
                 .bounds(px + (PANEL_W - 100) / 2, py + PANEL_H - 32, 100, 20)
                 .build());
     }

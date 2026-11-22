@@ -108,6 +108,44 @@ public class Previewer implements Main.TickListener {
     }
 
     
+    /** DJ_GUI8: pause/resume/seek. running stays true while paused;
+        tickClient() is gated so tick/i freeze, but stop() still clears song. */
+    public static boolean paused = false;
+
+    public static void pause() {
+        if (INSTANCE.song == null) return;
+        paused = true;
+    }
+
+    public static void resume() {
+        if (INSTANCE.song == null) return;
+        paused = false;
+    }
+
+    /** Seek while previewing (works while paused too). */
+    /** DJ_GUI10: seek like playback - do NOT jump i to the target index.
+     *  Keeping i makes tickAndPlay() walk EVERY note between the old
+     *  position and t (sound + spectrum), like SongPlayer.tickPlayback().
+     *  Backward seeks rewind i so the passed notes are replayed too. */
+    public static void seekToSeconds(double seconds) {
+        Song s = INSTANCE.song;
+        if (s == null || s.notes == null || s.notes.length == 0) return;
+        double ms = seconds * 1000.0D;
+        if (ms < 0) ms = 0;
+        float t = (float) s.millisecondsToTicks((long) ms);
+        float old = INSTANCE.tick;
+        INSTANCE.tick = t;
+        if (t < old) INSTANCE.i = 0;
+        INSTANCE.lyricsNextIndex = 0;
+        if (s.lyrics != null) {
+            long songMillis = (long) (t / 20.0F * 1000);
+            while (INSTANCE.lyricsNextIndex < s.lyrics.size()
+                    && s.lyrics.line(INSTANCE.lyricsNextIndex).timeMs() <= songMillis) {
+                INSTANCE.lyricsNextIndex++;
+            }
+        }
+    }
+
     public static void start(Song song) {
         if (song == null || song.notes == null || song.notes.length == 0) {
             LOGGER.warn("[DJ] Preview start rejected: song null or empty");
@@ -134,6 +172,7 @@ public class Previewer implements Main.TickListener {
             INSTANCE.prevWorld = null; 
         }
 
+        paused = false;
         running = true;
     }
 
@@ -143,6 +182,7 @@ public class Previewer implements Main.TickListener {
 
         LOGGER.info("[DJ] Preview stop");
         running = false;
+        paused = false;
         INSTANCE.i = 0;
         INSTANCE.tick = 0.0F;
         INSTANCE.song = null;
@@ -188,12 +228,17 @@ public class Previewer implements Main.TickListener {
 
     
     private void tickAndPlay(ClientLevel world) {
-        if (!running) return;
+        if (!running || paused) return;
         if (song == null || getNoteCount() == 0) return;
 
         
         advanceLyrics();
 
+        if (i >= getNoteCount()) {
+            if (!loopPreview) { stop(); }
+            else { this.i = 0; this.tick = 0.0F; this.lyricsNextIndex = 0; }
+            return;
+        }
         while (i < getNoteCount()) {
             long note = getNote(i);
 
@@ -369,7 +414,7 @@ public class Previewer implements Main.TickListener {
     }
 
     public static void tickClient() {
-        if (!running) return;
+        if (!running || paused) return;
         INSTANCE.tickAndPlay(Minecraft.getInstance().level);
     }
 }

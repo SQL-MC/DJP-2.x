@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey;
+// DJ_GUI23
 
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -61,7 +62,7 @@ import java.util.function.Supplier;
 @Mod(Main.MOD_ID)
 public class Main {
     public static final String MOD_ID = "disc_jockey";
-    public static final Component NAME = Component.literal("Disc Jockey");
+    public static final Component NAME = Component.translatable("disc_jockey.lit.6aa95a749d");
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
@@ -155,7 +156,7 @@ public class Main {
         boolean isPause = scr instanceof net.minecraft.client.gui.screens.PauseScreen;
         if (!isTitle && !isPause) return;
 
-        event.addListener(Button.builder(Component.literal("🎵 Disc Jockey"),
+        event.addListener(Button.builder(Component.translatable("disc_jockey.lit.42d5c49be9"),
                 b -> Main.setScreenCompatStatic(net.minecraft.client.Minecraft.getInstance(),
                         new semmiedev.disc_jockey.gui.screen.DiscJockeyScreen(null)))
                 .pos(10, 10).size(100, 20).build());
@@ -316,7 +317,7 @@ public class Main {
         if (!sentWelcome) {
             sentWelcome = true;
             sendSystemMessage(client,
-                    Component.literal("§a[Disc Jockey] §fPress §eJ §fto open Music Console"), false);
+                    Component.translatable("disc_jockey.lit.75277de896"), false);
         }
 
         if (openScreenKeyBind != null && openScreenKeyBind.consumeClick()) {

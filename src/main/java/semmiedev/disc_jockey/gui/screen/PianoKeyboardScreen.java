@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey.gui.screen;
+// DJ_GUI23
 
 
 
@@ -222,7 +223,7 @@ public class PianoKeyboardScreen extends Screen {
     private java.util.List<java.io.File> midiFiles = new java.util.ArrayList<>();
     private int midiFileIndex = 0;
     public PianoKeyboardScreen(Screen parent) {
-        super(Component.literal("[Disc Jockey] Piano"));
+        super(Component.translatable("disc_jockey.lit.3ad5e92d6b"));
         this.parent = parent;
     }
 
@@ -668,15 +669,15 @@ public class PianoKeyboardScreen extends Screen {
             int rx = width - 10;
 
             sndBtn = Button.builder(
-                    Component.literal(broadcast ? "\uD83D\uDD0A" : "\uD83D\uDD08"),
+                    Component.translatable(broadcast ? "disc_jockey.lit.7208c56c2a" : "disc_jockey.lit.7a3df366c5"),
                     b -> {
-                        if (broadcast) { broadcast = false; b.setMessage(Component.literal("\uD83D\uDD08")); }
-                        else if (isSurvival()) { broadcast = true; b.setMessage(Component.literal("\uD83D\uDD0A")); }
+                        if (broadcast) { broadcast = false; b.setMessage(Component.translatable("disc_jockey.lit.7a3df366c5")); }
+                        else if (isSurvival()) { broadcast = true; b.setMessage(Component.translatable("disc_jockey.lit.7208c56c2a")); }
                     })
                 .pos(rx - TS*2 - 4, TY).size(TS, TS).build();
             addRenderableWidget(sndBtn);
 
-            addRenderableWidget(Button.builder(Component.literal("X"), b -> {
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.02129bb861"), b -> {
                 if (MIDI_REC.isRecording()) {
                     String path = getRecordingsDir() + "/piano_" + System.currentTimeMillis() + ".mid";
                     boolean ok = MIDI_REC.stopAndSave(path);
@@ -687,17 +688,17 @@ public class PianoKeyboardScreen extends Screen {
             }).pos(rx - TS, TY).size(TS, TS).build());
 
             recBtn = Button.builder(
-                    Component.literal(MIDI_REC.isRecording() ? "\u25CF STOP" : "\u25CF REC"),
+                    Component.translatable(MIDI_REC.isRecording() ? "disc_jockey.lit.c1ce73173b" : "disc_jockey.lit.39e87cc5c4"),
                     b -> {
                         if (MIDI_REC.isRecording()) {
                             String path = getRecordingsDir() + "/piano_" + System.currentTimeMillis() + ".mid";
                             boolean ok = MIDI_REC.stopAndSave(path);
                             System.out.println("[DJ] MIDI save=" + ok + " path=" + path);
-                            b.setMessage(Component.literal("\u25CF REC"));
+                            b.setMessage(Component.translatable("disc_jockey.lit.39e87cc5c4"));
                         } else {
                             MIDI_REC.start();
                             System.out.println("[DJ] MIDI recording START");
-                            b.setMessage(Component.literal("\u25CF STOP"));
+                            b.setMessage(Component.translatable("disc_jockey.lit.c1ce73173b"));
                         }
                         updateRecBtnColor(b);
                     })
@@ -708,7 +709,7 @@ public class PianoKeyboardScreen extends Screen {
             if (midiFileIndex >= midiFiles.size()) midiFileIndex = 0;
 
             playMidiButton = Button.builder(
-                    Component.literal(MIDI_PLAY.isPlaying() ? "■ STOP" : "▶ PLAY"),
+                    Component.translatable(MIDI_PLAY.isPlaying() ? "disc_jockey.lit.30447dd8ad" : "disc_jockey.lit.eb162f728f"),
                     b -> {
                         if (MIDI_PLAY.isPlaying()) { stopMidiUI(); return; }
                         if (midiFiles.isEmpty()) {
@@ -718,7 +719,7 @@ public class PianoKeyboardScreen extends Screen {
                             return;
                         }
                         if (MIDI_PLAY.start(midiFiles.get(midiFileIndex))) {
-                            b.setMessage(Component.literal("■ STOP"));
+                            b.setMessage(Component.translatable("disc_jockey.lit.30447dd8ad"));
                         }
                     })
                     .pos(REC_BTN_X + REC_BTN_W + 4, REC_BTN_Y)
@@ -782,23 +783,23 @@ public class PianoKeyboardScreen extends Screen {
                     .size(REC_NBS_W, REC_BTN_H).build();
             addRenderableWidget(recNbsBtn);
 
-            addRenderableWidget(Button.builder(Component.literal("[-]"), b -> addDisp(-1)).pos(KX, BY).size(ICON, ICON).build());
-            addRenderableWidget(Button.builder(Component.literal("[+]"), b -> addDisp(+1)).pos(KX+ICON+4, BY).size(ICON, ICON).build());
-            addRenderableWidget(Button.builder(Component.literal("C4"), b -> setDisp(4)).pos(KX+(ICON+4)*2, BY).size(ICON*2, ICON).build());
-            addRenderableWidget(Button.builder(Component.literal("CLR"), b -> history.clear()).pos(KX+(ICON+4)*4, BY).size(ICON, ICON).build());
-            addRenderableWidget(Button.builder(Component.literal("SCN"), b -> { nbCache.clear(); nbReady=false; scanNB(); }).pos(KX+(ICON+4)*5+ICON, BY).size(ICON, ICON).build());
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.f8c156e595"), b -> addDisp(-1)).pos(KX, BY).size(ICON, ICON).build());
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.5610501925"), b -> addDisp(+1)).pos(KX+ICON+4, BY).size(ICON, ICON).build());
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.b713e6323a"), b -> setDisp(4)).pos(KX+(ICON+4)*2, BY).size(ICON*2, ICON).build());
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.d22bcc369c"), b -> history.clear()).pos(KX+(ICON+4)*4, BY).size(ICON, ICON).build());
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.6ee47cc450"), b -> { nbCache.clear(); nbReady=false; scanNB(); }).pos(KX+(ICON+4)*5+ICON, BY).size(ICON, ICON).build());
 
             // ==================== \u5f55\u5236\u81ea\u5b9a\u4e49\uff1a\u534a\u5f84(\u76f4\u63a5\u8f93\u5165) / \u901f\u5ea6 / \u6587\u4ef6\u540d ====================
             // \u534a\u5f84\u8303\u56f4 1..64\uff1a\u53ef\u70b9 - / + \u5fae\u8c03\uff0c\u4e5f\u53ef\u5728\u6846\u91cc\u76f4\u63a5\u952e\u5165\u4efb\u610f\u503c
             int rx0 = KX + (ICON+4)*5 + ICON + (ICON+4);
 
-            addRenderableWidget(Button.builder(Component.literal("-"), b -> {
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.336d5ebc54"), b -> {
                 NbsRecorder.setRadius(NbsRecorder.getRadius() - 1);
                 syncRecControls();
             }).pos(rx0, BY).size(ICON, ICON).build());
 
             recRadiusBox = new EditBox(font, rx0 + ICON + 4, BY + 2, 40, 18,
-                    Component.literal("R"));
+                    Component.translatable("disc_jockey.lit.e1e1d3d405"));
             recRadiusBox.setMaxLength(3);
             recRadiusBox.setValue(String.valueOf(NbsRecorder.getRadius()));
             recRadiusBox.setResponder(t -> {
@@ -808,29 +809,29 @@ public class PianoKeyboardScreen extends Screen {
             });
             addRenderableWidget(recRadiusBox);
 
-            addRenderableWidget(Button.builder(Component.literal("+"), b -> {
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.26b17225b6"), b -> {
                 NbsRecorder.setRadius(NbsRecorder.getRadius() + 1);
                 syncRecControls();
             }).pos(rx0 + ICON + 4 + 40 + 4, BY).size(ICON, ICON).build());
 
             // \u901f\u5ea6\uff08\u5f55\u5236\u65f6\u9501\u5b9a\uff0c\u4e2d\u9014\u6539\u53ea\u5f71\u54cd\u4e0b\u4e00\u6bb5\uff09
             int tx0 = rx0 + ICON + 4 + 40 + 4 + ICON + 8;
-            addRenderableWidget(Button.builder(Component.literal("<"), b -> stepTempo(-1))
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.524a507821"), b -> stepTempo(-1))
                     .pos(tx0, BY).size(ICON, ICON).build());
 
             recTempoBtn = Button.builder(Component.literal(tempoLabel()), b -> { })
                     .pos(tx0 + ICON + 4, BY).size(64, ICON).build();
             addRenderableWidget(recTempoBtn);
 
-            addRenderableWidget(Button.builder(Component.literal(">"), b -> stepTempo(+1))
+            addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.cedf8da054"), b -> stepTempo(+1))
                     .pos(tx0 + ICON + 4 + 64 + 4, BY).size(ICON, ICON).build());
 
             // \u6587\u4ef6\u540d\uff08\u7559\u7a7a = \u65f6\u95f4\u6233\uff09
             int nx0 = tx0 + ICON + 4 + 64 + 4 + ICON + 8;
             recNameBox = new EditBox(font, nx0, BY + 2, 140, 18,
-                    Component.literal("Name"));
+                    Component.translatable("disc_jockey.lit.49ee308734"));
             recNameBox.setMaxLength(64);
-            recNameBox.setHint(Component.literal("\u6587\u4ef6\u540d(\u7a7a=\u65f6\u95f4\u6233)"));
+            recNameBox.setHint(Component.translatable("disc_jockey.lit.47fe9ffb2f"));
             String cn0 = NbsRecorder.getCustomName();
             recNameBox.setValue(cn0 == null ? "" : cn0);
             recNameBox.setResponder(t -> NbsRecorder.setCustomName(t));
@@ -889,9 +890,9 @@ public class PianoKeyboardScreen extends Screen {
     private void updateRecBtnColor(Button b) {
         if (b == null) return;
         if (MIDI_REC.isRecording()) {
-            b.setMessage(Component.literal("\u25CF STOP").copy().withStyle(s -> s.withColor(0xFFFF2222)));
+            b.setMessage(Component.translatable("disc_jockey.lit.c1ce73173b").copy().withStyle(s -> s.withColor(0xFFFF2222)));
         } else {
-            b.setMessage(Component.literal("\u25CF REC").copy().withStyle(s -> s.withColor(0xFFAAAAAA)));
+            b.setMessage(Component.translatable("disc_jockey.lit.39e87cc5c4").copy().withStyle(s -> s.withColor(0xFFAAAAAA)));
         }
     }
 
@@ -1125,8 +1126,8 @@ public class PianoKeyboardScreen extends Screen {
         try {
             super.extractRenderState(c, mx, my, d);
 
-            c.text(font, Component.literal("[Disc Jockey] Piano \u2014 PianoLib 88-key (A0~C8)"),
-                width/2 - font.width(Component.literal("[Disc Jockey] Piano \u2014 PianoLib 88-key (A0~C8)"))/2, 20, 0xFFFFFFFF, false);
+            c.text(font, Component.translatable("disc_jockey.lit.23e0004c72"),
+                width/2 - font.width(Component.translatable("disc_jockey.lit.23e0004c72"))/2, 20, 0xFFFFFFFF, false);
 
             int aNoteId = 0 + shift * 12;
             String ot = "OCTAVE: +" + getDisp() + "(int " + shift + ") | A-KEY: " + nameOfId(aNoteId) + " | Range: A0 ~ C8";
@@ -1183,7 +1184,7 @@ public class PianoKeyboardScreen extends Screen {
             c.fill(lx, RY, lx+2, RY+rh, 0x66FF4444);
         }
 
-        c.text(font, Component.literal("Piano Roll (A-2~C8)"), KX, RY-14, 0x88FFFFFF, false);
+        c.text(font, Component.translatable("disc_jockey.lit.0e36e46a04"), KX, RY-14, 0x88FFFFFF, false);
     }
 
     private void drawKeys(GuiGraphicsExtractor c) {
@@ -1308,8 +1309,8 @@ public class PianoKeyboardScreen extends Screen {
             int barW = 200;
             int barX = width/2 - barW/2;
             c.fill(barX, 4, barX + barW, 6, (alpha<<24)|0xFFFF2222);
-            c.text(font, Component.literal("\u25CF RECORDING MIDI \u2014 Sustain+Reverb+ADSR"),
-                barX + barW/2 - font.width(Component.literal("\u25CF RECORDING MIDI \u2014 Sustain+Reverb+ADSR"))/2,
+            c.text(font, Component.translatable("disc_jockey.lit.71925ab012"),
+                barX + barW/2 - font.width(Component.translatable("disc_jockey.lit.71925ab012"))/2,
                 8, 0xFFFF2222, false);
         }
     }
@@ -1721,7 +1722,7 @@ public class PianoKeyboardScreen extends Screen {
     private void stopMidiUI() {
         MIDI_PLAY.stop();
         pressed.clear();
-        if (playMidiButton != null) playMidiButton.setMessage(Component.literal("▶ PLAY"));
+        if (playMidiButton != null) playMidiButton.setMessage(Component.translatable("disc_jockey.lit.eb162f728f"));
     }
 
     @Override

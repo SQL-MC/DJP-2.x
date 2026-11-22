@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey;
+// DJ_GUI23
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -52,7 +53,7 @@ public class HotReloadSongs {
             Minecraft.getInstance().execute(() -> {
                 SongLoader.loadSongs();
                 Minecraft.getInstance().gui.chatListener().handleSystemMessage(
-                        Component.literal("§b[Disc Jockey] §f检测到歌曲变动，已刷新列表"),
+                        Component.translatable("disc_jockey.lit.3770878895"),
                         true
                 );
             });

@@ -1,4 +1,5 @@
 package semmiedev.disc_jockey.gui.screen;
+// DJ_GUI23
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.client.Minecraft;
@@ -666,17 +667,17 @@ public class NoteBlockEditScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("disc_jockey.editor.close"), b -> close()).pos(width - 24, 6).size(20, 18).build());
 
         int y2 = 30, bx = 6;
-        addRenderableWidget(Button.builder(Component.literal("◀"), b -> scrollTick = Math.max(0, scrollTick - visibleTicks() / 2)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.b79ca512b6"), b -> scrollTick = Math.max(0, scrollTick - visibleTicks() / 2)).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("▶"), b -> scrollTick += visibleTicks() / 2).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.dff521d468"), b -> scrollTick += visibleTicks() / 2).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("▲"), b -> scrollRow = Math.max(0, scrollRow - 4)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.7f691289a0"), b -> scrollRow = Math.max(0, scrollRow - 4)).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("▼"), b -> scrollRow = Math.min(Math.max(0, ROW_COUNT - visibleRows()), scrollRow + 4)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.af39817945"), b -> scrollRow = Math.min(Math.max(0, ROW_COUNT - visibleRows()), scrollRow + 4)).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("+"), b -> zoom = Math.min(4, zoom + 1)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.26b17225b6"), b -> zoom = Math.min(4, zoom + 1)).pos(bx, y2).size(18, 18).build());
         bx += 20;
-        addRenderableWidget(Button.builder(Component.literal("−"), b -> zoom = Math.max(0, zoom - 1)).pos(bx, y2).size(18, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.5499493768"), b -> zoom = Math.max(0, zoom - 1)).pos(bx, y2).size(18, 18).build());
         bx += 24;
 
         playButton = Button.builder(Component.translatable("disc_jockey.editor.play"), b -> {
@@ -736,7 +737,7 @@ public class NoteBlockEditScreen extends Screen {
 
         // ★ 自定义音色入口已挪到顶行右侧（见 close 按钮旁），此处不再占位
         // ★ 暂停 / 继播：暂停保留进度，继播时从原 tick 续播
-        pauseButton = Button.builder(Component.literal("\u6682\u505c"), b -> togglePause())
+        pauseButton = Button.builder(Component.translatable("disc_jockey.lit.8d63ef388e"), b -> togglePause())
                 .pos(bx, y2).size(30, 18).build();
         addRenderableWidget(pauseButton);
         bx += 32;
@@ -744,7 +745,7 @@ public class NoteBlockEditScreen extends Screen {
         preloadInstTextures();
         initInstSounds();
         initInstKeys();
-        addRenderableWidget(Button.builder(Component.literal("Pitch -"), b -> {
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.732956677b"), b -> {
             java.util.Set<String> ks = new java.util.HashSet<>();
             for (EditableNote r : selection) ks.add(r.tick + "/" + r.layer + "/" + r.noteId);
             selection.clear();
@@ -754,7 +755,7 @@ public class NoteBlockEditScreen extends Screen {
             transposeSelection(-1);
         }).pos(bx, y2).size(38, 18).build());
 
-        addRenderableWidget(Button.builder(Component.literal("Pitch +"), b -> {
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.09df6ee80b"), b -> {
             java.util.Set<String> ks = new java.util.HashSet<>();
             for (EditableNote r : selection) ks.add(r.tick + "/" + r.layer + "/" + r.noteId);
             selection.clear();
@@ -763,11 +764,11 @@ public class NoteBlockEditScreen extends Screen {
             }
             transposeSelection(1);
         }).pos(bx + 40, y2).size(38, 18).build());
-        addRenderableWidget(Button.builder(Component.literal("Redstone"), b -> {
+        addRenderableWidget(Button.builder(Component.translatable("disc_jockey.lit.c02e8a584c"), b -> {
             try {
                 packToSong();
                 java.io.File f = semmiedev.disc_jockey.RedstoneTrackExporter.exportSong(song);
-                showMsg(Component.literal("已铺成立方体音轨 · 石头按钮按一下重播")
+                showMsg(Component.translatable("disc_jockey.lit.c48396090f")
                         .withStyle(ChatFormatting.GREEN));
             } catch (Throwable t) {
                 showMsg(Component.literal("Redstone failed: " + t.getMessage())
@@ -1183,7 +1184,7 @@ public class NoteBlockEditScreen extends Screen {
         paused = false;
         playing = true;
         playButton.setMessage(Component.translatable("disc_jockey.editor.stop"));
-        if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
+        if (pauseButton != null) pauseButton.setMessage(Component.translatable("disc_jockey.lit.8d63ef388e"));
 
         playThread = new Thread(() -> {
             for (int t = from; t <= end && playing; t++) {
@@ -1205,7 +1206,7 @@ public class NoteBlockEditScreen extends Screen {
             playheadTick = -1;
             Minecraft.getInstance().execute(() -> {
                 playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
-                if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
+                if (pauseButton != null) pauseButton.setMessage(Component.translatable("disc_jockey.lit.8d63ef388e"));
             });
         }, "DJ-NBSEditor-Play");
         playThread.start();
@@ -1217,7 +1218,7 @@ public class NoteBlockEditScreen extends Screen {
         playheadTick = -1;
         if (playThread != null) { playThread.interrupt(); playThread = null; }
         if (playButton != null) playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
-        if (pauseButton != null) pauseButton.setMessage(Component.literal("\u6682\u505c"));
+        if (pauseButton != null) pauseButton.setMessage(Component.translatable("disc_jockey.lit.8d63ef388e"));
     }
 
     /** 暂停 / 继播：与顶部「暂停」按钮、空格键共用一套逻辑 */
@@ -1227,7 +1228,7 @@ public class NoteBlockEditScreen extends Screen {
             playing = false;
             if (playThread != null) { playThread.interrupt(); playThread = null; }
             if (playButton != null) playButton.setMessage(Component.translatable("disc_jockey.editor.play"));
-            if (pauseButton != null) pauseButton.setMessage(Component.literal("\u7ee7\u64ad"));
+            if (pauseButton != null) pauseButton.setMessage(Component.translatable("disc_jockey.lit.55f64f594b"));
             System.out.println("[DJ-EDIT] PAUSE @ tick " + playheadTick);
         } else {
             int at = (playheadTick > 0) ? playheadTick : 0;
